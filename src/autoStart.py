@@ -1,114 +1,120 @@
 import socket
 from settings import Settings
-from palWorldControl import isPalWorldProcessRunning, startServer
+from palWorldControl import PalWorldController
 import logging
 import threading
 import traceback
+from typing import Optional
 
-sock = None
-isBreak = False
+class AutoStartManager:
+    def __init__(self, palworld_controller: Optional[PalWorldController]):
+        self.controller: Optional[PalWorldController] = palworld_controller
+        self.sock = None
+        self.is_break = False
 
-# check PalWorld server port is available
-def isPortAvailable(port):
-    try:
-        test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        test_socket.bind(("localhost", port))
-        test_socket.close()
-        return True
-    except OSError:
-        return False
+    def is_port_available(self, port):
+        """Check if PalWorld server port is available."""
+        try:
+            test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_socket.bind(("localhost", port))
+            test_socket.close()
+            return True
+        except OSError:
+            return False
 
+    def open_palworld_port_socket(self):
+        """Open socket before listen."""
+        try:
+            # Ensures any previously opened socket is closed before opening a new one.
+            self.close_palworld_port_socket()
+            
+            self.is_break = False
+            palworld_server_ip = Settings.palworldServerIP
+            palworld_server_port = Settings.palworldServerPort
+            
+            logging.info(f"Listening on port {palworld_server_port} for PalWorld connection attempts.")
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.sock.bind((palworld_server_ip, palworld_server_port))
+            return True
+        except Exception as e:
+            logging.error(f"Error opening PalWorld port socket: {e}")
+            logging.error(traceback.format_exc())
+            self.is_break = True
+            return False
 
-# open socket before listen
-def openPalworldPortSocket():
-    try:
-        global sock, isBreak
+    def close_palworld_port_socket(self):
+        """Close socket."""
+        logging.info("Closing PalWorld port socket")
+        self.is_break = True
+        try:
+            if self.sock is None:
+                return
+            
+            self.sock.close()
+            self.sock = None
+            return True
+        except Exception as e:
+            logging.error(f"Error closing PalWorld port socket: {e}")
+            logging.error(traceback.format_exc())
+            self.sock = None
+            return False
 
-        # close before open
-        closePalworldPortSocket()
-        
-        isBreak = False
-        palworldServerIP = Settings.palworldServerIP
-        palworldServerPort = Settings.palworldServerPort
-        
-        logging.info(f"To detect attempts to connect to the PalWorld Server, open the port {palworldServerPort}.")
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind((palworldServerIP, palworldServerPort))
-        return True
-    except Exception as e:
-        logging.error(f"Error from openPalworldPortSocket: {e}")
-        logging.error(traceback.format_exc())
-        isBreak = True
-        return False
+    def listen_palworld_access_core(self):
+        """Listen from PalWorld server port."""
+        if self.controller is None or self.controller.is_palworld_process_running():
+            return
 
-
-# close socket
-def closePalworldPortSocket():
-    logging.info("closePalworldPortSocket")
-    global sock, isBreak
-    isBreak = True
-    try:
-        if sock is None:
+        if not self.is_port_available(Settings.palworldServerPort):
+            logging.info(f"Port {Settings.palworldServerPort} is already in use. Assuming Palworld server is already running. Skipping listener.")
             return
         
-        sock.close()
-        sock = None
-        return True
-    except Exception as e:
-        logging.error(f"Error from closePalworldPortSocket: {e}")
-        logging.error(traceback.format_exc())
-        sock = None
-        return False
+        if not self.open_palworld_port_socket():
+            logging.error(f"Unable to open a socket to wait for the Palworld connection packet.")
+            return
 
+        is_server_started = False
 
-# listen from PalWorld server port
-def listenPalworldAccessCore():
-    if isPalWorldProcessRunning():
-        return
+        while True:
+            try:
+                if self.is_break:
+                    self.close_palworld_port_socket()
+                    break
 
-    if not isPortAvailable(Settings.palworldServerPort):
-        logging.error(f"Palworld process is not running, but cannot open port {Settings.palworldServerPort}")
-        return
-    
-    if not openPalworldPortSocket():
-        logging.error(f"Unable to open a socket to wait for the Palworld connection packet.")
-        return
+                if self.sock is None:
+                    break
 
-    logging.info("Detecting attempts to connect to the PalWorld Server.")
+                data, addr = self.sock.recvfrom(1024)
+                hex_data = " ".join(format(byte, "02X") for byte in data)
 
-    isServerStarted = False
+                if data.startswith(Settings.firstPacketPattern):
+                    logging.info(f"[LISTEN_PALWORLD_PORT][DETECTED] {addr}: {hex_data}")
+                    logging.info("A packet corresponding to a connection attempt has been detected. Attempting to start the server.")
+                    is_server_started = True
+                    break
+                else:
+                    logging.info(f"[LISTEN_PALWORLD_PORT][IGNORED] {addr}: {hex_data}")
+            except OSError as e:
+                # Silently ignore WinError 10038 (not a socket)
+                if hasattr(e, 'winerror') and e.winerror == 10038:
+                    pass
+                else:
+                    logging.error(f"OSError in listen_palworld_access_core: {e}")
+                    logging.error(traceback.format_exc())
+            except Exception as e:
+                logging.error(f"Error in listen_palworld_access_core: {e}")
+                logging.error(traceback.format_exc())
+                
+        if is_server_started:
+            self.close_palworld_port_socket()
+            if self.controller is not None:
+                self.controller.start_server()
 
-    while True:
-        try:
-            if isBreak:
-                closePalworldPortSocket()
-                break
+    def listen_palworld_access(self):
+        """Start listening for PalWorld access."""
+        logging.debug("Start listen_palworld_access")
 
-            data, addr = sock.recvfrom(1024)
-            hex_data = " ".join(format(byte, "02X") for byte in data)
+        thread = threading.Thread(target=self.listen_palworld_access_core)
+        thread.daemon = True  # Make thread daemon so it exits when main process exits
+        thread.start()
 
-            if data.startswith(Settings.firstPacketPattern):
-                logging.info(f"[LISTEN_PALWORLD_PORT][DETECTED] {addr}: {hex_data}")
-                logging.info("A packet corresponding to a connection attempt has been detected. Attempting to start the server.")
-                isServerStarted = True
-                break
-            else:
-                logging.info(f"[LISTEN_PALWORLD_PORT][IGNORED] {addr}: {hex_data}")
-        except UnicodeDecodeError as e:
-            print(f"Error decoding data from {addr}: {e}")
-        except Exception as e:
-            logging.error(f"Error from listenPalworldAccessCore: {e}")
-            logging.error(traceback.format_exc())
-            
-    if isServerStarted:
-        closePalworldPortSocket()
-        startServer()
-
-
-def listenPalworldAccess():
-    logging.info("Start listenPalworldAccess")
-
-    thread = threading.Thread(target=listenPalworldAccessCore)
-    thread.start()
-
-    #TODO:If the server did not start successfully, reconnect the socket after a certain period of time.
+        #TODO: If the server did not start successfully, reconnect the socket after a certain period of time.

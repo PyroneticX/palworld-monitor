@@ -76,12 +76,43 @@ For the `palworldExePath`, enter the path to `{PalServerPath}\PalServer\PalServe
     "useAutoStart": true,                   // when user try to access, start the server automatically
 
     // Auto Stop
-    "useAutoStop": true,                    // if True && there is are no players online, server will automatically stop
+    "useAutoStop": true,                    // if True && there are no players online, server will automatically stop
     "ServerAutoStopSeconds": 600.0,         // the server will automatically stop after ServerAutoStopSeconds seconds.
     "ServerAutoStopCheckInterval": 10.0,    // AutoStop event is checked every ServerAutoStopCheckInterval seconds.
-    "palworldMainProcessName": "PalServer-Win64-Shipping-Cmd.exe"    // don't change, if there is no problem
+    "palworldMainProcessName": "PalServer-Win64-Shipping-Cmd.exe",    // don't change, if there is no problem
+    "enablePlayerTracking": true,
+    "playerDataBackupInterval": 3600,
+    "playerDataMaxBackups": 24,
+    "enableAutoBackupRestoration": true
 }
 ```
+
+### Player Data Backup and Recovery
+
+The system includes automatic backup and recovery features for player data:
+
+- **Automatic Backups**: Player data is automatically backed up every hour (configurable via `playerDataBackupInterval`)
+- **Backup Retention**: Keeps up to 24 hours of backups (configurable via `playerDataMaxBackups`)
+- **Automatic Recovery**: If the player data file becomes corrupted, the system automatically restores from the latest backup
+- **Manual Recovery**: Administrators can manually restore from any available backup using the provided methods
+
+#### Backup Settings
+
+```json
+{
+    "playerDataBackupInterval": 3600,        // Backup interval in seconds (default: 1 hour)
+    "playerDataMaxBackups": 24,              // Maximum number of backups to keep (default: 24)
+    "enableAutoBackupRestoration": true      // Enable automatic restoration from backup (default: true)
+}
+```
+
+#### Backup Management
+
+The system provides backup management through the PlayerManager class:
+- Automatic backup creation during data saves
+- Automatic restoration when corruption is detected
+- Manual restoration methods for administrative use
+- Backup cleanup to maintain storage limits
 
 ### Run main.py
 
@@ -124,6 +155,21 @@ def _read(self, length):
 1. It checks the number of players currently on the server through RCON (`ShowPlayers` command).
 2. If the number of players is 0, it uses RCON to gracefully shut down the server with the `Shutdown` command.
 
+### Automatic Backup Restoration
+
+1. When the player data file (`recent_players.json`) becomes corrupted or unreadable, the system automatically detects the issue.
+2. If automatic backup restoration is enabled (`enableAutoBackupRestoration: true`), the system attempts to restore from the latest available backup.
+3. **Single Attempt Limit**: The system only attempts restoration once per session to prevent infinite loops. If restoration fails after one attempt, it starts with empty player data.
+4. **Recursive Recovery**: If restoration is successful, the system recursively reloads the data to ensure it's valid.
+5. **Manual Override**: Administrators can manually trigger additional restoration attempts using the PlayerManager methods.
+
+#### Restoration Behavior
+
+- **Automatic Restoration**: Limited to 1 attempt per session to prevent infinite loops
+- **Manual Restoration**: Can be triggered multiple times using PlayerManager methods
+- **Force Reload**: Available for administrative use to reset the restoration attempt counter
+- **Graceful Degradation**: Falls back to empty data if no backups are available
+
 ## Future Works
 
 Timing uncertain:
@@ -132,10 +178,17 @@ Timing uncertain:
 - Support for pip install
 - Beautify the Admin page
 - Automatically restart the server at regular intervals. Notify in advance through server messages before restarting.
-- Auto backup
 - IP Blacklist
 
 ## Change Logs
+
+### 0.0.3 (2024-12-19)
+
+- Added automatic backup restoration functionality
+- Added web interface for backup management
+- Added corruption detection for player data files
+- Added manual backup restoration capabilities
+- Added comprehensive error handling for data file issues
 
 ### 0.0.2 (2024-02-03)
 

@@ -1,16 +1,22 @@
 import json
 import logging
 import traceback
+import os
+import winreg
 
 class settings:
     def __init__(self):
         # PalWorld
         self.palworldExePath = r"C:\steamcmd\steamapps\common\PalServer\PalServer.exe"
+        self.palworldExeArguments = ""
         self.palworldServerIP = "0.0.0.0"
         self.palworldServerPort = 8211
+        self.palworldRESTHost = "localhost"
+        self.palworldRESTPort = 8212
         self.palworldRCONHost = "localhost"
         self.palworldRCONPort = 25575
         self.palworldAdminPassword = "topSecretPassword"
+        self.protocol = "REST"
 
         # Web Server
         self.useWebServer = True
@@ -28,11 +34,18 @@ class settings:
         # Auto Stop
         self.useAutoStop = True
         self.ServerAutoStopSeconds = 600.0
-        self.ServerAutoStopCheckInterval = 10.0
+        self.ServerAutoStopCheckInterval = 30.0
+        self.ServerAutoStopMessage = "Server is shutting down"
 
         # Advanced
         self.palworldMainProcessName = "PalServer-Win64-Test-Cmd.exe"
         self.firstPacketPattern = b'\x09\x08\x00'   # 09 08 00 04 98 5D F6 7E
+        self.enablePlayerTracking = True
+        
+        # Player Data Backup
+        self.playerDataBackupInterval = 3600  # 1 hour in seconds
+        self.playerDataMaxBackups = 24  # Keep 24 hours of backups
+        self.enableAutoBackupRestoration = True  # Automatically restore from backup if file is damaged
 
 Settings = settings();
 
@@ -46,6 +59,8 @@ def readSettings(file_path):
             # Update settings in the instance if keys exist in the JSON file
             for key, value in json_data.items():
                 if hasattr(Settings, key):
+                    setattr(Settings, key, value)
+                else:
                     setattr(Settings, key, value)
             print("Settings loaded successfully.")
     except FileNotFoundError:

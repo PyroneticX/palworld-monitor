@@ -76,7 +76,7 @@ pip install flask psutil schedule git+https://github.com/ttk1/py-rcon.git
     "useAutoStart": true,                   // when user try to access, start the server automatically
 
     // Auto Stop
-    "useAutoStop": true,                    // if True && there is are no players online, server will automatically stop
+    "useAutoStop": true,                    // if True && there are no players online, server will automatically stop
     "ServerAutoStopSeconds": 600.0,         // the server will automatically stop after ServerAutoStopSeconds seconds.
     "ServerAutoStopCheckInterval": 10.0,    // AutoStop event is checked every ServerAutoStopCheckInterval seconds.
     "palworldMainProcessName": "PalServer-Win64-Shipping-Cmd.exe"    // don't change, if there is no problem
