@@ -11,7 +11,7 @@ from backupManager import BackupManager
 class PlayerManager:
     """Manages player data persistence and online status tracking."""
     
-    def __init__(self, data_file="recent_players.json"):
+    def __init__(self, data_file="data/recent_players.json"):
         self.data_file = data_file
         self.players_data = self._load_players_data()
         self.backup_manager = BackupManager(
