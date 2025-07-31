@@ -95,6 +95,31 @@ h2 { font-size: 30px; margin-bottom: 5px }
     background-color: var(--button-hover);
 }
 
+.player-entry.online {
+    border-left: 3px solid #27c93f;
+}
+
+.player-entry.offline {
+    border-left: 3px solid #ff3b30;
+    opacity: 0.8;
+}
+
+.player-entry.offline:hover {
+    opacity: 1;
+}
+
+.player-status {
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.last-online {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.65rem;
+    margin-left: auto;
+}
+
 .online-indicator {
   display: inline-block;
   width: 1.2rem;

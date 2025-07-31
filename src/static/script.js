@@ -133,49 +133,72 @@ function updateAutoShutdownUI(data, response) {
 }
 
 function updatePlayerInfoUI(data, response) {
-    // const playerCountElement = document.getElementById("playerCount");
     const playersInfoElement = document.getElementById("playersInfo");
-    // const totalPlayerCountElement = document.getElementById("totalPlayerCount");
+    const offlinePlayersInfoElement = document.getElementById("offlinePlayersInfo");
     
-    // if (playerCountElement) playerCountElement.textContent = String(data.playerCount);
-    // if (totalPlayerCountElement) totalPlayerCountElement.textContent = String(response.total_player_count || 0);
-    
-    // Combine current online players and persistent player list
-    if (response.all_players && response.all_players.length > 0) {
-        let combinedPlayerList = "";
+    // Display online players
+    if (response.online_players && response.online_players.length > 0) {
+        let onlinePlayerList = "";
         
-        // Sort players: online first, then by level (highest to lowest), then alphabetically
-        const sortedPlayers = response.all_players.sort((a, b) => {
-            // First priority: online status (online players first)
-            if (a.currently_online && !b.currently_online) return -1;
-            if (!a.currently_online && b.currently_online) return 1;
+        // Sort online players by level (highest to lowest), then alphabetically
+        const sortedOnlinePlayers = response.online_players.sort((a, b) => {
+            // First priority: level (highest to lowest)
+            const levelA = parseInt(a.level) || 0;
+            const levelB = parseInt(b.level) || 0;
+            if (levelA !== levelB) return levelB - levelA;
+            
+            // Second priority: alphabetical order within the same level
+            return a.name.localeCompare(b.name);
+        });
+        
+        sortedOnlinePlayers.forEach(player => {
+            onlinePlayerList += `<div class="player-entry online">
+                <span class="player-name">${player.name}</span>
+                <span class="player-level">LVL ${player.level}</span>
+                <span class="player-status">🟢 Online</span>
+            </div>`;
+        });
+        
+        if (playersInfoElement) playersInfoElement.innerHTML = onlinePlayerList;
+    }
+    else{
+        if (playersInfoElement) playersInfoElement.textContent = "- No players currently online";
+    }
+    
+    // Display offline players
+    if (response.offline_players && response.offline_players.length > 0) {
+        let offlinePlayerList = "";
+        
+        // Sort offline players by last online time (most recent first), then by level, then alphabetically
+        const sortedOfflinePlayers = response.offline_players.sort((a, b) => {
+            // First priority: last online time (most recent first)
+            const lastOnlineA = a.last_online || 0;
+            const lastOnlineB = b.last_online || 0;
+            if (lastOnlineA !== lastOnlineB) return lastOnlineB - lastOnlineA;
             
             // Second priority: level (highest to lowest)
             const levelA = parseInt(a.level) || 0;
             const levelB = parseInt(b.level) || 0;
             if (levelA !== levelB) return levelB - levelA;
             
-            // Third priority: alphabetical order within the same level
+            // Third priority: alphabetical order
             return a.name.localeCompare(b.name);
         });
         
-        sortedPlayers.forEach(player => {
-            const onlineStatus = player.currently_online ? "online" : "offline";
-            const rightInfo = player.total_online_seconds ? `<span class="total-online">${formatDuration(player.total_online_seconds)}</span>` : "";
-            combinedPlayerList += `<div class="player-entry">
-                <div class="player-left">
-                    <span class="online-indicator" data-status="${onlineStatus}"></span>
-                    <span class="player-name">${player.name}</span>
-                    <span class="player-level">LVL ${player.level}</span>
-                </div>
-                <div class="player-info-line">${rightInfo}</div>
+        sortedOfflinePlayers.forEach(player => {
+            const lastOnlineText = formatTimestamp(player.last_online);
+            offlinePlayerList += `<div class="player-entry offline">
+                <span class="player-name">${player.name}</span>
+                <span class="player-level">LVL ${player.level}</span>
+                <span class="player-status">🔴 Offline</span>
+                <span class="last-online">Last online: ${lastOnlineText}</span>
             </div>`;
         });
         
-        if (playersInfoElement) playersInfoElement.innerHTML = combinedPlayerList;
+        if (offlinePlayersInfoElement) offlinePlayersInfoElement.innerHTML = offlinePlayerList;
     }
     else{
-        if (playersInfoElement) playersInfoElement.textContent = "- No players have joined yet";
+        if (offlinePlayersInfoElement) offlinePlayersInfoElement.textContent = "- No offline players";
     }
 }
 
@@ -254,13 +277,7 @@ async function handleServerAction(action) {
     }
 }
 
-function formatDuration(seconds) {
-    if (!seconds || isNaN(seconds)) return "00:00";
-    seconds = Math.floor(seconds);
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-}
+
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function(){
