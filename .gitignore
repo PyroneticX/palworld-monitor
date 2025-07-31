@@ -162,3 +162,9 @@ src/runMain.bat
 
 # JSON files
 *.json
+
+# Player data files (legacy - should not be created in simplified version)
+data/recent_players.json
+recent_players.json
+backups/
+data/backups/
