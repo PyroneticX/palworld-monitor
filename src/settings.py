@@ -6,6 +6,7 @@ import winreg
 
 class Settings:
     def __init__(self):
+        self.firstPacketPattern = b'\x09\x08\x00'   # 09 08 00 04 98 5D F6 7E
         # Settings will be populated from settings.json
         pass
 
