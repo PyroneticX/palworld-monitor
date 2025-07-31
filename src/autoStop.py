@@ -19,12 +19,10 @@ class AutoStopManager:
         """Check server stop every minute if there are no players"""
         try:
             if not self.controller.is_palworld_process_running():
-                logging.debug("The PalWorld server is not running, so the stop server event cannot be triggered.")
                 STOP_SERVER_VARIABLES["isRunningStopwatchToStopServer"] = False
                 return
 
             if self.controller.is_stop_event_running():
-                logging.debug(f"Stop event is running. checkEventStopServerCore ignored")
                 return        
             
             current_server_info = self.controller.update_current_server_info()
@@ -46,16 +44,12 @@ class AutoStopManager:
             server_auto_stop_seconds = Settings.ServerAutoStopSeconds
             passed_time = current_time - STOP_SERVER_VARIABLES["stopEventTriggeredTime"]
             if passed_time >= server_auto_stop_seconds:
-                logging.info("The server stop conditions are met, attempting to stop the server.")
-                logging.info(f"passedTime = {passed_time}")
-               
                 self.controller.stop_server(delay_seconds=1)
                
                 STOP_SERVER_VARIABLES["stopEventTriggeredTime"] = time.time() # to prevent call stopServer multiple times
                 STOP_SERVER_VARIABLES["leftTimeToStopServer"] = 0.0
             else:
                 STOP_SERVER_VARIABLES["leftTimeToStopServer"] = int(server_auto_stop_seconds - passed_time)
-                logging.info(f"The server will automatically stop after {STOP_SERVER_VARIABLES['leftTimeToStopServer']} seconds.")
 
         except Exception as e:
             logging.error(f"Error from checkEventStopServerCore: {e}")

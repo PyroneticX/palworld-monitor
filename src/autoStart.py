@@ -24,15 +24,12 @@ class AutoStartManager:
 
     def open_palworld_port_socket(self):
         """Open socket before listen."""
-        try:
-            # Ensures any previously opened socket is closed before opening a new one.
-            self.close_palworld_port_socket()
-            
+        try:  
             self.is_break = False
             palworld_server_ip = Settings.palworldServerIP
             palworld_server_port = Settings.palworldServerPort
             
-            logging.info(f"Listening on port {palworld_server_port} for PalWorld connection attempts.")
+            logging.info("Listening on Palworld Server port for new players")
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.sock.bind((palworld_server_ip, palworld_server_port))
             return True
@@ -44,7 +41,7 @@ class AutoStartManager:
 
     def close_palworld_port_socket(self):
         """Close socket."""
-        logging.info("Closing PalWorld port socket")
+        logging.info("No longer listening on Palworld Server port")
         self.is_break = True
         try:
             if self.sock is None:
@@ -65,7 +62,6 @@ class AutoStartManager:
             return
 
         if not self.is_port_available(Settings.palworldServerPort):
-            logging.info(f"Port {Settings.palworldServerPort} is already in use. Assuming Palworld server is already running. Skipping listener.")
             return
         
         if not self.open_palworld_port_socket():
@@ -87,12 +83,9 @@ class AutoStartManager:
                 hex_data = " ".join(format(byte, "02X") for byte in data)
 
                 if data.startswith(Settings.firstPacketPattern):
-                    logging.info(f"[LISTEN_PALWORLD_PORT][DETECTED] {addr}: {hex_data}")
-                    logging.info("A packet corresponding to a connection attempt has been detected. Attempting to start the server.")
+                    logging.info("A player is attempting to connect. Starting Palworld Server...")
                     is_server_started = True
                     break
-                else:
-                    logging.info(f"[LISTEN_PALWORLD_PORT][IGNORED] {addr}: {hex_data}")
             except OSError as e:
                 # Silently ignore WinError 10038 (not a socket)
                 if hasattr(e, 'winerror') and e.winerror == 10038:
@@ -111,8 +104,6 @@ class AutoStartManager:
 
     def listen_palworld_access(self):
         """Start listening for PalWorld access."""
-        logging.debug("Start listen_palworld_access")
-
         thread = threading.Thread(target=self.listen_palworld_access_core)
         thread.daemon = True  # Make thread daemon so it exits when main process exits
         thread.start()

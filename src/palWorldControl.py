@@ -45,7 +45,7 @@ class PalWorldController:
 
     def start_server(self):
         """Start the PalWorld server with various safety checks."""
-        logging.info("The server start has been triggered.")
+        logging.info("Palworld server is commanded to start")
         palworld_exe_path = Settings.palworldExePath
         current_time = time.time()
 
@@ -83,13 +83,11 @@ class PalWorldController:
         return False
 
     def _launch_server_process(self, palworld_exe_path):
-        logging.info(f"Starting Palworld server with command: {palworld_exe_path} {Settings.palworldExeArguments}")
         self.is_palworld_server_starting = True
         subprocess.Popen(
             [palworld_exe_path] + Settings.palworldExeArguments.split(),
             creationflags=subprocess.HIGH_PRIORITY_CLASS
         )
-        logging.info("Palworld server started successfully with high priority!")
 
     def terminate_process(self, process_name):
         """Terminate a process by name."""
@@ -109,7 +107,6 @@ class PalWorldController:
         self.triggered_time_check_stopped_event = time.time()
         while True:
             if not self.is_palworld_process_running():
-                logging.info("PalWorld server termination confirmed")
                 break
 
             current_time = time.time()
@@ -127,7 +124,7 @@ class PalWorldController:
 
     def stop_server(self, delay_seconds, force=False):
         """Stop the PalWorld server with optional force termination."""
-        logging.info("The server shutdown has been triggered.")
+        logging.info("Palworld server is commanded to shutdown")
 
         if not self.is_triggered_check_stopped_event:
             self.is_triggered_check_stopped_event = True
@@ -209,30 +206,6 @@ class PalWorldController:
     def set_on_server_stopped_callback(self, callback):
         """Set the callback function to be called when the server is stopped."""
         self.on_server_stopped_callback = callback
-    
-    def get_all_players(self):
-        """Get all players with their current status."""
-        if not getattr(Settings, 'enablePlayerTracking', True):
-            return []
-        return self.player_manager.get_all_players()
-    
-    def get_online_players(self):
-        """Get only currently online players."""
-        if not getattr(Settings, 'enablePlayerTracking', True):
-            return []
-        return self.player_manager.get_online_players()
-    
-    def get_offline_players(self):
-        """Get only currently offline players."""
-        if not getattr(Settings, 'enablePlayerTracking', True):
-            return []
-        return self.player_manager.get_offline_players()
-    
-    def get_total_player_count(self):
-        """Get the total number of players (online + offline)."""
-        if not getattr(Settings, 'enablePlayerTracking', True):
-            return 0
-        return self.player_manager.get_total_player_count()
     
     def get_player_manager(self):
         """Get the player manager instance."""
