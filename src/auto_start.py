@@ -1,5 +1,5 @@
 import socket
-from settings import Settings
+from settings import settings
 from palworld_control import PalWorldController
 import logging
 import threading
@@ -26,8 +26,8 @@ class AutoStartManager:
         """Open socket before listen."""
         try:  
             self.is_break = False
-            palworld_server_ip = Settings.palworldServerHost
-            palworld_server_port = Settings.palworldServerPort
+            palworld_server_ip = settings.palworldServerHost
+            palworld_server_port = settings.palworldServerPort
             
             logging.info("Listening on Palworld Server port for new players")
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -61,7 +61,7 @@ class AutoStartManager:
         if self.controller is None or self.controller.is_palworld_process_running():
             return
 
-        if not self.is_port_available(Settings.palworldServerPort):
+        if not self.is_port_available(settings.palworldServerPort):
             return
         
         if not self.open_palworld_port_socket():
@@ -82,7 +82,7 @@ class AutoStartManager:
                 data, addr = self.sock.recvfrom(1024)
                 hex_data = " ".join(format(byte, "02X") for byte in data)
 
-                if data.startswith(Settings.firstPacketPattern):
+                if data.startswith(settings.firstPacketPattern):
                     logging.info("A player is attempting to connect. Starting Palworld Server...")
                     is_server_started = True
                     break

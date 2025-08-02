@@ -2,7 +2,7 @@ import requests
 import logging
 import traceback
 from requests.auth import HTTPBasicAuth
-from settings import Settings
+from settings import settings
 
 
 class RestClient:
@@ -12,9 +12,9 @@ class RestClient:
         """
         Initialize REST client with connection parameters.
         """
-        self.host = Settings.palworldRESTHost
-        self.port = Settings.palworldRESTPort
-        self.password = Settings.palworldAdminPassword
+        self.host = settings.palworldRESTHost
+        self.port = settings.palworldRESTPort
+        self.password = settings.palworldAdminPassword
         self.base_url = f"http://{self.host}:{self.port}/v1/api"
         self.headers = {
             "Content-Type": "application/json"

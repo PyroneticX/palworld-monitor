@@ -3,7 +3,7 @@ import traceback
 import schedule
 import time
 import threading
-from settings import Settings
+from settings import settings
 
 STOP_SERVER_VARIABLES = {
     "stop_event_triggered_time": 1.0E+100,
@@ -41,7 +41,7 @@ class AutoStopManager:
                 STOP_SERVER_VARIABLES["stop_event_triggered_time"] = time.time()     # save triggered time
                 STOP_SERVER_VARIABLES["is_running_stopwatch_to_stop_server"] = True    # save flag
 
-            server_auto_stop_seconds = Settings.ServerAutoStopSeconds
+            server_auto_stop_seconds = settings.ServerAutoStopSeconds
             passed_time = current_time - STOP_SERVER_VARIABLES["stop_event_triggered_time"]
             if passed_time >= server_auto_stop_seconds:
                 self.controller.stop_server(delay_seconds=1)
@@ -58,7 +58,7 @@ class AutoStopManager:
 
     def run_schedule(self):
         """Run the scheduled tasks"""
-        server_auto_stop_check_interval = Settings.ServerAutoStopCheckInterval
+        server_auto_stop_check_interval = settings.ServerAutoStopCheckInterval
         while True:
             schedule.run_pending()
             time.sleep(server_auto_stop_check_interval * 0.1)
@@ -69,7 +69,7 @@ class AutoStopManager:
         # manually start once
         self.check_event_stop_server_core()
 
-        server_auto_stop_check_interval = int(Settings.ServerAutoStopCheckInterval)
+        server_auto_stop_check_interval = int(settings.ServerAutoStopCheckInterval)
         schedule.every(server_auto_stop_check_interval).seconds.do(self.check_event_stop_server_core)
 
         thread = threading.Thread(target=self.run_schedule)

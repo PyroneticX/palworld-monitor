@@ -1,7 +1,7 @@
 from rcon import Console
 import logging
 import traceback
-from settings import Settings
+from settings import settings
 
 
 class RconClient:
@@ -16,9 +16,9 @@ class RconClient:
             port: RCON port (defaults to Settings.palworldRCONPort)
             password: RCON password (defaults to Settings.palworldAdminPassword)
         """
-        self.host = host or Settings.palworldRCONHost
-        self.port = port or Settings.palworldRCONPort
-        self.password = password or Settings.palworldAdminPassword
+        self.host = host or settings.palworldRCONHost
+        self.port = port or settings.palworldRCONPort
+        self.password = password or settings.palworldAdminPassword
     
     def _send_command(self, command):
         """

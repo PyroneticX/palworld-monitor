@@ -87,3 +87,5 @@ class Settings:
         missing = [k for k, v in self.settings.items() if v is None]
         if missing:
             raise ValueError(f"The following settings areq REQUIRED: {missing}")
+
+settings = Settings()

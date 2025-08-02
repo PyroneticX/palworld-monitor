@@ -1,6 +1,6 @@
 import socket
 from flask import Flask, render_template, request, jsonify
-from settings import Settings
+from settings import settings
 from palworld_control import PalWorldController
 from auto_stop import STOP_SERVER_VARIABLES
 import logging
@@ -55,7 +55,7 @@ class WebServer:
         """Get the server IP address."""
         try:
             ip = socket.gethostbyname(socket.gethostname())
-            ip = ip + ":" + str(Settings.palworldServerPort)
+            ip = ip + ":" + str(settings.palworldServerPort)
             return ip
         except Exception as e:
             logging.error(f"Error while getting server IP, {e}")
@@ -77,7 +77,7 @@ class WebServer:
         if current_server_info is None:
             current_server_info = {"running": False, "playerCount": 0, "players": []}
         
-        if Settings.showServerIPAddress:
+        if settings.showServerIPAddress:
             current_server_info["IPAddress"] = self._get_server_ip()
         else:
             current_server_info["IPAddress"] = "Unknown"
@@ -94,17 +94,17 @@ class WebServer:
 
         return render_template(
             "index.html",
-            showAction=Settings.showAction,
-            showServerOnBtn=Settings.showServerOnBtn,
-            showServerOffBtn=Settings.showServerOffBtn,
-            showUpdateServerStatusBtn=Settings.showUpdateServerStatusBtn,
-            showServerIPAddress=Settings.showServerIPAddress,
+            showAction=settings.showAction,
+            showServerOnBtn=settings.showServerOnBtn,
+            showServerOffBtn=settings.showServerOffBtn,
+            showUpdateServerStatusBtn=settings.showUpdateServerStatusBtn,
+            showServerIPAddress=settings.showServerIPAddress,
             data=current_server_info,
             all_players=player_data['all_players'],
             online_players=player_data['online_players'],
             offline_players=player_data['offline_players'],
             total_player_count=player_data['total_player_count'],
-            ServerAutoStopSeconds=round(Settings.ServerAutoStopSeconds),
+            ServerAutoStopSeconds=round(settings.ServerAutoStopSeconds),
             isRunningStopwatchToStopServer=is_running_stopwatch,
             leftTimeToStopServer=left_time_to_stop,
             theme=theme
@@ -137,7 +137,7 @@ class WebServer:
             online_players=player_data['online_players'],
             offline_players=player_data['offline_players'],
             total_player_count=player_data['total_player_count'],
-            ServerAutoStopSeconds=round(Settings.ServerAutoStopSeconds),
+            ServerAutoStopSeconds=round(settings.ServerAutoStopSeconds),
             isRunningStopwatchToStopServer=is_running_stopwatch,
             leftTimeToStopServer=left_time_to_stop
         )
@@ -145,7 +145,7 @@ class WebServer:
     def run(self):
         """Start the web server in a separate thread."""
         # Log web server start with host and port information
-        logging.info(f"Web server start - listening on {Settings.webServerHost}:{Settings.webServerPort}")
+        logging.info(f"Web server start - listening on {settings.webServerHost}:{settings.webServerPort}")
         
         def start_flask():
             # Suppress Flask development server INFO messages by configuring werkzeug logger
@@ -153,7 +153,7 @@ class WebServer:
             flask_logging.getLogger('werkzeug').setLevel(flask_logging.ERROR)
             
             try:
-                self.app.run(host=Settings.webServerHost, port=Settings.webServerPort, debug=False)
+                self.app.run(host=settings.webServerHost, port=settings.webServerPort, debug=False)
             except Exception as e:
                 # Preserve existing ERROR level logging for web server failures
                 logging.error(f"Web server failed to start: {e}")

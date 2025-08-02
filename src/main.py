@@ -1,7 +1,7 @@
 from palworld_control import PalWorldController
 from rcon_client import RconClient
 from rest_client import RestClient
-from settings import Settings
+from settings import settings
 from web_server import WebServer
 from auto_start import AutoStartManager
 from auto_stop import AutoStopManager
@@ -26,33 +26,33 @@ try:
 
     # read settings if settings.json exists
     settings_path = os.path.join(os.path.dirname(__file__), "settings.json")
-    Settings.readSettings(settings_path)
+    settings.readSettings(settings_path)
     
     # Create instances of managers
     auto_start_manager = None
     auto_stop_manager = None
 
     # Choose the client based on the protocol setting
-    if Settings.protocol.upper() == 'REST':
+    if settings.protocol.upper() == 'REST':
         client = RestClient()
-    elif Settings.protocol.upper() == 'RCON':
+    elif settings.protocol.upper() == 'RCON':
         client = RconClient()
     else:
-        logging.error(f"Invalid protocol specified in settings: {Settings.protocol}")
+        logging.error(f"Invalid protocol specified in settings: {settings.protocol}")
         exit()
 
     palworld_controller = PalWorldController(client)
 
-    if Settings.useAutoStart:
+    if settings.useAutoStart:
         auto_start_manager = AutoStartManager(palworld_controller)
         auto_start_manager.listen_palworld_access()
         palworld_controller.set_on_server_stopped_callback(auto_start_manager.listen_palworld_access)
 
-    if Settings.useAutoStop:
+    if settings.useAutoStop:
         auto_stop_manager = AutoStopManager(palworld_controller)
         auto_stop_manager.check_event_stop_server()
 
-    if Settings.useWebServer:
+    if settings.useWebServer:
         web_server = WebServer(palworld_controller)
         web_server.run()
 

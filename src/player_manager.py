@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from settings import Settings
+from settings import settings
 import json
 import os
 import time
@@ -52,7 +52,7 @@ class PlayerManager:
     def update_players_from_server(self, current_players: List[List[str]]):
         """Update player data from server information - tracks online/offline status."""
         # Check if player tracking is enabled
-        if not getattr(Settings, 'enablePlayerTracking', True):
+        if not getattr(settings, 'enablePlayerTracking', True):
             self.online_players = []
             return
         

@@ -3,7 +3,7 @@ import subprocess
 import logging
 import time
 import threading
-from settings import Settings
+from settings import settings
 import traceback
 from player_manager import PlayerManager
 from process_manager import WindowsProcessManager, LinuxProcessManager
@@ -36,7 +36,7 @@ class PalWorldController:
         self.is_triggered_check_stopped_event = False
         
         # Select driver
-        if Settings.osType.lower() == 'linux':
+        if settings.osType.lower() == 'linux':
             self.process_manager = LinuxProcessManager()
         else:
             self.process_manager = WindowsProcessManager()
@@ -44,12 +44,12 @@ class PalWorldController:
 
     def is_palworld_process_running(self):
         """Check if the PalWorld server process is currently running."""
-        return self.process_manager.is_process_running(Settings.palworldMainProcessName)
+        return self.process_manager.is_process_running(settings.palworldMainProcessName)
 
     def start_server(self):
         """Start the PalWorld server with various safety checks."""
         logging.info("Palworld server is commanded to start")
-        palworld_exe_path = Settings.palworldServerExePath
+        palworld_exe_path = settings.palworldServerExePath
         current_time = time.time()
 
         if self._should_block_start(current_time):
@@ -87,7 +87,7 @@ class PalWorldController:
 
     def _launch_process(self, palworld_exe_path):
         self.is_palworld_server_starting = True
-        self.process_manager.launch_process(palworld_exe_path, Settings.palworldExeArguments)
+        self.process_manager.launch_process(palworld_exe_path, settings.palworldExeArguments)
 
     def terminate_process(self):
         """Terminate the launched server process by PID."""
@@ -128,7 +128,7 @@ class PalWorldController:
             if self._should_block_stop():
                 return
             delay_seconds = self._sanitize_delay(delay_seconds)
-            self.client.shutdown_server(delay_seconds, Settings.ServerAutoStopMessage)
+            self.client.shutdown_server(delay_seconds, settings.ServerAutoStopMessage)
         self.last_server_stopped_time = time.time()
 
     def _should_block_stop(self):
@@ -169,7 +169,7 @@ class PalWorldController:
         self.current_server_info["running"] = False
         self.current_server_info["playerCount"] = 0
         self.current_server_info["players"] = []
-        if getattr(Settings, 'enablePlayerTracking', True):
+        if getattr(settings, 'enablePlayerTracking', True):
             self.player_manager.update_players_from_server([])
 
     def _update_server_info_with_players(self):
@@ -177,7 +177,7 @@ class PalWorldController:
         current_players = self.get_player_names()
         self.current_server_info["playerCount"] = len(current_players)
         self.current_server_info["players"] = current_players
-        if getattr(Settings, 'enablePlayerTracking', True):
+        if getattr(settings, 'enablePlayerTracking', True):
             self.player_manager.update_players_from_server(current_players)
 
     def get_player_count(self):
