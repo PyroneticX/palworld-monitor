@@ -1,7 +1,7 @@
 from palWorldControl import PalWorldController
 from rconClient import RconClient
 from restClient import RestClient
-from settings import Settings, readSettings
+from settings import Settings
 from webServer import WebServer
 from autoStart import AutoStartManager
 from autoStop import AutoStopManager
@@ -26,7 +26,7 @@ try:
 
     # read settings if settings.json exists
     settings_path = os.path.join(os.path.dirname(__file__), "settings.json")
-    readSettings(settings_path)
+    Settings.readSettings(settings_path)
     
     # Create instances of managers
     auto_start_manager = None

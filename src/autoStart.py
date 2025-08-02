@@ -26,7 +26,7 @@ class AutoStartManager:
         """Open socket before listen."""
         try:  
             self.is_break = False
-            palworld_server_ip = Settings.palworldServerIP
+            palworld_server_ip = Settings.palworldServerHost
             palworld_server_port = Settings.palworldServerPort
             
             logging.info("Listening on Palworld Server port for new players")
