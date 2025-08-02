@@ -6,6 +6,7 @@ import threading
 from settings import Settings
 import traceback
 from playerManager import PlayerManager
+from process_manager import WindowsProcessManager, LinuxProcessManager
 
 
 class PalWorldController:
@@ -34,19 +35,21 @@ class PalWorldController:
         self.triggered_time_check_stopped_event = -1
         self.is_triggered_check_stopped_event = False
         
+        # Select driver
+        if Settings.osType.lower() == 'linux':
+            self.process_manager = LinuxProcessManager()
+        else:
+            self.process_manager = WindowsProcessManager()
+
 
     def is_palworld_process_running(self):
         """Check if the PalWorld server process is currently running."""
-        proc_name = Settings.palworldMainProcessName
-        for process in psutil.process_iter(['pid', 'name']):
-            if process.info['name'] == proc_name:
-                return True
-        return False
+        return self.process_manager.is_process_running(Settings.palworldMainProcessName)
 
     def start_server(self):
         """Start the PalWorld server with various safety checks."""
         logging.info("Palworld server is commanded to start")
-        palworld_exe_path = Settings.palworldExePath
+        palworld_exe_path = Settings.palworldServerExePath
         current_time = time.time()
 
         if self._should_block_start(current_time):
@@ -54,7 +57,7 @@ class PalWorldController:
 
         return_val = True
         try:
-            self._launch_server_process(palworld_exe_path)
+            self._launch_process(palworld_exe_path)
         except subprocess.CalledProcessError as e:
             logging.error(f"Error occurred while executing the Palworld executable file : {e}")
             return_val = False
@@ -82,25 +85,13 @@ class PalWorldController:
             return True
         return False
 
-    def _launch_server_process(self, palworld_exe_path):
+    def _launch_process(self, palworld_exe_path):
         self.is_palworld_server_starting = True
-        subprocess.Popen(
-            [palworld_exe_path] + Settings.palworldExeArguments.split(),
-            creationflags=subprocess.HIGH_PRIORITY_CLASS
-        )
+        self.process_manager.launch_process(palworld_exe_path, Settings.palworldExeArguments)
 
-    def terminate_process(self, process_name):
-        """Terminate a process by name."""
-        for process in psutil.process_iter(['pid', 'name']):
-            if process.info['name'] == process_name:
-                pid = process.info['pid']
-                try:
-                    process = psutil.Process(pid)
-                    process.terminate()
-                    print(f"Process {process_name} with PID {pid} terminated.")
-                except psutil.NoSuchProcess as e:
-                    print(f"Error: {e}")
-                return
+    def terminate_process(self):
+        """Terminate the launched server process by PID."""
+        self.process_manager.terminate_launched_process()
 
     def check_is_stopped_palworld_process_core(self, timeout=60):
         """Check if the PalWorld process has been terminated."""
@@ -132,7 +123,7 @@ class PalWorldController:
             thread.start()
 
         if force:
-            self.terminate_process(Settings.palworldMainProcessName)
+            self.terminate_process()
         else:
             if self._should_block_stop():
                 return
