@@ -103,13 +103,8 @@ function updateServerStatusUI(data, response) {
         offElements.forEach(el => el.style.display = "none");
         if (offBtn) offBtn.style.display = "block";
         if (onBtn) onBtn.style.display = "none";
-        
-        updateAutoShutdownUI(data, response);
     }
     else{
-        const serverCloseContainer = document.getElementById("ServerCloseContainer");
-        if (serverCloseContainer) serverCloseContainer.style.display = "none";
-        
         if (statusOn) statusOn.style.display = "none";
         if (statusOff) statusOff.style.display = "inline-block";
         runningElements.forEach(el => el.style.display = "none");
@@ -119,18 +114,7 @@ function updateServerStatusUI(data, response) {
     }
 }
 
-function updateAutoShutdownUI(data, response) {
-    const serverCloseContainer = document.getElementById("ServerCloseContainer");
-    const serverCloseLeft = document.getElementById("ServerCloseLeft");
-    
-    if(data.playerCount == 0 && response.isRunningStopwatchToStopServer){
-        if (serverCloseContainer) serverCloseContainer.style.display = "block";
-        if (serverCloseLeft) serverCloseLeft.textContent = response.leftTimeToStopServer;
-    }
-    else{
-        if (serverCloseContainer) serverCloseContainer.style.display = "none";
-    }
-}
+
 
 function updatePlayerInfoUI(data, response) {
     const playersInfoElement = document.getElementById("playersInfo");
@@ -283,9 +267,12 @@ async function handleServerAction(action) {
 document.addEventListener('DOMContentLoaded', function(){
     initTheme();
     handleServerAction("getStatus");
-});
-
-// Periodic status updates
-setInterval(function(){
-    handleServerAction("getStatus");
-}, 1000 * 30); // 30 seconds 
+    
+    // Get update interval from data attribute (default to 30 seconds if not set)
+    const updateInterval = parseInt(document.body.getAttribute('data-update-interval')) || 30;
+    
+    // Set up automatic refresh using the configured update interval
+    setInterval(function(){
+        handleServerAction("getStatus");
+    }, 1000 * updateInterval); // Use configured update interval
+}); 

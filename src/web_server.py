@@ -2,7 +2,6 @@ import socket
 from flask import Flask, render_template, request, jsonify
 from settings import settings
 from palworld_control import PalWorldController
-from auto_stop import STOP_SERVER_VARIABLES
 import logging
 import threading
 
@@ -73,7 +72,7 @@ class WebServer:
     
     def _handle_index(self):
         """Handle the main page route."""
-        current_server_info = self.palworld_controller.update_current_server_info()
+        current_server_info = self.palworld_controller.get_current_server_info()
         if current_server_info is None:
             current_server_info = {"running": False, "playerCount": 0, "players": []}
         
@@ -88,25 +87,17 @@ class WebServer:
         # Get theme from URL parameter (optional, JavaScript handles default)
         theme = request.args.get('theme')
 
-        # Get auto-stop variables if available
-        is_running_stopwatch = round(STOP_SERVER_VARIABLES["is_running_stopwatch_to_stop_server"])
-        left_time_to_stop = round(STOP_SERVER_VARIABLES["left_time_to_stop_server"])
-
         return render_template(
             "index.html",
-            showAction=settings.showAction,
-            showServerOnBtn=settings.showServerOnBtn,
-            showServerOffBtn=settings.showServerOffBtn,
-            showUpdateServerStatusBtn=settings.showUpdateServerStatusBtn,
+            controlServerThroughWeb=settings.controlServerThroughWeb,
             showServerIPAddress=settings.showServerIPAddress,
             data=current_server_info,
             all_players=player_data['all_players'],
             online_players=player_data['online_players'],
             offline_players=player_data['offline_players'],
             total_player_count=player_data['total_player_count'],
-            ServerAutoStopSeconds=round(settings.ServerAutoStopSeconds),
-            isRunningStopwatchToStopServer=is_running_stopwatch,
-            leftTimeToStopServer=left_time_to_stop,
+            autoStopDelay=round(settings.autoStopDelay),
+            updateInterval=settings.updateInterval,
             theme=theme
         )
     
@@ -114,22 +105,19 @@ class WebServer:
         """Handle server action requests."""
         action = request.form.get("action")
 
-        current_server_info = self.palworld_controller.update_current_server_info()
-        if current_server_info is None:
-            current_server_info = {"running": False, "playerCount": 0, "players": []}
-
         if action == "startServer":
             self.palworld_controller.start_server()
         elif action == "stopServer":
-            self.palworld_controller.stop_server(1)
+            self.palworld_controller.stop_server()
         #elif action == "getStatus":
-            # do nothing
+            # Just refresh the page with current server info (no server update triggered)
+
+        current_server_info = self.palworld_controller.get_current_server_info()
+        if current_server_info is None:
+            current_server_info = {"running": False, "playerCount": 0, "players": []}
 
         # Get persistent player data
         player_data = self._get_player_data()
-
-        is_running_stopwatch = round(STOP_SERVER_VARIABLES["is_running_stopwatch_to_stop_server"])
-        left_time_to_stop = round(STOP_SERVER_VARIABLES["left_time_to_stop_server"])
 
         return jsonify(
             data=current_server_info,
@@ -137,9 +125,7 @@ class WebServer:
             online_players=player_data['online_players'],
             offline_players=player_data['offline_players'],
             total_player_count=player_data['total_player_count'],
-            ServerAutoStopSeconds=round(settings.ServerAutoStopSeconds),
-            isRunningStopwatchToStopServer=is_running_stopwatch,
-            leftTimeToStopServer=left_time_to_stop
+            autoStopDelay=round(settings.autoStopDelay)
         )
     
     def run(self):

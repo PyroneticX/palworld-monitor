@@ -200,8 +200,7 @@ h2 { font-size: 30px; margin-bottom: 5px }
 	align-items: center;
 }
 
-#ServerCloseContainer { margin-bottom:15px; font-size:24px; color:var(--off-color); }
-.ServerCloseLeft { font-style:italic; text-decoration:underline }
+
 
 #footer {
 	line-height: 120%;
@@ -281,9 +280,7 @@ h2 { font-size: 30px; margin-bottom: 5px }
 		align-items: stretch;
 	}
 	
-	#ServerCloseContainer { 
-		font-size: 16px; 
-	}
+
 	
 	.theme-toggle {
 		font-size: 14px;

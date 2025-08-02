@@ -14,7 +14,7 @@
 	<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 	<script src="{{ url_for('static', filename='script.js') }}"></script>
 </head>
-<body>
+<body data-update-interval="{{ updateInterval }}">
 	<button id="themeToggle" class="theme-toggle" onclick="toggleTheme()">
 		<span class="icon">🌙</span>
 	</button>
@@ -29,7 +29,7 @@
     </h1>
 
 	<!-- Action Buttons Section -->
-    {% if showAction %}
+    {% if controlServerThroughWeb %}
         <div class="btnContainer">
             <!-- Status Update Button -->
             <button id="getStatusBtn" 
@@ -40,24 +40,20 @@
             </button>
             
             <!-- Server Stop Button -->
-            {% if showServerOffBtn %}
-                <button id="offBtn" 
-                        class="btn" 
-                        {% if not data.running %}style="display:none;"{% endif %} 
-                        onclick="confirmAndHandleServerAction('stopServer')">
-                    Stop Server
-                </button>
-            {% endif %}
+            <button id="offBtn" 
+                    class="btn" 
+                    {% if not data.running %}style="display:none;"{% endif %} 
+                    onclick="confirmAndHandleServerAction('stopServer')">
+                Stop Server
+            </button>
             
             <!-- Server Start Button -->
-            {% if showServerOnBtn %}
-                <button id="onBtn" 
-                        class="btn" 
-                        {% if data.running %}style="display:none;"{% endif %} 
-                        onclick="handleServerAction('startServer')">
-                    Start Server
-                </button>
-            {% endif %}
+            <button id="onBtn" 
+                    class="btn" 
+                    {% if data.running %}style="display:none;"{% endif %} 
+                    onclick="handleServerAction('startServer')">
+                Start Server
+            </button>
         </div>
     {% endif %}
 	
@@ -72,14 +68,10 @@
     <!-- Auto-Stop Information -->
     <div style="margin-top: 30px;">
         Notice: If there are no players online, the server will automatically stop after 
-        <span id="ServerAutoOffTime">{{ ServerAutoStopSeconds }}</span> seconds.
+        <span id="ServerAutoOffTime">{{ autoStopDelay }}</span> seconds.
     </div>
     
-    <!-- Auto-Stop Warning -->
-    <div id="ServerCloseContainer" style="display: none;">
-        [!!] There are no players currently on the server. The server will automatically shut down in approximately 
-        <span id="ServerCloseLeft">{{ leftTimeToStopServer }}</span> seconds. [!!]
-    </div>
+
 
     {% if showServerIPAddress %}
     <div style="margin-top:30px;">
