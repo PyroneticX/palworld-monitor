@@ -36,7 +36,7 @@ class PalWorldController:
         self.is_triggered_check_stopped_event = False
         
         # Select driver
-        if settings.osType.lower() == 'linux':
+        if settings.os.lower() == 'linux':
             self.process_manager = LinuxProcessManager()
         else:
             self.process_manager = WindowsProcessManager()
@@ -44,7 +44,7 @@ class PalWorldController:
 
     def is_palworld_process_running(self):
         """Check if the PalWorld server process is currently running."""
-        return self.process_manager.is_process_running(settings.palworldMainProcessName)
+        return self.process_manager.is_process_running()
 
     def start_server(self):
         """Start the PalWorld server with various safety checks."""

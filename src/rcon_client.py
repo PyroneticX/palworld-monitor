@@ -12,11 +12,11 @@ class RconClient:
         Initialize RCON client with connection parameters.
         
         Args:
-            host: RCON host (defaults to Settings.palworldRCONHost)
+            host: RCON host (defaults to Settings.palworldServerHost)
             port: RCON port (defaults to Settings.palworldRCONPort)
             password: RCON password (defaults to Settings.palworldAdminPassword)
         """
-        self.host = host or settings.palworldRCONHost
+        self.host = host or settings.palworldServerHost
         self.port = port or settings.palworldRCONPort
         self.password = password or settings.palworldAdminPassword
     

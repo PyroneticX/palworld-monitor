@@ -5,6 +5,7 @@ import logging
 import threading
 import traceback
 from typing import Optional
+import time
 
 class AutoStartManager:
     def __init__(self, palworld_controller: Optional[PalWorldController]):
@@ -61,9 +62,16 @@ class AutoStartManager:
         if self.controller is None or self.controller.is_palworld_process_running():
             return
 
-        if not self.is_port_available(settings.palworldServerPort):
-            return
-        
+        # Wait up to 30 seconds for the port to become available
+        port_wait_timeout = 30
+        start_time = time.time()
+        logging.info(f"Waiting for Palworld port {settings.palworldServerPort} to become available...")
+        while not self.is_port_available(settings.palworldServerPort):
+            if time.time() - start_time > port_wait_timeout:
+                logging.error(f"Palworld port {settings.palworldServerPort} is still in use after waiting {port_wait_timeout} seconds. Aborting listen.")
+                return
+            time.sleep(1)
+
         if not self.open_palworld_port_socket():
             logging.error(f"Unable to open a socket to wait for the Palworld connection packet.")
             return
