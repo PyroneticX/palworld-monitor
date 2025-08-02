@@ -12,6 +12,7 @@ from process_manager import WindowsProcessManager, LinuxProcessManager
 class PalWorldController:
     def __init__(self, client):
         self.client = client
+        self.on_server_started_callback = None
         self.on_server_stopped_callback = None
 
         # Initialize player manager
@@ -30,10 +31,19 @@ class PalWorldController:
         self.last_server_started_time = 0
         self.server_stopping_cooldown = 5  # seconds
         self.last_server_stopped_time = 0
+        self.server_startup_auto_stop_delay = settings.autoStopDelay  # Use the same delay as auto-stop
         
         # Stop event tracking
         self.triggered_time_check_stopped_event = -1
         self.is_triggered_check_stopped_event = False
+        
+        # Auto-stop delay tracking
+        self.auto_stop_delay_thread = None
+        self.auto_stop_delay_cancelled = False
+        
+        # Background update thread management
+        self.update_thread = None
+        self.update_thread_stop_event = threading.Event()
         
         # Select driver
         if settings.os.lower() == 'linux':
@@ -58,6 +68,15 @@ class PalWorldController:
         return_val = True
         try:
             self._launch_process(palworld_exe_path)
+            if self.is_palworld_process_running():
+                logging.info("Palworld server launched successfully.")
+                # Start the update thread after successful server start
+                self.start_server_info_update_thread()
+                # Call the server started callback
+                if self.on_server_started_callback:
+                    self.on_server_started_callback()
+            else:
+                logging.error("Palworld server failed to launch (process not running after start).")
         except subprocess.CalledProcessError as e:
             logging.error(f"Error occurred while executing the Palworld executable file : {e}")
             return_val = False
@@ -89,10 +108,6 @@ class PalWorldController:
         self.is_palworld_server_starting = True
         self.process_manager.launch_process(palworld_exe_path, settings.palworldExeArguments)
 
-    def terminate_process(self):
-        """Terminate the launched server process by PID."""
-        self.process_manager.terminate_launched_process()
-
     def check_is_stopped_palworld_process_core(self, timeout=60):
         """Check if the PalWorld process has been terminated."""
         self.triggered_time_check_stopped_event = time.time()
@@ -113,23 +128,30 @@ class PalWorldController:
         """Check if a stop event is currently running."""
         return self.is_triggered_check_stopped_event
 
-    def stop_server(self, delay_seconds, force=False):
+    def stop_server(self):
         """Stop the PalWorld server with optional force termination."""
         logging.info("Palworld server is commanded to shutdown")
+
+        # Cancel any auto-stop delay
+        self._cancel_auto_stop_delay()
+
+        # Update server status to reflect it's stopping
+        self.current_server_info["running"] = False
+        self.current_server_info["playerCount"] = 0
+        self.current_server_info["players"] = []
+        if settings.enablePlayerTracking:
+            self.player_manager.update_players_from_server([])
+
+        # Stop the server info update thread
+        self.stop_server_info_update_thread()
 
         if not self.is_triggered_check_stopped_event:
             self.is_triggered_check_stopped_event = True
             thread = threading.Thread(target=self.check_is_stopped_palworld_process_core)
             thread.start()
 
-        if force:
-            self.terminate_process()
-        else:
-            if self._should_block_stop():
-                return
-            delay_seconds = self._sanitize_delay(delay_seconds)
-            self.client.shutdown_server(delay_seconds, settings.ServerAutoStopMessage)
-        self.last_server_stopped_time = time.time()
+        self.process_manager.terminate_process()
+        logging.info("Palworld server stopped successfully.")
 
     def _should_block_stop(self):
         if not self.is_palworld_process_running():
@@ -147,38 +169,70 @@ class PalWorldController:
     def update_current_server_info(self):
         """Update and return current server information including player count and player names."""
         try:
-            if self._should_clear_server_info():
-                self._clear_server_info()
-                return self.current_server_info
             self._update_server_info_with_players()
+
+            if settings.autoStop and self.player_manager.get_player_count() == 0:
+                self._handle_auto_stop_condition()
+            else:
+                self._cancel_auto_stop_delay()
+
             return self.current_server_info
         except Exception as e:
             logging.error(f"Error from update_current_server_info, {e}")
             logging.error(traceback.format_exc())
             return None
 
-    def _should_clear_server_info(self):
-        current_time = time.time()
-        return (
-            not self.is_palworld_process_running() or
-            self.is_triggered_check_stopped_event or
-            (current_time - self.last_server_stopped_time < self.server_stopping_cooldown)
-        )
-
-    def _clear_server_info(self):
-        self.current_server_info["running"] = False
-        self.current_server_info["playerCount"] = 0
-        self.current_server_info["players"] = []
-        if getattr(settings, 'enablePlayerTracking', True):
-            self.player_manager.update_players_from_server([])
-
     def _update_server_info_with_players(self):
-        self.current_server_info["running"] = True
+        self.current_server_info["running"] = self.is_palworld_process_running()
+        
         current_players = self.get_player_names()
         self.current_server_info["playerCount"] = len(current_players)
         self.current_server_info["players"] = current_players
-        if getattr(settings, 'enablePlayerTracking', True):
+
+        if settings.enablePlayerTracking:
             self.player_manager.update_players_from_server(current_players)
+
+    def _handle_auto_stop_condition(self):
+        """Handle the auto-stop condition with delay."""
+        # If auto-stop delay is already triggered, don't trigger again
+        if self.auto_stop_delay_thread and self.auto_stop_delay_thread.is_alive():
+            return
+        
+        # Check if enough time has passed since server startup
+        current_time = time.time()
+        time_since_startup = current_time - self.last_server_started_time
+        
+        if time_since_startup < self.server_startup_auto_stop_delay:
+            remaining_time = self.server_startup_auto_stop_delay - time_since_startup
+            logging.info(f"Auto-stop blocked: Server started {time_since_startup:.0f}s ago. Auto-stop will be available in {remaining_time:.0f}s.")
+            return
+        
+        # Reset cancellation flag
+        self.auto_stop_delay_cancelled = False
+        logging.info(f"Auto-stop condition met. Server will stop in {settings.autoStopDelay} seconds.")
+        
+        # Start delay thread
+        self.auto_stop_delay_thread = threading.Thread(target=self._auto_stop_delay_worker, daemon=True)
+        self.auto_stop_delay_thread.start()
+
+    def _cancel_auto_stop_delay(self):
+        """Cancel the auto-stop delay if players are back online."""
+        if self.auto_stop_delay_thread and self.auto_stop_delay_thread.is_alive():
+            self.auto_stop_delay_cancelled = True
+            logging.info("Auto-stop delay cancelled - players are back online.")
+
+    def _auto_stop_delay_worker(self):
+        """Worker thread that waits for the auto-stop delay and then stops the server."""
+        try:
+            time.sleep(settings.autoStopDelay)
+            
+            # Check if the delay was cancelled
+            if not self.auto_stop_delay_cancelled:
+                logging.info("Auto-stop delay completed. Stopping server.")
+                self.stop_server()
+        except Exception as e:
+            logging.error(f"Error in auto-stop delay worker: {e}")
+            logging.error(traceback.format_exc())
 
     def get_player_count(self):
         """Get the current player count from the server."""
@@ -198,6 +252,47 @@ class PalWorldController:
         """Set the callback function to be called when the server is stopped."""
         self.on_server_stopped_callback = callback
     
+    def set_on_server_started_callback(self, callback):
+        """Set the callback function to be called when the server is started."""
+        self.on_server_started_callback = callback
+    
     def get_player_manager(self):
         """Get the player manager instance."""
         return self.player_manager
+
+    def start_server_info_update_thread(self):
+        """Start a background thread that continuously updates server info."""
+        if self.update_thread and self.update_thread.is_alive():
+            logging.info("Server info update thread is already running.")
+            return
+        
+        self.update_thread_stop_event.clear()
+        self.update_thread = threading.Thread(target=self._server_info_update_loop, daemon=True)
+        self.update_thread.start()
+        logging.info("Server info update thread started.")
+
+    def stop_server_info_update_thread(self):
+        """Stop the background server info update thread."""
+        if not self.update_thread or not self.update_thread.is_alive():
+            return
+        
+        self.update_thread_stop_event.set()
+        self.update_thread.join(timeout=5)
+        logging.info("Server info update thread stopped.")
+
+    def _server_info_update_loop(self):
+        """Background loop that continuously updates server info."""
+        while not self.update_thread_stop_event.is_set():
+            try:
+                self.update_current_server_info()
+            except Exception as e:
+                logging.error(f"Error in server info update loop: {e}")
+                logging.error(traceback.format_exc())
+            
+            # Wait for the specified interval or until stop event is set
+            if self.update_thread_stop_event.wait(settings.updateInterval):
+                break
+
+    def get_current_server_info(self):
+        """Get the current server info without triggering an update."""
+        return self.current_server_info

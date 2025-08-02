@@ -35,26 +35,18 @@ class Settings:
             'webServerHost': "127.0.0.1",
             # Port for the web server
             'webServerPort': 8213,
-            # Show action button in UI
-            'showAction': True,
-            # Show server ON button in UI
-            'showServerOnBtn': True,
-            # Show server OFF button in UI
-            'showServerOffBtn': True,
-            # Show update server status button in UI
-            'showUpdateServerStatusBtn': True,
+            # Enable server control through web interface (combines all button controls)
+            'controlServerThroughWeb': True,
             # Show server IP address in UI
             'showServerIPAddress': False,
             # Enable auto-start for the server
-            'useAutoStart': True,
+            'autoStart': True,
             # Enable auto-stop for the server
-            'useAutoStop': True,
+            'autoStop': True,
             # Seconds before auto-stopping the server
-            'ServerAutoStopSeconds': 120,
+            'autoStopDelay': 120,
             # Interval (seconds) to check for auto-stop condition
-            'ServerAutoStopCheckInterval': 30,
-            # Message shown when server is auto-stopping
-            'ServerAutoStopMessage': "Server is shutting down...",
+            'updateInterval': 30,
             # Enable player tracking feature
             'enablePlayerTracking': True
         }

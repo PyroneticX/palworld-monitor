@@ -66,7 +66,7 @@ class OSProcessManager:
                 child.terminate()
             process.terminate()
             try:
-                process.wait(timeout=3)
+                process.wait(timeout=30)
             except psutil.TimeoutExpired:
                 process.kill()
                 process.wait()

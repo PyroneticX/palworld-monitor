@@ -4,7 +4,6 @@ from rest_client import RestClient
 from settings import settings
 from web_server import WebServer
 from auto_start import AutoStartManager
-from auto_stop import AutoStopManager
 import threading
 import logging
 import traceback
@@ -30,7 +29,6 @@ try:
     
     # Create instances of managers
     auto_start_manager = None
-    auto_stop_manager = None
 
     # Choose the client based on the protocol setting
     if settings.protocol.upper() == 'REST':
@@ -42,15 +40,16 @@ try:
         exit()
 
     palworld_controller = PalWorldController(client)
+    
+    # Start the background server info update thread only if server is running
+    if palworld_controller.is_palworld_process_running():
+        palworld_controller.start_server_info_update_thread()
 
-    if settings.useAutoStart:
+    if settings.autoStart:
         auto_start_manager = AutoStartManager(palworld_controller)
+        palworld_controller.set_on_server_started_callback(auto_start_manager.stop_listen_thread)
         auto_start_manager.listen_palworld_access()
         palworld_controller.set_on_server_stopped_callback(auto_start_manager.listen_palworld_access)
-
-    if settings.useAutoStop:
-        auto_stop_manager = AutoStopManager(palworld_controller)
-        auto_stop_manager.check_event_stop_server()
 
     if settings.useWebServer:
         web_server = WebServer(palworld_controller)
@@ -64,6 +63,8 @@ try:
             threading.Event().wait(1)  # Sleep for 1 second intervals
     except KeyboardInterrupt:
         logging.info("CTRL+C received. Shutting down...")
+        # Stop the background update thread
+        palworld_controller.stop_server_info_update_thread()
         # Clean up auto start manager if it exists
         if auto_start_manager:
             auto_start_manager.close_palworld_port_socket()
