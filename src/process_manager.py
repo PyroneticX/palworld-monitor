@@ -5,36 +5,39 @@ import os
 class OSProcessManager:
     def __init__(self):
         self.launched_pid = None
-        self.pid_file = self.pid_file_name()
         self._load_pid_from_file()
 
     def pid_file_name(self):
-        return 'palworld_server.pid'
+        raise NotImplementedError
+
+    def _after_launch(self, process):
+        self.launched_pid = process.pid
+        self._save_pid_to_file(process.pid)
 
     def _save_pid_to_file(self, pid):
         try:
-            with open(self.pid_file, 'w') as f:
+            with open(self.pid_file_name(), 'w') as f:
                 f.write(str(pid))
         except Exception:
             pass
 
     def _load_pid_from_file(self):
-        if os.path.exists(self.pid_file):
+        if os.path.exists(self.pid_file_name()):
             try:
-                with open(self.pid_file, 'r') as f:
+                with open(self.pid_file_name(), 'r') as f:
                     pid = int(f.read().strip())
                     self.launched_pid = pid
             except Exception:
                 self.launched_pid = None
 
     def _remove_pid_file(self):
-        if os.path.exists(self.pid_file):
+        if os.path.exists(self.pid_file_name()):
             try:
-                os.remove(self.pid_file)
+                os.remove(self.pid_file_name())
             except Exception:
                 pass
 
-    def launch_process(self, exe_path, exe_args):
+    def launch_process(self, _exe_path, _exe_args):
         raise NotImplementedError
 
     def is_process_running(self):
@@ -60,12 +63,7 @@ class OSProcessManager:
             process = psutil.Process(self.launched_pid)
             children = process.children(recursive=True)
             for child in children:
-                try:
-                    child.terminate()
-                except psutil.NoSuchProcess:
-                    pass
-                except psutil.AccessDenied:
-                    pass
+                child.terminate()
             process.terminate()
             try:
                 process.wait(timeout=3)
@@ -91,8 +89,7 @@ class WindowsProcessManager(OSProcessManager):
             [exe_path] + exe_args.split(),
             creationflags=subprocess.HIGH_PRIORITY_CLASS
         )
-        self.launched_pid = process.pid
-        self._save_pid_to_file(process.pid)
+        self._after_launch(process)
 
 class LinuxProcessManager(OSProcessManager):
     def pid_file_name(self):
@@ -100,5 +97,4 @@ class LinuxProcessManager(OSProcessManager):
 
     def launch_process(self, exe_path, exe_args):
         process = subprocess.Popen([exe_path] + exe_args.split())
-        self.launched_pid = process.pid
-        self._save_pid_to_file(process.pid)
+        self._after_launch(process)
