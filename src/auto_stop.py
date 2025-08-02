@@ -6,9 +6,9 @@ import threading
 from settings import Settings
 
 STOP_SERVER_VARIABLES = {
-    "stopEventTriggeredTime": 1.0E+100,
-    "isRunningStopwatchToStopServer": False,
-    "leftTimeToStopServer": -1
+    "stop_event_triggered_time": 1.0E+100,
+    "is_running_stopwatch_to_stop_server": False,
+    "left_time_to_stop_server": -1
 }
 
 class AutoStopManager:
@@ -19,7 +19,7 @@ class AutoStopManager:
         """Check server stop every minute if there are no players"""
         try:
             if not self.controller.is_palworld_process_running():
-                STOP_SERVER_VARIABLES["isRunningStopwatchToStopServer"] = False
+                STOP_SERVER_VARIABLES["is_running_stopwatch_to_stop_server"] = False
                 return
 
             if self.controller.is_stop_event_running():
@@ -28,28 +28,28 @@ class AutoStopManager:
             current_server_info = self.controller.update_current_server_info()
             if current_server_info is None:
                 logging.error("An error occurred while updating the current server, and as a result, the stop server event cannot be triggered.")
-                STOP_SERVER_VARIABLES["isRunningStopwatchToStopServer"] = False
+                STOP_SERVER_VARIABLES["is_running_stopwatch_to_stop_server"] = False
                 return
-            player_count = current_server_info["playerCount"]
+            player_count = current_server_info["player_count"]
             if player_count > 0:
-                STOP_SERVER_VARIABLES["isRunningStopwatchToStopServer"] = False
+                STOP_SERVER_VARIABLES["is_running_stopwatch_to_stop_server"] = False
                 return
             
             # check time
             current_time = time.time()
-            if not STOP_SERVER_VARIABLES["isRunningStopwatchToStopServer"]:
-                STOP_SERVER_VARIABLES["stopEventTriggeredTime"] = time.time()     # save triggered time
-                STOP_SERVER_VARIABLES["isRunningStopwatchToStopServer"] = True    # save flag
+            if not STOP_SERVER_VARIABLES["is_running_stopwatch_to_stop_server"]:
+                STOP_SERVER_VARIABLES["stop_event_triggered_time"] = time.time()     # save triggered time
+                STOP_SERVER_VARIABLES["is_running_stopwatch_to_stop_server"] = True    # save flag
 
             server_auto_stop_seconds = Settings.ServerAutoStopSeconds
-            passed_time = current_time - STOP_SERVER_VARIABLES["stopEventTriggeredTime"]
+            passed_time = current_time - STOP_SERVER_VARIABLES["stop_event_triggered_time"]
             if passed_time >= server_auto_stop_seconds:
                 self.controller.stop_server(delay_seconds=1)
                
-                STOP_SERVER_VARIABLES["stopEventTriggeredTime"] = time.time() # to prevent call stopServer multiple times
-                STOP_SERVER_VARIABLES["leftTimeToStopServer"] = 0.0
+                STOP_SERVER_VARIABLES["stop_event_triggered_time"] = time.time() # to prevent call stopServer multiple times
+                STOP_SERVER_VARIABLES["left_time_to_stop_server"] = 0.0
             else:
-                STOP_SERVER_VARIABLES["leftTimeToStopServer"] = int(server_auto_stop_seconds - passed_time)
+                STOP_SERVER_VARIABLES["left_time_to_stop_server"] = int(server_auto_stop_seconds - passed_time)
 
         except Exception as e:
             logging.error(f"Error from checkEventStopServerCore: {e}")
@@ -78,8 +78,8 @@ class AutoStopManager:
 
     def get_left_time_to_stop_server(self):
         """Get the remaining time before server stops"""
-        return STOP_SERVER_VARIABLES["leftTimeToStopServer"]
+        return STOP_SERVER_VARIABLES["left_time_to_stop_server"]
 
     def is_running_stopwatch_to_stop_server(self):
         """Check if the stopwatch for server stop is running"""
-        return STOP_SERVER_VARIABLES["isRunningStopwatchToStopServer"]
+        return STOP_SERVER_VARIABLES["is_running_stopwatch_to_stop_server"]

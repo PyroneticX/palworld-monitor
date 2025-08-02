@@ -1,8 +1,8 @@
 import socket
 from flask import Flask, render_template, request, jsonify
 from settings import Settings
-from palWorldControl import PalWorldController
-from autoStop import STOP_SERVER_VARIABLES
+from palworld_control import PalWorldController
+from auto_stop import STOP_SERVER_VARIABLES
 import logging
 import threading
 
@@ -89,8 +89,8 @@ class WebServer:
         theme = request.args.get('theme')
 
         # Get auto-stop variables if available
-        is_running_stopwatch = round(STOP_SERVER_VARIABLES["isRunningStopwatchToStopServer"])
-        left_time_to_stop = round(STOP_SERVER_VARIABLES["leftTimeToStopServer"])
+        is_running_stopwatch = round(STOP_SERVER_VARIABLES["is_running_stopwatch_to_stop_server"])
+        left_time_to_stop = round(STOP_SERVER_VARIABLES["left_time_to_stop_server"])
 
         return render_template(
             "index.html",
@@ -128,8 +128,8 @@ class WebServer:
         # Get persistent player data
         player_data = self._get_player_data()
 
-        is_running_stopwatch = round(STOP_SERVER_VARIABLES["isRunningStopwatchToStopServer"])
-        left_time_to_stop = round(STOP_SERVER_VARIABLES["leftTimeToStopServer"])
+        is_running_stopwatch = round(STOP_SERVER_VARIABLES["is_running_stopwatch_to_stop_server"])
+        left_time_to_stop = round(STOP_SERVER_VARIABLES["left_time_to_stop_server"])
 
         return jsonify(
             data=current_server_info,

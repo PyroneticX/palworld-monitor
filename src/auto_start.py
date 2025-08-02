@@ -1,6 +1,6 @@
 import socket
 from settings import Settings
-from palWorldControl import PalWorldController
+from palworld_control import PalWorldController
 import logging
 import threading
 import traceback

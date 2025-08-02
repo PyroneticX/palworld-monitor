@@ -5,7 +5,7 @@ import time
 import threading
 from settings import Settings
 import traceback
-from playerManager import PlayerManager
+from player_manager import PlayerManager
 from process_manager import WindowsProcessManager, LinuxProcessManager
 
 

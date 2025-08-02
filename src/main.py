@@ -1,10 +1,10 @@
-from palWorldControl import PalWorldController
-from rconClient import RconClient
-from restClient import RestClient
+from palworld_control import PalWorldController
+from rcon_client import RconClient
+from rest_client import RestClient
 from settings import Settings
-from webServer import WebServer
-from autoStart import AutoStartManager
-from autoStop import AutoStopManager
+from web_server import WebServer
+from auto_start import AutoStartManager
+from auto_stop import AutoStopManager
 import threading
 import logging
 import traceback
