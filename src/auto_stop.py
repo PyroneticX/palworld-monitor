@@ -30,7 +30,7 @@ class AutoStopManager:
                 logging.error("An error occurred while updating the current server, and as a result, the stop server event cannot be triggered.")
                 STOP_SERVER_VARIABLES["is_running_stopwatch_to_stop_server"] = False
                 return
-            player_count = current_server_info["player_count"]
+            player_count = current_server_info["playerCount"]
             if player_count > 0:
                 STOP_SERVER_VARIABLES["is_running_stopwatch_to_stop_server"] = False
                 return
