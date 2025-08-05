@@ -61,8 +61,23 @@ print_status "Deployment completed successfully!"
 
 # Initialize virtual environment and install Python dependencies on the remote server
 print_status "Setting up Python virtual environment and installing dependencies..."
-remote_exec "cd $REMOTE_DIR && if [ ! -d 'venv' ]; then python3 -m venv venv; fi && venv/bin/pip install -r requirements.txt"
-print_status "Dependencies installed successfully!"
+if remote_exec "cd $REMOTE_DIR && if [ ! -d 'venv' ]; then python3 -m venv venv; fi && venv/bin/pip install -r requirements.txt"; then
+    print_status "Dependencies installed successfully!"
+    
+    # Restart the palworld-control service
+    print_status "Restarting palworld-control service..."
+    if remote_exec "sudo systemctl restart palworld-control"; then
+        print_status "palworld-control service restarted successfully!"
+    else
+        print_warning "Failed to restart palworld-control service. You may need to restart it manually."
+        print_status "Manual restart command: sudo systemctl restart palworld-control"
+    fi
+else
+    print_warning "Failed to install dependencies automatically."
+    print_status "You may need to install Python and pip manually on the remote server."
+    print_status "Common commands: sudo apt-get install python3 python3-pip (Ubuntu/Debian)"
+    print_status "Or: sudo yum install python3 python3-pip (CentOS/RHEL)"
+fi
 
 print_status "Deployment to EC2 completed!"
 print_status "Remote directory: $REMOTE_DIR"

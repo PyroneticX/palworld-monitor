@@ -67,6 +67,16 @@ echo [INFO] Setting up Python virtual environment and installing dependencies...
 ssh -i "%EC2_KEY_PATH%" -o StrictHostKeyChecking=no "%EC2_USER%@%EC2_HOST%" "cd %REMOTE_DIR% && if [ ! -d 'venv' ]; then python3 -m venv venv; fi && venv/bin/pip install -r requirements.txt"
 if %ERRORLEVEL% EQU 0 (
     echo [INFO] Dependencies installed successfully!
+    
+    REM Restart the palworld-control service
+    echo [INFO] Restarting palworld-control service...
+    ssh -i "%EC2_KEY_PATH%" -o StrictHostKeyChecking=no "%EC2_USER%@%EC2_HOST%" "sudo systemctl restart palworld-control"
+    if %ERRORLEVEL% EQU 0 (
+        echo [INFO] palworld-control service restarted successfully!
+    ) else (
+        echo [WARNING] Failed to restart palworld-control service. You may need to restart it manually.
+        echo [INFO] Manual restart command: sudo systemctl restart palworld-control
+    )
 ) else (
     echo [WARNING] Failed to install dependencies automatically.
     echo [INFO] You may need to install Python and pip manually on the remote server.
