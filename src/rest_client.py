@@ -15,7 +15,7 @@ class RestClient:
         self.host = settings.palworldServerHost
         self.port = settings.palworldRESTPort
         self.password = settings.palworldAdminPassword
-        self.base_url = f"http://{self.host}:{self.port}/v1/api"
+        self.base_url = f"http://localhost:{self.port}/v1/api"
         self.headers = {
             "Content-Type": "application/json"
         }

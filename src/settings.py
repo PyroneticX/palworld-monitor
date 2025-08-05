@@ -16,7 +16,7 @@ class Settings:
             # Default arguments for the server executable
             'palworldExeArguments': "-useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS -NumberOfWorkerThreadsServer=16",
             # IP address for the Palworld server
-            'palworldServerHost': "127.0.0.1",
+            'palworldServerHost': "0.0.0.0",
             # Port for the Palworld server
             'palworldServerPort': 8211,
             # Initial packet pattern sent by Palworld client
@@ -29,7 +29,7 @@ class Settings:
             'palworldAdminPassword': "password",
             # Protocol used for server communication
             'protocol': "REST",
-            # Whether to enable the web server
+            # WhetherPto enable the web server
             'useWebServer': True,
             # Host for the web server
             'webServerHost': "127.0.0.1",
