@@ -17,8 +17,13 @@ class AutoStartManager:
     def is_port_available(self, port):
         """Check if PalWorld server port is available."""
         try:
-            test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             test_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                test_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+            except OSError:
+                # SO_REUSEPORT might not be available on all systems
+                pass
             test_socket.bind((settings.palworldServerHost, port))
             test_socket.close()
             return True
@@ -27,28 +32,54 @@ class AutoStartManager:
 
     def open_palworld_port_socket(self):
         """Open socket before listen."""
-        try:  
-            self.is_aborting = False
-            palworld_server_ip = settings.palworldServerHost
-            palworld_server_port = settings.palworldServerPort
-            
-            logging.info("Listening on Palworld Server port for new players...")
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.sock.bind((palworld_server_ip, palworld_server_port))
-            return True
-        except OSError as e:
-            if e.winerror == 10048:  # WSAEADDRINUSE - Address already in use
-                logging.error(f"Palworld port {palworld_server_port} is still in use. Cannot bind to port.")
-            else:
-                logging.error(f"OSError opening PalWorld port socket: {e}")
-            logging.error(traceback.format_exc())
-            self.is_aborting = True
-            return False
-        except Exception as e:
-            logging.error(f"Error opening PalWorld port socket: {e}")
-            logging.error(traceback.format_exc())
-            self.is_aborting = True
-            return False
+        max_retries = 5
+        retry_delay = 2  # seconds
+        
+        for attempt in range(max_retries):
+            try:  
+                self.is_aborting = False
+                palworld_server_ip = settings.palworldServerHost
+                palworld_server_port = settings.palworldServerPort
+                
+                if attempt == 0:
+                    logging.info("Listening on Palworld Server port for new players...")
+                else:
+                    logging.info(f"Retrying to bind to Palworld Server port... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(1)  # Small delay before retry
+                self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                # Set socket reuse options to handle port conflicts
+                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                try:
+                    self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+                except OSError:
+                    # SO_REUSEPORT might not be available on all systems
+                    pass
+                self.sock.bind((palworld_server_ip, palworld_server_port))
+                return True
+            except OSError as e:
+                # Check for address already in use error (Windows: 10048, Linux: 98)
+                if hasattr(e, 'winerror') and e.winerror == 10048:  # WSAEADDRINUSE - Address already in use
+                    logging.error(f"Palworld port {palworld_server_port} is still in use. Cannot bind to port.")
+                elif hasattr(e, 'errno') and e.errno == 98:  # EADDRINUSE - Address already in use (Linux)
+                    logging.error(f"Palworld port {palworld_server_port} is still in use. Cannot bind to port.")
+                else:
+                    logging.error(f"OSError opening PalWorld port socket: {e}")
+                
+                if attempt < max_retries - 1:
+                    logging.info(f"Retrying in {retry_delay} seconds... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(retry_delay)
+                    continue
+                else:
+                    logging.error(traceback.format_exc())
+                    self.is_aborting = True
+                    return False
+            except Exception as e:
+                logging.error(f"Error opening PalWorld port socket: {e}")
+                logging.error(traceback.format_exc())
+                self.is_aborting = True
+                return False
+        
+        return False
 
     def close_palworld_port_socket(self):
         """Close socket."""
@@ -90,8 +121,10 @@ class AutoStartManager:
                     logging.info("A player is attempting to connect. Starting Palworld Server...")
                     return True
             except OSError as e:
-                # Ignore WinError 10038 (socket operation on non-socket) as it's expected when closing
+                # Ignore socket operation on non-socket error (Windows: 10038, Linux: 88)
                 if hasattr(e, 'winerror') and e.winerror == 10038:
+                    return self._handle_socket_error()
+                elif hasattr(e, 'errno') and e.errno == 88:  # ENOTSOCK - Socket operation on non-socket (Linux)
                     return self._handle_socket_error()
                 logging.error(f"OSError in wait_for_player_connection: {e}")
                 logging.error(traceback.format_exc())
@@ -123,14 +156,13 @@ class AutoStartManager:
         if self.controller is None or self.controller.is_palworld_process_running():
             return
 
-        if not self.wait_for_port_available(settings.palworldServerPort):
-            return
-
         if not self.open_palworld_port_socket():
             return
 
         if self.wait_for_player_connection():
             self.close_palworld_port_socket()
+            # Small delay to ensure socket is properly closed
+            time.sleep(0.5)
             if self.controller is not None:
                 self.controller.start_server()
 
@@ -138,6 +170,9 @@ class AutoStartManager:
         """Start listening for PalWorld access."""
         # Stop any existing listen thread
         self.stop_listen_thread()
+        
+        # Add a small delay to allow the port to be released
+        time.sleep(1)
         
         # Start new listen thread
         self.listen_thread = threading.Thread(target=self.listen_palworld_access_core)
@@ -150,7 +185,13 @@ class AutoStartManager:
             logging.info("Stopping auto-start listen thread...")
             self.is_aborting = True
             self.close_palworld_port_socket()
-            self.listen_thread.join(timeout=5)
+            
+            # Don't join if we're in the same thread to avoid deadlock
+            if threading.current_thread() != self.listen_thread:
+                self.listen_thread.join(timeout=5)
+            else:
+                logging.info("Skipping thread join to avoid deadlock")
+            
             self.listen_thread = None
             logging.info("Auto-start listen thread stopped.")
 
