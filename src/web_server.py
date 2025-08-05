@@ -1,9 +1,34 @@
 import socket
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
+from functools import wraps
 from settings import settings
 from palworld_control import PalWorldController
 import logging
 import threading
+
+
+def check_auth(username, password):
+    """Check if username and password match the expected credentials."""
+    return username == 'admin' and password == settings.palworldAdminPassword
+
+
+def authenticate():
+    """Send a 401 response that enables basic auth."""
+    return Response(
+        'Could not verify your access level for that URL.\n'
+        'You have to login with proper credentials', 401,
+        {'WWW-Authenticate': 'Basic realm="Login Required"'})
+
+
+def requires_auth(f):
+    """Decorator to require basic authentication."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return authenticate()
+        return f(*args, **kwargs)
+    return decorated
 
 
 class WebServer:
@@ -28,10 +53,12 @@ class WebServer:
         """Register Flask routes with the application."""
         
         @self.app.route("/")
+        @requires_auth
         def index():
             return self._handle_index()
         
         @self.app.route("/action", methods=["POST"])
+        @requires_auth
         def web_server_action():
             return self._handle_action()
     
