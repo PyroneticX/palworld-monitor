@@ -1,6 +1,4 @@
 from palworld_control import PalWorldController
-from rcon_client import RconClient
-from rest_client import RestClient
 from settings import settings
 from web_server import WebServer
 from auto_start import AutoStartManager
@@ -32,8 +30,10 @@ try:
 
     # Choose the client based on the protocol setting
     if settings.protocol.upper() == 'REST':
+        from api_clients import RestClient
         client = RestClient()
     elif settings.protocol.upper() == 'RCON':
+        from api_clients import RconClient
         client = RconClient()
     else:
         logging.error(f"Invalid protocol specified in settings: {settings.protocol}")

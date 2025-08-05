@@ -11,34 +11,22 @@ This guide provides step-by-step instructions for deploying the PalWorld Dedicat
 
 ## 1. Run Deploy Scripts
 
-### For Linux:
+Run the deployment script using Python:
 ```bash
-chmod +x scripts/deploy_app.sh
-./scripts/deploy_app.sh
-```
-
-### For Windows:
-```cmd
-scripts\deploy_app.bat
+python3 scripts/deploy_app.py
 ```
 
 The deploy script will:
-- Clone the repository
 - Set up Python virtual environment
 - Install dependencies
 - Create necessary directories
 
 ## 2. Upload Save Data
 
-### For Linux:
+Upload save data using the Python script:
 ```bash
-chmod +x scripts/save_data.sh
-./scripts/save_data.sh
-```
-
-### For Windows:
-```cmd
-scripts\save_data.bat
+python3 scripts/save_data.py pull /path/to/local/dir
+python3 scripts/save_data.py push /path/to/local/dir --backup
 ```
 
 This script will:
@@ -48,15 +36,10 @@ This script will:
 
 ## 3. Upload Config Data
 
-### For Linux:
+Upload config data using the Python script:
 ```bash
-chmod +x scripts/config_data.sh
-./scripts/config_data.sh
-```
-
-### For Windows:
-```cmd
-scripts\config_data.bat
+python3 scripts/config_data.py pull /path/to/local/dir
+python3 scripts/config_data.py push /path/to/local/dir --backup
 ```
 
 This script will:
@@ -96,15 +79,9 @@ Example configuration:
 
 ## 5. Create Systemd Service
 
-### For Linux:
+Create the systemd service using the Python script:
 ```bash
-chmod +x scripts/create_systemd_service.sh
-sudo ./scripts/create_systemd_service.sh
-```
-
-### For Windows:
-```cmd
-scripts\create_systemd_service.bat
+python3 scripts/create_systemd_service.py
 ```
 
 This will:
@@ -131,7 +108,7 @@ sudo systemctl status palworld-control
 ```
 
 Access the web interface:
-- Open browser to `http://your-server-ip:8080`
+- Open browser to `http://your-server-ip:8213`
 - Default admin interface should be available
 
 ## Troubleshooting
@@ -164,9 +141,8 @@ sudo journalctl -u palworld-control -f
 
 ## Security Considerations
 
-- Change default REST API password
+- Change default REST/RCON API password
 - Configure firewall rules for required ports
-- Use HTTPS for web interface in production
 - Regularly update the application and dependencies
 - Monitor system resources and logs
 

@@ -1,4 +1,3 @@
-import psutil
 import subprocess
 import logging
 import time
@@ -6,8 +5,6 @@ import threading
 from settings import settings
 import traceback
 from player_manager import PlayerManager
-from process_manager import WindowsProcessManager, LinuxProcessManager
-
 
 class PalWorldController:
     def __init__(self, client):
@@ -47,8 +44,10 @@ class PalWorldController:
         
         # Select driver
         if settings.os.lower() == 'linux':
+            from process_manager import LinuxProcessManager
             self.process_manager = LinuxProcessManager()
         else:
+            from process_manager import WindowsProcessManager
             self.process_manager = WindowsProcessManager()
 
 
