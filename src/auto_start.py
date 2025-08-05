@@ -51,7 +51,7 @@ class AutoStartManager:
                 self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 try:
                     self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-                except OSError:
+                except (OSError, AttributeError):
                     # SO_REUSEPORT might not be available on all systems
                     pass
                 self.sock.bind((palworld_server_ip, palworld_server_port))
