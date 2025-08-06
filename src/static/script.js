@@ -118,71 +118,30 @@ function updateServerStatusUI(data, response) {
 
 function updatePlayerInfoUI(data, response) {
     const playersInfoElement = document.getElementById("playersInfo");
-    const offlinePlayersInfoElement = document.getElementById("offlinePlayersInfo");
-    
-    // Display online players
-    if (response.online_players && response.online_players.length > 0) {
-        let onlinePlayerList = "";
-        
-        // Sort online players by level (highest to lowest), then alphabetically
-        const sortedOnlinePlayers = response.online_players.sort((a, b) => {
-            // First priority: level (highest to lowest)
+    if (!playersInfoElement) return;
+    if (response.players && response.players.length > 0) {
+        let playerList = "";
+        // Sort by online first, then level (desc), then name
+        const sortedPlayers = response.players.sort((a, b) => {
+            if (a.currently_online !== b.currently_online) return b.currently_online - a.currently_online;
             const levelA = parseInt(a.level) || 0;
             const levelB = parseInt(b.level) || 0;
             if (levelA !== levelB) return levelB - levelA;
-            
-            // Second priority: alphabetical order within the same level
             return a.name.localeCompare(b.name);
         });
-        
-        sortedOnlinePlayers.forEach(player => {
-            onlinePlayerList += `<div class="player-entry online">
-                <span class="player-name">${player.name}</span>
+        sortedPlayers.forEach(player => {
+            const status = player.currently_online ? '🟢 Online' : '🔴 Offline';
+            const lastOnlineText = player.currently_online ? '' : `<span class="last-online">Last online: ${formatTimestamp(player.last_online)}</span>`;
+            playerList += `<div class="player-entry ${player.currently_online ? 'online' : 'offline'}">
+                <span class="player-name">${player.name}</span><br>
                 <span class="player-level">LVL ${player.level}</span>
-                <span class="player-status">🟢 Online</span>
+                <span class="player-status">${status}</span>
+                ${lastOnlineText}
             </div>`;
         });
-        
-        if (playersInfoElement) playersInfoElement.innerHTML = onlinePlayerList;
-    }
-    else{
-        if (playersInfoElement) playersInfoElement.textContent = "- No players currently online";
-    }
-    
-    // Display offline players
-    if (response.offline_players && response.offline_players.length > 0) {
-        let offlinePlayerList = "";
-        
-        // Sort offline players by last online time (most recent first), then by level, then alphabetically
-        const sortedOfflinePlayers = response.offline_players.sort((a, b) => {
-            // First priority: last online time (most recent first)
-            const lastOnlineA = a.last_online || 0;
-            const lastOnlineB = b.last_online || 0;
-            if (lastOnlineA !== lastOnlineB) return lastOnlineB - lastOnlineA;
-            
-            // Second priority: level (highest to lowest)
-            const levelA = parseInt(a.level) || 0;
-            const levelB = parseInt(b.level) || 0;
-            if (levelA !== levelB) return levelB - levelA;
-            
-            // Third priority: alphabetical order
-            return a.name.localeCompare(b.name);
-        });
-        
-        sortedOfflinePlayers.forEach(player => {
-            const lastOnlineText = formatTimestamp(player.last_online);
-            offlinePlayerList += `<div class="player-entry offline">
-                <span class="player-name">${player.name}</span>
-                <span class="player-level">LVL ${player.level}</span>
-                <span class="player-status">🔴 Offline</span>
-                <span class="last-online">Last online: ${lastOnlineText}</span>
-            </div>`;
-        });
-        
-        if (offlinePlayersInfoElement) offlinePlayersInfoElement.innerHTML = offlinePlayerList;
-    }
-    else{
-        if (offlinePlayersInfoElement) offlinePlayersInfoElement.textContent = "- No offline players";
+        playersInfoElement.innerHTML = playerList;
+    } else {
+        playersInfoElement.textContent = "- No players found";
     }
 }
 

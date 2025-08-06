@@ -8,27 +8,57 @@ class PlayerManager:
     """Manages player data including online and offline players with timestamps."""
     
     def __init__(self):
-        self.players = {}  # Single dict: {player_uid: player_data}
+        self.players = {}  # Single dict: {steam_id: player_data}
         self.data_file = os.path.join('data', 'players.json')
+        self.version = 1
         self._load_player_data()
     
     def _load_player_data(self):
-        """Load player data from JSON file."""
+        """Load player data from JSON file. Migrate if needed."""
         try:
-            if os.path.exists(self.data_file):
-                with open(self.data_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    self.players = data.get('players', {})
+            data = self._load_raw_player_data()
+            if data is None:
+                self.players = {}
+                return
+            if self._is_migration_needed(data):
+                self.players = self._migrate_uid_to_steamid(data)
+                self._save_player_data()
+            else:
+                self.players = data.get('players', {})
         except Exception as e:
             print(f"Error loading player data: {e}")
             self.players = {}
-    
+
+    def _load_raw_player_data(self) -> Optional[dict]:
+        """Load and return raw player data from file, or None if not found."""
+        if not os.path.exists(self.data_file):
+            return None
+        with open(self.data_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    def _is_migration_needed(self, data: dict) -> bool:
+        """Return True if migration from uid to steam_id is needed."""
+        file_version = data.get('version')
+        return not file_version or file_version < 1
+
+    def _migrate_uid_to_steamid(self, data: dict) -> dict:
+        """Migrate player data from uid-keyed to steam_id-keyed dict."""
+        old_players = data.get('players', {})
+        new_players = {}
+        for player in old_players.values():
+            steam_id = player.get('steam_id')
+            if steam_id and steam_id != 'Unknown':
+                player.pop('uid', None)
+                new_players[steam_id] = player
+        return new_players
+
     def _save_player_data(self):
-        """Save player data to JSON file."""
+        """Save player data to JSON file with versioning."""
         try:
             os.makedirs(os.path.dirname(self.data_file), exist_ok=True)
             with open(self.data_file, 'w', encoding='utf-8') as f:
                 json.dump({
+                    'version': self.version,
                     'players': self.players
                 }, f, indent=2, ensure_ascii=False)
         except Exception as e:
@@ -38,10 +68,9 @@ class PlayerManager:
         """Extract player information from server data."""
         if len(player_info) < 4:
             return None
-        
         return {
             "name": player_info[0],
-            "uid": player_info[1] if len(player_info) > 1 else "Unknown",
+            # 'uid' is ignored for storage, but can be included for compatibility if needed
             "steam_id": player_info[2] if len(player_info) > 2 else "Unknown",
             "level": player_info[3] if len(player_info) > 3 else "Unknown"
         }
@@ -52,29 +81,24 @@ class PlayerManager:
             self.players = {}
             self._save_player_data()
             return
-        
         current_time = time.time()
-        current_player_uids = set()
-        
+        current_player_steam_ids = set()
         # Update current online players
         for player_info in current_players:
             extracted_info = self._extract_player_info(player_info)
-            if extracted_info and extracted_info['uid'] != "Unknown":
-                player_uid = extracted_info['uid']
-                current_player_uids.add(player_uid)
-                
+            if extracted_info and extracted_info['steam_id'] != "Unknown":
+                steam_id = extracted_info['steam_id']
+                current_player_steam_ids.add(steam_id)
                 # Update or add player as online
-                self.players[player_uid] = {
+                self.players[steam_id] = {
                     **extracted_info,
                     'currently_online': True,
                     'last_online': current_time
                 }
-        
         # Mark players as offline if they're not in current list
-        for player_uid, player_data in self.players.items():
-            if player_uid not in current_player_uids:
+        for steam_id, player_data in self.players.items():
+            if steam_id not in current_player_steam_ids:
                 player_data['currently_online'] = False
-        
         self._save_player_data()
 
     def get_all_players(self) -> List[Dict[str, Any]]:
