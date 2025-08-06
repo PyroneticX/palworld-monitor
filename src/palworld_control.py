@@ -127,30 +127,7 @@ class PalWorldController:
         """Check if a stop event is currently running."""
         return self.is_triggered_check_stopped_event
 
-    def stop_server(self):
-        """Stop the PalWorld server with optional force termination."""
-        logging.info("Palworld server is commanded to shutdown")
-
-        # Cancel any auto-stop delay
-        self._cancel_auto_stop_delay()
-
-        # Update server status to reflect it's stopping
-        self.current_server_info["running"] = False
-        self.current_server_info["playerCount"] = 0
-        self.current_server_info["players"] = []
-        if settings.enablePlayerTracking:
-            self.player_manager.update_players_from_server([])
-
-        # Stop the server info update thread
-        self.stop_server_info_update_thread()
-
-        if not self.is_triggered_check_stopped_event:
-            self.is_triggered_check_stopped_event = True
-            thread = threading.Thread(target=self.check_is_stopped_palworld_process_core)
-            thread.start()
-
-        self.process_manager.terminate_process()
-        logging.info("Palworld server stopped successfully.")
+    # Removed stop_server method and related logic
 
     def _should_block_stop(self):
         if not self.is_palworld_process_running():
@@ -228,7 +205,9 @@ class PalWorldController:
             # Check if the delay was cancelled
             if not self.auto_stop_delay_cancelled:
                 logging.info("Auto-stop delay completed. Stopping server.")
-                self.stop_server()
+                # The stop_server method was removed, so this will now just log the event.
+                # If a stop mechanism is needed, it should be re-added or handled differently.
+                logging.info("Auto-stop delay completed. Stopping server (manual intervention required).")
         except Exception as e:
             logging.error(f"Error in auto-stop delay worker: {e}")
             logging.error(traceback.format_exc())

@@ -91,9 +91,7 @@ class WebServer:
         """Get player data from the player manager."""
         player_manager = self.palworld_controller.get_player_manager()
         return {
-            'all_players': player_manager.get_all_players(),
-            'online_players': player_manager.get_online_players(),
-            'offline_players': player_manager.get_offline_players(),
+            'players': player_manager.get_all_players(),
             'total_player_count': player_manager.get_total_player_count()
         }
     
@@ -119,9 +117,7 @@ class WebServer:
             controlServerThroughWeb=settings.controlServerThroughWeb,
             showServerIPAddress=settings.showServerIPAddress,
             data=current_server_info,
-            all_players=player_data['all_players'],
-            online_players=player_data['online_players'],
-            offline_players=player_data['offline_players'],
+            players=player_data['players'],
             total_player_count=player_data['total_player_count'],
             autoStopDelay=round(settings.autoStopDelay),
             updateInterval=settings.updateInterval,
@@ -134,8 +130,7 @@ class WebServer:
 
         if action == "startServer":
             self.palworld_controller.start_server()
-        elif action == "stopServer":
-            self.palworld_controller.stop_server()
+        # Removed stopServer action
         #elif action == "getStatus":
             # Just refresh the page with current server info (no server update triggered)
 
@@ -148,9 +143,7 @@ class WebServer:
 
         return jsonify(
             data=current_server_info,
-            all_players=player_data['all_players'],
-            online_players=player_data['online_players'],
-            offline_players=player_data['offline_players'],
+            players=player_data['players'],
             total_player_count=player_data['total_player_count'],
             autoStopDelay=round(settings.autoStopDelay)
         )
