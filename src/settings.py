@@ -81,4 +81,11 @@ class Settings:
         if missing:
             raise ValueError(f"The following settings areq REQUIRED: {missing}")
 
+    def get_git_hash(self):
+        try:
+            with open('src/git_hash.txt', 'r') as f:
+                return f.read().strip()
+        except Exception:
+            return 'unknown'
+
 settings = Settings()

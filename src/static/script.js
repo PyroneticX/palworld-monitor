@@ -114,8 +114,6 @@ function updateServerStatusUI(data, response) {
     }
 }
 
-
-
 function updatePlayerInfoUI(data, response) {
     const playersInfoElement = document.getElementById("playersInfo");
     if (!playersInfoElement) return;
@@ -130,12 +128,12 @@ function updatePlayerInfoUI(data, response) {
             return a.name.localeCompare(b.name);
         });
         sortedPlayers.forEach(player => {
-            const status = player.currently_online ? '🟢 Online' : '🔴 Offline';
             const lastOnlineText = player.currently_online ? '' : `<span class="last-online">Last online: ${formatTimestamp(player.last_online)}</span>`;
             playerList += `<div class="player-entry ${player.currently_online ? 'online' : 'offline'}">
-                <span class="player-name">${player.name}</span><br>
-                <span class="player-level">LVL ${player.level}</span>
-                <span class="player-status">${status}</span>
+                <div>
+                    <span class="player-name">${player.name}</span><br>
+                    <span class="player-level" style="font-size: 0.8em;">LVL ${player.level}</span>
+                </div>
                 ${lastOnlineText}
             </div>`;
         });
