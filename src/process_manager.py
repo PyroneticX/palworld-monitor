@@ -89,14 +89,48 @@ class OSProcessManager:
         except psutil.AccessDenied:
             return False
 
+    def find_process_pid(self, name):
+        """Find a running process whose attributes contain the given name.
+
+        Returns the PID of the first matching process, or None if not found.
+        Matching is case-insensitive and checks process exe path, name, and cmdline.
+        """
+        try:
+            target = (name or "").lower()
+            for proc in psutil.process_iter(attrs=['pid', 'name', 'exe', 'cmdline']):
+                try:
+                    info = proc.info
+                    exe = info.get('exe') or ''
+                    pname = info.get('name') or ''
+                    cmdline_list = info.get('cmdline') or []
+                    combined = ' '.join([exe, pname, ' '.join(cmdline_list)]).lower()
+                    if target and target in combined:
+                        return info['pid']
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    continue
+        except Exception:
+            # best-effort
+            pass
+        return None
+
 class WindowsProcessManager(OSProcessManager):
     def pid_file_name(self):
         return 'palworld_server.win.pid'
 
     def launch_process(self, exe_path, exe_args):
+        # Detach so the child survives if this controller exits
+        creation_flags = (
+            subprocess.HIGH_PRIORITY_CLASS
+            | subprocess.DETACHED_PROCESS
+            | subprocess.CREATE_NEW_PROCESS_GROUP
+        )
         process = subprocess.Popen(
             [exe_path] + exe_args.split(),
-            creationflags=subprocess.HIGH_PRIORITY_CLASS
+            creationflags=creation_flags,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
         )
         self._after_launch(process)
 
@@ -105,5 +139,13 @@ class LinuxProcessManager(OSProcessManager):
         return 'palworld_server.linux.pid'
 
     def launch_process(self, exe_path, exe_args):
-        process = subprocess.Popen([exe_path] + exe_args.split())
+        # Start a new session (setsid) and detach stdio so it survives parent exit
+        process = subprocess.Popen(
+            [exe_path] + exe_args.split(),
+            start_new_session=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+        )
         self._after_launch(process)

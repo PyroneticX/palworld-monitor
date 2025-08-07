@@ -5,6 +5,7 @@ import threading
 from settings import settings
 import traceback
 from player_manager import PlayerManager
+import os
 
 class PalWorldController:
     def __init__(self, client):
@@ -109,9 +110,6 @@ class PalWorldController:
         """Detect a running Palworld server and register its PID in the process manager.
         """
         try:
-            import psutil
-            import os
-
             # If PID is already known (from PID file), skip
             if self.process_manager.launched_pid is not None:
                 return
@@ -120,35 +118,11 @@ class PalWorldController:
             if os.path.exists(self.process_manager.pid_file_name()):
                 return
 
-            exe_path = settings.palworldServerExePath
-
-            for proc in psutil.process_iter(attrs=['pid', 'name', 'exe', 'cmdline']):
-                try:
-                    info = proc.info
-                    exe = (info.get('exe') or '')
-                    # Normalize paths for robust comparison on Windows/Linux
-                    def _norm(p):
-                        try:
-                            return os.path.normcase(os.path.normpath(p))
-                        except Exception:
-                            return p
-                    if not exe_path:
-                        continue
-                    if _norm(exe) != _norm(exe_path):
-                        # Fallback: compare by basename if full path comparison fails
-                        try:
-                            if os.path.basename(exe).lower() != os.path.basename(exe_path).lower():
-                                continue
-                        except Exception:
-                            continue
-
-                    self.process_manager.set_known_pid(info['pid'])
-                    logging.info(f"Detected existing Palworld server (PID {info['pid']}). Attaching controller.")
-                    self._handle_server_started(source="attach")
-                    
-                    return
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                    continue
+            pid = self.process_manager.find_process_pid("palserver")
+            if pid is not None:
+                self.process_manager.set_known_pid(pid)
+                logging.info(f"Detected existing Palworld server (PID {pid}). Attaching controller.")
+                self._handle_server_started(source="attach")
         except Exception:
             # best-effort only
             pass
@@ -195,7 +169,39 @@ class PalWorldController:
         """Check if a stop event is currently running."""
         return self.is_triggered_check_stopped_event
 
-    # Removed stop_server method and related logic
+    def stop_server(self):
+        """Stop the PalWorld server with optional force termination."""
+        logging.info("Palworld server is commanded to shutdown")
+
+        # Cancel any auto-stop delay
+        self._cancel_auto_stop_delay()
+
+        # Update server status to reflect it's stopping
+        self.current_server_info["running"] = False
+        self.current_server_info["playerCount"] = 0
+        self.current_server_info["players"] = []
+        if settings.enablePlayerTracking:
+            self.player_manager.update_players_from_server([])
+
+        # Stop the server info update thread
+        self.stop_server_info_update_thread()
+
+        if not self.is_triggered_check_stopped_event:
+            self.is_triggered_check_stopped_event = True
+            thread = threading.Thread(target=self.check_is_stopped_palworld_process_core)
+            thread.start()
+
+        terminated = self.process_manager.terminate_process()
+        if not terminated:
+            pid = self.process_manager.find_process_pid("palserver")
+            if pid is not None:
+                self.process_manager.set_known_pid(pid)
+                terminated = self.process_manager.terminate_process()
+
+        if terminated:
+            logging.info("Palworld server stopped successfully.")
+        else:
+            logging.warning("Failed to stop Palworld server; process may not be running.")
 
     def _should_block_stop(self):
         if not self.is_palworld_process_running():
@@ -273,9 +279,7 @@ class PalWorldController:
             # Check if the delay was cancelled
             if not self.auto_stop_delay_cancelled:
                 logging.info("Auto-stop delay completed. Stopping server.")
-                # The stop_server method was removed, so this will now just log the event.
-                # If a stop mechanism is needed, it should be re-added or handled differently.
-                logging.info("Auto-stop delay completed. Stopping server (manual intervention required).")
+                self.stop_server()
         except Exception as e:
             logging.error(f"Error in auto-stop delay worker: {e}")
             logging.error(traceback.format_exc())
