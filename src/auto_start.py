@@ -38,7 +38,6 @@ class AutoStartManager:
         for attempt in range(max_retries):
             try:  
                 self.is_aborting = False
-                palworld_server_ip = settings.palworldServerHost
                 palworld_server_port = settings.palworldServerPort
                 
                 if attempt == 0:
@@ -54,7 +53,7 @@ class AutoStartManager:
                 except (OSError, AttributeError):
                     # SO_REUSEPORT might not be available on all systems
                     pass
-                self.sock.bind((palworld_server_ip, palworld_server_port))
+                self.sock.bind(("0.0.0.0", palworld_server_port))
                 return True
             except OSError as e:
                 # Check for address already in use error (Windows: 10048, Linux: 98)
