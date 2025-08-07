@@ -50,6 +50,9 @@ class PalWorldController:
             from process_manager import WindowsProcessManager
             self.process_manager = WindowsProcessManager()
 
+        # If no PID was loaded, try to detect an already running Palworld server
+        self._detect_existing_server_process()
+
 
     def is_palworld_process_running(self):
         """Check if the PalWorld server process is currently running."""
@@ -68,12 +71,7 @@ class PalWorldController:
         try:
             self._launch_process(palworld_exe_path)
             if self.is_palworld_process_running():
-                logging.info("Palworld server launched successfully.")
-                # Start the update thread after successful server start
-                self.start_server_info_update_thread()
-                # Call the server started callback
-                if self.on_server_started_callback:
-                    self.on_server_started_callback()
+                self._handle_server_started(source="launch")
             else:
                 logging.error("Palworld server failed to launch (process not running after start).")
         except subprocess.CalledProcessError as e:
@@ -106,6 +104,80 @@ class PalWorldController:
     def _launch_process(self, palworld_exe_path):
         self.is_palworld_server_starting = True
         self.process_manager.launch_process(palworld_exe_path, settings.palworldExeArguments)
+
+    def _detect_existing_server_process(self):
+        """Detect a running Palworld server and register its PID in the process manager.
+        """
+        try:
+            import psutil
+            import os
+
+            # If PID is already known (from PID file), skip
+            if self.process_manager.launched_pid is not None:
+                return
+
+            # Only try if no PID file exists yet
+            if os.path.exists(self.process_manager.pid_file_name()):
+                return
+
+            candidates = set()
+            exe_path = settings.palworldServerExePath
+
+            if exe_path:
+                candidates.add(os.path.basename(exe_path).lower())
+
+            if not candidates and not exe_path:
+                return
+
+            for proc in psutil.process_iter(attrs=['pid', 'name', 'exe', 'cmdline']):
+                try:
+                    info = proc.info
+                    name = (info.get('name') or '').lower()
+                    exe = (info.get('exe') or '').lower()
+                    exe_base = os.path.basename(exe) if exe else ''
+                    cmdline_list = info.get('cmdline') or []
+                    cmdline = ' '.join(map(str, cmdline_list)).lower()
+
+                    matched = False
+                    if name in candidates or exe_base in candidates:
+                        matched = True
+                    elif exe_path:
+                        low_path = exe_path.lower()
+                        if exe == low_path or low_path in cmdline:
+                            matched = True
+
+                    if matched:
+                        self.process_manager.set_known_pid(info['pid'])
+                        logging.info(f"Detected existing Palworld server (PID {info['pid']}). Attaching controller.")
+                        self._handle_server_started(source="attach")
+                        return
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    continue
+        except Exception:
+            # best-effort only
+            pass
+
+    def _handle_server_started(self, source: str = "launch"):
+        """Common behavior after the server is considered started.
+
+        Starts background updates, invokes the started callback, and timestamps the event.
+        """
+        if source == "launch":
+            logging.info("Palworld server launched successfully.")
+        elif source == "attach":
+            logging.info("Attached to running Palworld server successfully.")
+        else:
+            logging.info("Server started.")
+
+        # Start the update thread after successful start/attach
+        self.start_server_info_update_thread()
+
+        # Call the server started callback
+        if self.on_server_started_callback:
+            self.on_server_started_callback()
+
+        # Update last started timestamp
+        self.last_server_started_time = time.time()
 
     def check_is_stopped_palworld_process_core(self, timeout=60):
         """Check if the PalWorld process has been terminated."""
