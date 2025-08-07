@@ -120,37 +120,33 @@ class PalWorldController:
             if os.path.exists(self.process_manager.pid_file_name()):
                 return
 
-            candidates = set()
             exe_path = settings.palworldServerExePath
-
-            if exe_path:
-                candidates.add(os.path.basename(exe_path).lower())
-
-            if not candidates and not exe_path:
-                return
 
             for proc in psutil.process_iter(attrs=['pid', 'name', 'exe', 'cmdline']):
                 try:
                     info = proc.info
-                    name = (info.get('name') or '').lower()
-                    exe = (info.get('exe') or '').lower()
-                    exe_base = os.path.basename(exe) if exe else ''
-                    cmdline_list = info.get('cmdline') or []
-                    cmdline = ' '.join(map(str, cmdline_list)).lower()
+                    exe = (info.get('exe') or '')
+                    # Normalize paths for robust comparison on Windows/Linux
+                    def _norm(p):
+                        try:
+                            return os.path.normcase(os.path.normpath(p))
+                        except Exception:
+                            return p
+                    if not exe_path:
+                        continue
+                    if _norm(exe) != _norm(exe_path):
+                        # Fallback: compare by basename if full path comparison fails
+                        try:
+                            if os.path.basename(exe).lower() != os.path.basename(exe_path).lower():
+                                continue
+                        except Exception:
+                            continue
 
-                    matched = False
-                    if name in candidates or exe_base in candidates:
-                        matched = True
-                    elif exe_path:
-                        low_path = exe_path.lower()
-                        if exe == low_path or low_path in cmdline:
-                            matched = True
-
-                    if matched:
-                        self.process_manager.set_known_pid(info['pid'])
-                        logging.info(f"Detected existing Palworld server (PID {info['pid']}). Attaching controller.")
-                        self._handle_server_started(source="attach")
-                        return
+                    self.process_manager.set_known_pid(info['pid'])
+                    logging.info(f"Detected existing Palworld server (PID {info['pid']}). Attaching controller.")
+                    self._handle_server_started(source="attach")
+                    
+                    return
                 except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                     continue
         except Exception:
@@ -162,13 +158,6 @@ class PalWorldController:
 
         Starts background updates, invokes the started callback, and timestamps the event.
         """
-        if source == "launch":
-            logging.info("Palworld server launched successfully.")
-        elif source == "attach":
-            logging.info("Attached to running Palworld server successfully.")
-        else:
-            logging.info("Server started.")
-
         # Start the update thread after successful start/attach
         self.start_server_info_update_thread()
 
@@ -178,6 +167,13 @@ class PalWorldController:
 
         # Update last started timestamp
         self.last_server_started_time = time.time()
+
+        if source == "launch":
+            logging.info("Palworld server launched successfully.")
+        elif source == "attach":
+            logging.info("Attached to running Palworld server successfully.")
+        else:
+            logging.info("Server started.")
 
     def check_is_stopped_palworld_process_core(self, timeout=60):
         """Check if the PalWorld process has been terminated."""

@@ -42,14 +42,18 @@ try:
     palworld_controller = PalWorldController(client)
     
     # Start the background server info update thread only if server is running
-    if palworld_controller.is_palworld_process_running():
+    server_running = palworld_controller.is_palworld_process_running()
+    if server_running:
         palworld_controller.start_server_info_update_thread()
 
     if settings.autoStart:
         auto_start_manager = AutoStartManager(palworld_controller)
+        # Always wire callbacks so AutoStart can react when server starts/stops later
         palworld_controller.set_on_server_started_callback(auto_start_manager.stop_listen_thread)
-        auto_start_manager.listen_palworld_access()
         palworld_controller.set_on_server_stopped_callback(auto_start_manager.listen_palworld_access)
+        # Only begin listening if server is not currently running (after detection)
+        if not server_running:
+            auto_start_manager.listen_palworld_access()
 
     if settings.useWebServer:
         web_server = WebServer(palworld_controller)
