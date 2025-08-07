@@ -1,188 +1,166 @@
 # PalWorld-Dedicated-Server-Auto-Start-Stop
 
-- This is a Python application for automatically managing PalWorld dedicated servers on Windows and Linux.
-- When the PalWorld server is not running, it automatically starts when a user attempts to connect.
-- When the PalWorld server is running and there are no online users, it automatically shuts down after a configurable period.
-- Provides an Admin Page through the web server to monitor and control the server.
-- Supports both RCON and REST API protocols for server communication.
+A Python application for automatically managing PalWorld dedicated servers on Windows and Linux. The server automatically starts when players attempt to connect and shuts down when idle, providing efficient resource management and a web-based admin interface for monitoring and control.
 
 ## Features
 
-- **Cross-platform support**: Windows and Linux
-- **Multiple communication protocols**: RCON and REST API
-- **Automatic server management**: Start on connection, stop when idle
-- **Web-based admin interface**: Monitor and control server remotely
-- **Player tracking**: Track currently online players
-- **Process management**: Robust process lifecycle management
+- **Cross-platform support**: Windows and Linux compatibility
+- **REST API communication**: Recommended protocol for reliable server communication
+- **RCON protocol support**: Legacy protocol option for older setups
+- **Automatic server management**: 
+  - Auto-start when players attempt to connect
+  - Auto-stop when server is empty (configurable delay)
+- **Web-based admin interface**: 
+  - Real-time server monitoring
+  - Player tracking and statistics
+  - Server control capabilities
+- **Player management**: 
+  - Track online/offline player status
+  - Player history with timestamps
+  - Detailed player information (name, Steam ID, level)
+- **Process management**: Robust server process lifecycle management
 - **Configurable settings**: JSON-based configuration system
+- **Deployment automation**: Scripts for remote server deployment and systemd service setup
 
 ## Limitations
 
-- This tool is designed for personal use and is currently in development. It may have bugs.
-- Tested primarily on small-scale servers.
-- Be cautious as unknown security issues may arise.
-- This tool expects to live in the same host as the Palword Server as it cannot control remote 
-  processes (as of yet).
+- **Development stage**: This tool is in active development and may contain bugs
+- **Local hosting requirement**: Must run on the same host as the PalWorld server (cannot control remote processes)
+- **Network access**: Requires proper firewall configuration for REST/RCON ports
+- **Unicode limitations**: RCON protocol has known issues with Unicode characters in player names
 
 ## How to Use
 
 ### Prerequisites
 
-#### For REST API Protocol (recommended)
-To enable the REST API in your PalWorld server:
+#### PalWorld Server Configuration
 
-1. **Edit the PalWorldSettings.ini file**
+**REST API Protocol (Recommended)**
 
-   Locate your `PalWorldSettings.ini` file, typically found at:
+The REST API is the recommended communication method for better reliability and Unicode support. To enable it:
+
+1. **Locate PalWorldSettings.ini**
    ```
-   {PalServerPath}\PalServer\Pal\Saved\Config\WindowsServer\PalWorldSettings.ini
+   {PalServerPath}\PalServer\Pal\Saved\Config\{Windows|Linux}Server\PalWorldSettings.ini
    ```
-   If the file does not exist or is empty, copy the contents from `DefaultPalWorldSettings.ini` in the same directory.
+   If the file doesn't exist, copy from `DefaultPalWorldSettings.ini`.
 
-2. **Set the REST API parameters**
-
-   Add or update the following lines in your `PalWorldSettings.ini` file under the `[ServerSettings]` section:
-   ```
+2. **Enable REST API**
+   Add these settings under `[ServerSettings]`:
+   ```ini
    RESTEnabled=True
    RESTPort=8212
-   AdminPassword=your_admin_password
+   AdminPassword=your_strong_admin_password
    ```
-
-   - `RESTEnabled=True` enables the REST API.
-   - `RESTPort=8212` sets the port for REST API communication (ensure it matches your configuration).
-   - `AdminPassword` is required for authentication.
 
 3. **Restart your PalWorld server**
 
-   After saving the changes, restart your PalWorld server for the settings to take effect.
+**RCON Protocol (Legacy)**
 
-**Note:**  
-- Make sure the REST port is open and not blocked by your firewall.
-- Use a strong admin password to protect your server.
+Only use RCON if REST API is not available:
 
-#### For RCON Protocol (legacy)
-To enable RCON in your PalWorld server:
-
-1. Open your `PalWorldSettings.ini` file, typically located at:
-   ```
-   {PalServerPath}\PalServer\Pal\Saved\Config\WindowsServer\PalWorldSettings.ini
-   ```
-   If this file does not exist or is empty, copy the contents from:
-   ```
-   {PalServerPath}\PalServer\DefaultPalWorldSettings.ini
-   ```
-   and paste them into `PalWorldSettings.ini`.
-
-2. Under the `[ServerSettings]` section, add or update the following lines:
-   ```
+1. **Configure RCON in PalWorldSettings.ini**
+   Add these settings under `[ServerSettings]`:
+   ```ini
    RCONEnabled=True
    RCONPort=25575
-   AdminPassword=your_admin_password
+   AdminPassword=your_strong_admin_password
    ```
-   - `RCONEnabled=True` enables the RCON protocol.
-   - `RCONPort=25575` sets the RCON port (ensure it matches your configuration).
-   - `AdminPassword` is required for authentication.
 
-3. Save the file and restart your PalWorld server for the changes to take effect.
+2. **Restart your PalWorld server**
 
-**Note:**  
-- Make sure the RCON port is open and not blocked by your firewall.
-- Use a strong admin password to protect your server.
-
-### Download
-
-Download the code from this repository using the "Download ZIP" feature or execute the following command:
-
-```bash
-git clone https://github.com/nomomo/PalWorld-Dedicated-Server-Auto-Start-Stop.git
-```
-
-### Install Dependencies
-
-This application has been tested with Python 3.10+. To install dependencies, execute the following command:
-
-```bash
-pip install -r requirements.txt
-```
+**Important Notes:**
+- Use a strong admin password for security
+- Ensure the configured ports are open in your firewall
+- REST API is preferred due to better Unicode character support
 
 ### Configuration
 
-The application uses a JSON-based configuration system. Create or modify the `src/settings.json` file according to your server settings:
+Create a `src/settings.json` file to configure the application. Here are the key settings:
 
-```javascript
+```json
 {
-    // Operating system: "windows" or "linux"
     "os": "windows",
-    
-    // Path to your PalWorld server executable
     "palworldServerExePath": "C:\\steamapps\\common\\PalServer\\PalServer.exe",
-    
-    // PalWorld server host address (used for auto-start detection)
     "palworldServerHost": "127.0.0.1",
-    
-    // PalWorld server port (used for auto-start detection)
     "palworldServerPort": 8211,
-    
-    // REST API port for server communication
     "palworldRESTPort": 8212,
-    
-    // RCON port for server communication (legacy)
     "palworldRCONPort": 25575,
-    
-    // Admin password for server authentication
     "palworldAdminPassword": "your_admin_password",
-    
-    // Communication protocol: "REST" (recommended) or "RCON"
     "protocol": "REST",
-    
-    // Enable web-based admin interface
     "useWebServer": true,
-    
-    // Web server host (use "0.0.0.0" for external access)
-    "webServerHost": "0.0.0.0",
-    
-    // Web server port for admin interface
     "webServerPort": 8213,
-    
-    // Enable server control through web interface
     "controlServerThroughWeb": true,
-    
-    // Show server IP address in web interface
-    "showServerIPAddress": true,
-    
-    // Automatically start server when connection is detected
+    "showServerIPAddress": false,
     "autoStart": true,
-    
-    // Automatically stop server when no players are online
     "autoStop": true,
-    
-    // Seconds to wait before stopping server when empty
     "autoStopDelay": 600,
-    
-    // Interval (seconds) to check server status
     "updateInterval": 30,
-    
-    // Enable player tracking functionality
     "enablePlayerTracking": true
 }
 ```
 
-Most settings are optional. Check default values inside `src/settings.py`.
+**Key Configuration Options:**
+- `protocol`: Set to `"REST"` (recommended) or `"RCON"`
+- `palworldServerExePath`: Path to your PalWorld server executable
+- `palworldAdminPassword`: Must match your PalWorld server admin password
+
+Most settings are optional and have sensible defaults. See `src/settings.py` for all available options.
 
 ### Running the Application
 
-#### Option 1: Direct Python Execution
-Navigate to the root of the project and execute:
+Navigate to the project directory and run:
 
 ```bash
 python src/main.py
 ```
 
-The application will start and display logs in the console. Logs are also written to the `app.log` file.
+The application will:
+- Start monitoring for player connections
+- Launch the web interface (if enabled) at `http://localhost:8213`
+- Log activity to console and `app.log` file
 
-If `"useWebServer": true` is set in the configuration, the Admin Page will be accessible at `http://localhost:8213/` (or your configured port).
+**Web Admin Interface:**
 
 <img src="https://github.com/nomomo/PalWorld-Dedicated-Server-Auto-Start-Stop/blob/main/images/AdminPageSample.png?raw=true" width="300px">
+
+Access the admin panel using:
+- **Username**: `admin`
+- **Password**: Your configured admin password
+
+## How to Install
+
+### Option 1: Manual Installation
+
+**Requirements:**
+- Python 3.10 or higher
+- Git (for cloning the repository)
+
+**Steps:**
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/nomomo/PalWorld-Dedicated-Server-Auto-Start-Stop.git
+   cd PalWorld-Dedicated-Server-Auto-Start-Stop
+   ```
+
+2. **Install Python dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Create configuration file**
+   ```bash
+   cp src/settings.json.example src/settings.json  # If example exists
+   # Or create src/settings.json with your configuration
+   ```
+
+4. **Configure your PalWorld server** (see Prerequisites section above)
+
+5. **Run the application**
+   ```bash
+   python src/main.py
+   ```
 
 ## Testing
 
@@ -199,10 +177,17 @@ python test/test_windows_driver.py
 
 ## Known Issues
 
-- The ShowPlayers command does not work in RCON Commands if the user's nickname contains Unicode characters. This error occurs because the number of characters received that should be read differs from the number of characters actually received.
-- Workaround: Open the connection.py file installed with the py-rcon package and modify the contents of the _read function as follows:
+### RCON Protocol Issues
 
-```Python
+**Unicode Character Handling**
+- The RCON `ShowPlayers` command fails when player nicknames contain Unicode characters
+- **Root cause**: Mismatch between expected and received character counts in the py-rcon library
+- **Impact**: Player tracking may not work correctly with international character names
+- **Recommended solution**: Use REST API protocol instead of RCON
+
+**Workaround for RCON (if REST is not available):**
+```python
+# Modify connection.py in the py-rcon package installation
 def _read(self, length):
     packet_data = self.sock.recv(length)
     if len(packet_data) < length:
