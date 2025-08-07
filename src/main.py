@@ -46,14 +46,13 @@ try:
     if server_running:
         palworld_controller.start_server_info_update_thread()
 
-    if settings.autoStart:
+    if not server_running and settings.autoStart:
         auto_start_manager = AutoStartManager(palworld_controller)
-        # Always wire callbacks so AutoStart can react when server starts/stops later
+        
         palworld_controller.set_on_server_started_callback(auto_start_manager.stop_listen_thread)
         palworld_controller.set_on_server_stopped_callback(auto_start_manager.listen_palworld_access)
-        # Only begin listening if server is not currently running (after detection)
-        if not server_running:
-            auto_start_manager.listen_palworld_access()
+        
+        auto_start_manager.listen_palworld_access()
 
     if settings.useWebServer:
         web_server = WebServer(palworld_controller)
