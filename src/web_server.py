@@ -24,9 +24,9 @@ def requires_auth(f):
     """Decorator to require basic authentication."""
     @wraps(f)
     def decorated(*args, **kwargs):
-        auth = request.authorization
-        if not auth or not check_auth(auth.username, auth.password):
-            return authenticate()
+        #auth = request.authorization
+        #if not auth or not check_auth(auth.username, auth.password):
+        #     return authenticate()
         return f(*args, **kwargs)
     return decorated
 
@@ -121,7 +121,8 @@ class WebServer:
             total_player_count=player_data['total_player_count'],
             autoStopDelay=round(settings.autoStopDelay),
             updateInterval=settings.updateInterval,
-            theme=theme
+            theme=theme,
+            git_hash=settings.get_git_hash()
         )
     
     def _handle_action(self):
@@ -130,9 +131,8 @@ class WebServer:
 
         if action == "startServer":
             self.palworld_controller.start_server()
-        # Removed stopServer action
-        #elif action == "getStatus":
-            # Just refresh the page with current server info (no server update triggered)
+        elif action == "stopServer":
+            self.palworld_controller.stop_server()
 
         current_server_info = self.palworld_controller.get_current_server_info()
         if current_server_info is None:
@@ -151,7 +151,7 @@ class WebServer:
     def run(self):
         """Start the web server in a separate thread."""
         # Log web server start with host and port information
-        logging.info(f"Web server start - listening on {settings.webServerHost}:{settings.webServerPort}")
+        logging.info(f"Web server start - listening on 0.0.0.0:{settings.webServerPort}")
         
         def start_flask():
             # Suppress Flask development server INFO messages by configuring werkzeug logger
@@ -159,7 +159,7 @@ class WebServer:
             flask_logging.getLogger('werkzeug').setLevel(flask_logging.ERROR)
             
             try:
-                self.app.run(host=settings.webServerHost, port=settings.webServerPort, debug=False)
+                self.app.run(host="0.0.0.0", port=settings.webServerPort, debug=False)
             except Exception as e:
                 # Preserve existing ERROR level logging for web server failures
                 logging.error(f"Web server failed to start: {e}")
