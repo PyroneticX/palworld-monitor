@@ -22,10 +22,10 @@ function initTheme() {
     const savedTheme = getThemeFromURL();
     const systemTheme = getSystemTheme();
     const theme = savedTheme || systemTheme;
-    
+
     document.body.setAttribute('data-theme', theme);
     updateThemeButton(theme);
-    
+
     // Listen for system theme changes
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
         // Only auto-switch if no manual theme is set in URL
@@ -40,7 +40,7 @@ function initTheme() {
 function toggleTheme() {
     const currentTheme = document.body.getAttribute('data-theme');
     const isManualTheme = getThemeFromURL() !== null;
-    
+
     // If currently following system theme, set manual theme
     if (!isManualTheme) {
         const newTheme = currentTheme === 'light' ? 'dark' : 'light';
@@ -63,7 +63,7 @@ function resetToSystemTheme() {
 function updateThemeButton(theme) {
     const button = document.getElementById('themeToggle');
     const isManualTheme = getThemeFromURL() !== null;
-    
+
     if (theme === 'dark') {
         button.innerHTML = '<span class="icon">☀️</span>';
         button.title = isManualTheme ? 'Switch to light mode' : 'System dark mode (click to override)';
@@ -71,7 +71,7 @@ function updateThemeButton(theme) {
         button.innerHTML = '<span class="icon">🌙</span>';
         button.title = isManualTheme ? 'Switch to dark mode' : 'System light mode (click to override)';
     }
-    
+
     // Add visual indicator for system theme
     if (!isManualTheme) {
         button.classList.add('system-theme');
@@ -82,7 +82,7 @@ function updateThemeButton(theme) {
 
 // Server action scheduling
 function scheduleStatusCheck() {
-    setTimeout(function(){
+    setTimeout(function () {
         handleServerAction("getStatus");
     }, 5000);
 }
@@ -95,8 +95,8 @@ function updateServerStatusUI(data, response) {
     const onBtn = document.getElementById("onBtn");
     const statusOn = document.querySelector('.status-on');
     const statusOff = document.querySelector('.status-off');
-    
-    if(data.running){
+
+    if (data.running) {
         if (statusOn) statusOn.style.display = "inline-block";
         if (statusOff) statusOff.style.display = "none";
         runningElements.forEach(el => el.style.display = "inline-block");
@@ -104,7 +104,7 @@ function updateServerStatusUI(data, response) {
         if (offBtn) offBtn.style.display = "block";
         if (onBtn) onBtn.style.display = "none";
     }
-    else{
+    else {
         if (statusOn) statusOn.style.display = "none";
         if (statusOff) statusOff.style.display = "inline-block";
         runningElements.forEach(el => el.style.display = "none");
@@ -118,7 +118,6 @@ function updatePlayerInfoUI(data, response) {
     const playersInfoElement = document.getElementById("playersInfo");
     if (!playersInfoElement) return;
     if (response.players && response.players.length > 0) {
-        let playerList = "";
         // Sort by online first, then level (desc), then name
         const sortedPlayers = response.players.sort((a, b) => {
             if (a.currently_online !== b.currently_online) return b.currently_online - a.currently_online;
@@ -127,17 +126,47 @@ function updatePlayerInfoUI(data, response) {
             if (levelA !== levelB) return levelB - levelA;
             return a.name.localeCompare(b.name);
         });
+
+        // Create table
+        let tableHTML = `
+            <table class="players-table">
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Level</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
         sortedPlayers.forEach(player => {
-            const lastOnlineText = player.currently_online ? '' : `<span class="last-online">Last online: ${formatTimestamp(player.last_online)}</span>`;
-            playerList += `<div class="player-entry ${player.currently_online ? 'online' : 'offline'}">
-                <div>
-                    <span class="player-name">${player.name}</span><br>
-                    <span class="player-level" style="font-size: 0.8em;">LVL ${player.level}</span>
-                </div>
-                ${lastOnlineText}
-            </div>`;
+            const statusText = player.currently_online ? 'Online' : formatTimestamp(player.last_online);
+            const statusClass = player.currently_online ? 'status-online' : 'status-offline';
+            const rowClass = player.currently_online ? 'online' : 'offline';
+
+            // Only show kick button for online players
+            const actionButton = player.currently_online
+                ? `<button class="kick-btn" onclick="handleKickPlayer('${player.steam_id}', '${player.name}')">Kick</button>`
+                : '';
+
+            tableHTML += `
+                <tr class="player-row ${rowClass}">
+                    <td class="player-name">${player.name}</td>
+                    <td class="player-level">LVL ${player.level}</td>
+                    <td class="${statusClass}">${statusText}</td>
+                    <td class="player-actions">${actionButton}</td>
+                </tr>
+            `;
         });
-        playersInfoElement.innerHTML = playerList;
+
+        tableHTML += `
+                </tbody>
+            </table>
+        `;
+
+        playersInfoElement.innerHTML = tableHTML;
     } else {
         playersInfoElement.textContent = "- No players found";
     }
@@ -175,16 +204,16 @@ async function makeServerRequest(action) {
     try {
         const formData = new FormData();
         formData.append('action', action);
-        
+
         const response = await fetch('/action', {
             method: 'POST',
             body: formData
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         return await response.json();
     } catch (error) {
         console.error('Error making server request:', error);
@@ -203,7 +232,7 @@ function confirmAndHandleServerAction(action) {
 async function handleServerAction(action) {
     try {
         // Schedule status check for server start/stop actions
-        if(action === "startServer" || action === "stopServer"){
+        if (action === "startServer" || action === "stopServer") {
             scheduleStatusCheck();
         }
 
@@ -218,18 +247,58 @@ async function handleServerAction(action) {
     }
 }
 
+// Kick player handler
+async function handleKickPlayer(steamId, playerName) {
+    if (!confirm(`Are you sure you want to kick ${playerName}?`)) {
+        return;
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('steam_id', steamId);
+
+        const response = await fetch('/kick', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert(`${playerName} has been kicked from the server.`);
+        } else {
+            alert(`Failed to kick ${playerName}. ${result.message || ''}`);
+        }
+
+        // Update UI with new data
+        updateServerStatusUI(result.data, result);
+        updatePlayerInfoUI(result.data, result);
+        updateLastUpdatedUI();
+    } catch (error) {
+        console.error('Error kicking player:', error);
+        alert('An error occurred while trying to kick the player.');
+    }
+}
+
+
+
+
 
 
 // Event listeners
-document.addEventListener('DOMContentLoaded', function(){
+document.addEventListener('DOMContentLoaded', function () {
     initTheme();
     handleServerAction("getStatus");
-    
+
     // Get update interval from data attribute (default to 30 seconds if not set)
     const updateInterval = parseInt(document.body.getAttribute('data-update-interval')) || 30;
-    
+
     // Set up automatic refresh using the configured update interval
-    setInterval(function(){
+    setInterval(function () {
         handleServerAction("getStatus");
     }, 1000 * updateInterval); // Use configured update interval
 }); 

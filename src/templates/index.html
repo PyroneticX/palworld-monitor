@@ -1,86 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Palworld Dedicated Server</title>
-	
-	<!-- External Fonts -->
-	<link rel="preconnect" href="https://fonts.googleapis.com">
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
-	
-	<!-- Stylesheets and Scripts -->
-	<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-	<script src="{{ url_for('static', filename='script.js') }}"></script>
-</head>
-<body data-update-interval="{{ updateInterval }}">
-	<button id="themeToggle" class="theme-toggle" onclick="toggleTheme()">
-		<span class="icon">🌙</span>
-	</button>
-	
-	<img src="{{ url_for('static', filename='Sunglasses_Cattiva.webp') }}" alt="Cattiva" class="cattiva-image">
 
-	    <!-- Server Status Section -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palworld Dedicated Server</title>
+
+    <!-- External Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Stylesheets and Scripts -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</head>
+
+<body data-update-interval="{{ updateInterval }}">
+    <button id="themeToggle" class="theme-toggle" onclick="toggleTheme()">
+        <span class="icon">🌙</span>
+    </button>
+
+    <img src="{{ url_for('static', filename='Sunglasses_Cattiva.webp') }}" alt="Cattiva" class="cattiva-image">
+
+    <!-- Server Status Section -->
     <h1>
-        Server Status: 
+        Server Status:
         <span id="serverStatusText" class="status-on" style="display: none;">ON</span>
         <span id="serverStatusText" class="status-off" style="display: none;">OFF</span>
     </h1>
 
-	<!-- Action Buttons Section -->
+    <!-- Action Buttons Section -->
     {% if controlServerThroughWeb %}
-        <div class="btnContainer">
-            <!-- Status Update Button -->
-            <button id="getStatusBtn" 
-                    class="btn" 
-                    title="Refresh server status and player information" 
-                    onclick="handleServerAction('getStatus')">
-                Update Server Status
-            </button>
-            
-            <!-- Server Stop Button -->
-            <button id="offBtn" 
-                    class="btn" 
-                    {% if not data.running %}style="display:none;"{% endif %} 
-                    onclick="confirmAndHandleServerAction('stopServer')">
-                Stop Server
-            </button>
-            
-            <!-- Server Start Button -->
-            <button id="onBtn" 
-                    class="btn" 
-                    {% if data.running %}style="display:none;"{% endif %} 
-                    onclick="handleServerAction('startServer')">
-                Start Server
-            </button>
-        </div>
+    <div class="btnContainer">
+        <!-- Status Update Button -->
+        <button id="getStatusBtn" class="btn" title="Refresh server status and player information"
+            onclick="handleServerAction('getStatus')">
+            Update Server Status
+        </button>
+
+        <!-- Server Stop Button -->
+        <button id="offBtn" class="btn" {% if not data.running %}style="display:none;" {% endif %}
+            onclick="confirmAndHandleServerAction('stopServer')">
+            Stop Server
+        </button>
+
+        <!-- Server Start Button -->
+        <button id="onBtn" class="btn" {% if data.running %}style="display:none;" {% endif %}
+            onclick="handleServerAction('startServer')">
+            Start Server
+        </button>
+    </div>
     {% endif %}
-	
-	<!-- Player Information -->
+
+    <!-- Player Information -->
     <h2>Players:</h2>
     <div id="playersInfo">- Loading...</div>
-    
+
     <!-- Auto-Stop Information -->
     <div style="margin-top: 30px;">
-        Notice: If there are no players online, the server will automatically stop after 
+        Notice: If there are no players online, the server will automatically stop after
         <span id="ServerAutoOffTime">{{ autoStopDelay }}</span> seconds.
     </div>
-    
+
     {% if showServerIPAddress %}
     <div style="margin-top:30px;">
         Server IP: <span id="IP">{{ data.IPAddress }}</span>
     </div>
     {% endif %}
-    
+
     <!-- Footer -->
     <div id="footer">
         <div class="footer-small-text" id="lastUpdatedContainer">
             Last Updated: <span id="lastUpdatedText">None</span>
         </div>
+        {% if git_hash %}
         <div class="footer-small-text" id="gitHashContainer">
             Version: <span id="gitHashText">{{ git_hash }}</span>
         </div>
+        {% endif %}
     </div>
 </body>
+
 </html>

@@ -346,3 +346,24 @@ class PalWorldController:
     def get_current_server_info(self):
         """Get the current server info without triggering an update."""
         return self.current_server_info
+
+    def kick_player(self, steam_id):
+        """Kick a player by their Steam ID.
+        
+        Args:
+            steam_id: The Steam ID of the player to kick
+            
+        Returns:
+            bool: True if kick was successful, False otherwise
+        """
+        try:
+            result = self.client.kick_player(steam_id)
+            if result:
+                logging.info(f"Player with Steam ID {steam_id} was kicked successfully")
+                # Trigger an immediate update to refresh player list
+                self.update_current_server_info()
+            return result
+        except Exception as e:
+            logging.error(f"Error kicking player {steam_id}: {e}")
+            logging.error(traceback.format_exc())
+            return False

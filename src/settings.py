@@ -1,6 +1,8 @@
 import json
 import logging
 import traceback
+import os
+import subprocess
 
 # This is what a Palworld client first sends to the server when it connects.
 FIRST_PACKET_PATTERN = b'\x09\x08\x00'
@@ -80,10 +82,21 @@ class Settings:
             raise ValueError(f"The following settings areq REQUIRED: {missing}")
 
     def get_git_hash(self):
+        """Return the current git commit hash.
+        Tries to use `git rev-parse HEAD`. If git is not available or the command fails,
+        returns None.
+        """
         try:
-            with open('src/git_hash.txt', 'r') as f:
-                return f.read().strip()
+            result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=os.path.dirname(__file__),
+                check=True,
+            )
+            return result.stdout.strip()
         except Exception:
-            return 'unknown'
+            return None
 
 settings = Settings()

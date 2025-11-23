@@ -84,6 +84,22 @@ class RestClient:
         announce_data = {"message": message}
         self._make_request("POST", "announce", announce_data)
 
+    def kick_player(self, steam_id):
+        """Kick a player by their Steam ID."""
+        try:
+            kick_data = {"userid": steam_id}
+            result = self._make_request("POST", "kick", kick_data)
+            if result:
+                logging.info(f"Successfully kicked player with Steam ID: {steam_id}")
+                return True
+            else:
+                logging.error(f"Failed to kick player with Steam ID: {steam_id}")
+                return False
+        except Exception as e:
+            logging.error(f"Error kicking player {steam_id}: {e}")
+            logging.error(traceback.format_exc())
+            return False
+
 
 class RconClient:
     """RCON client for communicating with PalWorld server."""
@@ -137,3 +153,19 @@ class RconClient:
             logging.error(f"Error getting player names: {e}")
             logging.error(traceback.format_exc())
             return []
+
+    def kick_player(self, steam_id):
+        """Kick a player by their Steam ID using RCON."""
+        try:
+            command = f"KickPlayer {steam_id}"
+            result = self._send_command(command)
+            if result is not None:
+                logging.info(f"Successfully kicked player with Steam ID: {steam_id}")
+                return True
+            else:
+                logging.error(f"Failed to kick player with Steam ID: {steam_id}")
+                return False
+        except Exception as e:
+            logging.error(f"Error kicking player {steam_id}: {e}")
+            logging.error(traceback.format_exc())
+            return False

@@ -61,6 +61,11 @@ class WebServer:
         @requires_auth
         def web_server_action():
             return self._handle_action()
+        
+        @self.app.route("/kick", methods=["POST"])
+        @requires_auth
+        def kick_player():
+            return self._handle_kick()
     
     def _register_filters(self):
         """Register custom Jinja2 filters."""
@@ -146,6 +151,31 @@ class WebServer:
             players=player_data['players'],
             total_player_count=player_data['total_player_count'],
             autoStopDelay=round(settings.autoStopDelay)
+        )
+    
+    def _handle_kick(self):
+        """Handle player kick requests."""
+        steam_id = request.form.get("steam_id")
+        
+        if not steam_id:
+            return jsonify(success=False, message="Steam ID is required"), 400
+        
+        # Attempt to kick the player
+        success = self.palworld_controller.kick_player(steam_id)
+        
+        # Get updated server info and player data
+        current_server_info = self.palworld_controller.get_current_server_info()
+        if current_server_info is None:
+            current_server_info = {"running": False, "playerCount": 0, "players": []}
+        
+        player_data = self._get_player_data()
+        
+        return jsonify(
+            success=success,
+            message=f"Player {'kicked successfully' if success else 'kick failed'}",
+            data=current_server_info,
+            players=player_data['players'],
+            total_player_count=player_data['total_player_count']
         )
     
     def run(self):
