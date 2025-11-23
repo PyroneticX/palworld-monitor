@@ -27,8 +27,8 @@ class Settings:
             'palworldRESTPort': 8212,
             # Port for the RCON interface
             'palworldRCONPort': 25575,
-            # Admin password for the server
-            'palworldAdminPassword': None,
+            # Admin password for the Palworld server (used for REST/RCON communication)
+            'palworldServerAdminPassword': None,
             # Protocol used for server communication
             'protocol': "REST",
             # WhetherPto enable the web server
@@ -48,7 +48,25 @@ class Settings:
             # Interval (seconds) to check for auto-stop condition
             'updateInterval': 30,
             # Enable player tracking feature
-            'enablePlayerTracking': True
+            'enablePlayerTracking': True,
+            # Web interface username
+            'webUsername': 'admin',
+            # Web interface password (separate from Palworld server password)
+            'webPassword': None,
+            # Secret key for session encryption (REQUIRED - generate with secrets.token_hex(32))
+            'sessionSecretKey': None,
+            # Session timeout in seconds (default: 1 hour)
+            'sessionTimeout': 3600,
+            # Maximum failed login attempts before lockout
+            'maxLoginAttempts': 5,
+            # Lockout duration in seconds after max failed attempts (default: 5 minutes)
+            'lockoutDuration': 300,
+            # Enable rate limiting for requests
+            'rateLimitEnabled': True,
+            # Maximum requests per window
+            'rateLimitRequests': 100,
+            # Rate limit window in seconds
+            'rateLimitWindow': 60
         }
         for key, value in self.settings.items():
             setattr(self, key, value)
