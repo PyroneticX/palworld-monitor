@@ -120,13 +120,50 @@ function updateServerStatusUI(data, response) {
 function updatePlayerInfoUI(data, response) {
     const playersInfoElement = document.getElementById("playersInfo");
     if (!playersInfoElement) return;
-    if (response.players && response.players.length > 0) {
-        // Sort by online first, then level (desc), then name
-        const sortedPlayers = response.players.sort((a, b) => {
+
+    // Get banned players list from the response or use empty array if not available
+    const bannedPlayers = response.banned_players || [];
+
+    // Create a set of banned Steam IDs for quick lookup
+    const bannedSteamIds = new Set(bannedPlayers);
+
+    // Combine online/offline players with banned players
+    let allPlayers = [...(response.players || [])];
+
+    // Add banned players who are not in the current player list
+    bannedPlayers.forEach(steamId => {
+        const alreadyInList = allPlayers.some(player => player.steam_id === steamId);
+        if (!alreadyInList) {
+            // Add banned player with placeholder data
+            allPlayers.push({
+                steam_id: steamId,
+                name: steamId, // Use Steam ID as name for banned players not currently tracked
+                level: 'N/A',
+                currently_online: false,
+                last_online: null,
+                banned: true
+            });
+        } else {
+            // Mark existing player as banned
+            const player = allPlayers.find(p => p.steam_id === steamId);
+            if (player) {
+                player.banned = true;
+            }
+        }
+    });
+
+    if (allPlayers.length > 0) {
+        // Sort by online first, then banned status, then level (desc), then name
+        const sortedPlayers = allPlayers.sort((a, b) => {
+            // Online players first
             if (a.currently_online !== b.currently_online) return b.currently_online - a.currently_online;
+            // Then banned players
+            if ((a.banned || false) !== (b.banned || false)) return (a.banned || false) ? 1 : -1;
+            // Then by level (descending)
             const levelA = parseInt(a.level) || 0;
             const levelB = parseInt(b.level) || 0;
             if (levelA !== levelB) return levelB - levelA;
+            // Finally by name
             return a.name.localeCompare(b.name);
         });
 
@@ -145,21 +182,27 @@ function updatePlayerInfoUI(data, response) {
         `;
 
         sortedPlayers.forEach(player => {
-            const statusText = player.currently_online ? 'Online' : formatTimestamp(player.last_online);
-            const statusClass = player.currently_online ? 'status-online' : 'status-offline';
-            const rowClass = player.currently_online ? 'online' : 'offline';
+            const isBanned = player.banned || false;
+            const statusText = player.currently_online ? 'Online' : (isBanned ? 'Banned' : formatTimestamp(player.last_online));
+            const statusClass = player.currently_online ? 'status-online' : (isBanned ? 'status-banned' : 'status-offline');
+            const rowClass = player.currently_online ? 'online' : (isBanned ? 'banned' : 'offline');
 
-            // Only show kick button for online players
-            const actionButton = player.currently_online
-                ? `<button class="kick-btn" onclick="handleKickPlayer('${player.steam_id}', '${player.name}')">Kick</button>`
-                : '';
+            // Show action buttons based on player status and ban status
+            let actionButtons = '';
+            if (player.currently_online) {
+                actionButtons = `<button class="kick-btn" onclick="handleKickPlayer('${player.steam_id}', '${escapeHtml(player.name)}')">Kick</button><button class="ban-btn" onclick="handleBanPlayer('${player.steam_id}', '${escapeHtml(player.name)}')">Ban</button>`;
+            } else if (isBanned) {
+                actionButtons = `<button class="unban-btn" onclick="handleUnbanPlayer('${player.steam_id}', '${escapeHtml(player.name)}')">Unban</button>`;
+            } else {
+                actionButtons = `<button class="ban-btn" onclick="handleBanPlayer('${player.steam_id}', '${escapeHtml(player.name)}')">Ban</button>`;
+            }
 
             tableHTML += `
                 <tr class="player-row ${rowClass}">
-                    <td class="player-name">${player.name}</td>
-                    <td class="player-level">LVL ${player.level}</td>
+                    <td class="player-name">${escapeHtml(player.name)}</td>
+                    <td class="player-level">LVL ${escapeHtml(String(player.level))}</td>
                     <td class="${statusClass}">${statusText}</td>
-                    <td class="player-actions">${actionButton}</td>
+                    <td class="player-actions">${actionButtons}</td>
                 </tr>
             `;
         });
@@ -173,6 +216,12 @@ function updatePlayerInfoUI(data, response) {
     } else {
         playersInfoElement.textContent = "- No players found";
     }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function formatTimestamp(timestamp) {
@@ -203,15 +252,27 @@ function updateLastUpdatedUI() {
 }
 
 // AJAX request handling
+function getCSRFToken() {
+    const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+    return tokenMeta ? tokenMeta.getAttribute('content') : '';
+}
+
 async function makeServerRequest(action) {
     try {
         const formData = new FormData();
         formData.append('action', action);
+        formData.append('csrf_token', getCSRFToken());
 
         const response = await fetch('/action', {
             method: 'POST',
             body: formData
         });
+
+        // Handle session timeout - redirect to login
+        if (response.status === 401) {
+            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+            return null;
+        }
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -259,11 +320,18 @@ async function handleKickPlayer(steamId, playerName) {
     try {
         const formData = new FormData();
         formData.append('steam_id', steamId);
+        formData.append('csrf_token', getCSRFToken());
 
         const response = await fetch('/kick', {
             method: 'POST',
             body: formData
         });
+
+        // Handle session timeout - redirect to login
+        if (response.status === 401) {
+            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+            return;
+        }
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -287,10 +355,97 @@ async function handleKickPlayer(steamId, playerName) {
     }
 }
 
+// Ban player handler
+async function handleBanPlayer(steamId, playerName) {
+    if (!confirm(`Are you sure you want to ban ${playerName}?\n\nThis will kick them immediately and prevent them from rejoining.`)) {
+        return;
+    }
 
+    try {
+        const formData = new FormData();
+        formData.append('steam_id', steamId);
+        formData.append('csrf_token', getCSRFToken());
 
+        const response = await fetch('/ban', {
+            method: 'POST',
+            body: formData
+        });
 
+        // Handle session timeout - redirect to login
+        if (response.status === 401) {
+            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+            return;
+        }
 
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert(`${playerName} has been banned from the server.`);
+        } else {
+            alert(`Failed to ban ${playerName}. ${result.message || ''}`);
+        }
+
+        // Update UI with new data
+        if (result.data) {
+            updateServerStatusUI(result.data, result);
+            updatePlayerInfoUI(result.data, result);
+        }
+        updateLastUpdatedUI();
+    } catch (error) {
+        console.error('Error banning player:', error);
+        alert('An error occurred while trying to ban the player.');
+    }
+}
+
+// Unban player handler
+async function handleUnbanPlayer(steamId, playerName) {
+    if (!confirm(`Are you sure you want to unban ${playerName}?`)) {
+        return;
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('steam_id', steamId);
+        formData.append('csrf_token', getCSRFToken());
+
+        const response = await fetch('/unban', {
+            method: 'POST',
+            body: formData
+        });
+
+        // Handle session timeout - redirect to login
+        if (response.status === 401) {
+            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert(`${playerName} has been unbanned from the server.`);
+        } else {
+            alert(`Failed to unban ${playerName}. ${result.message || ''}`);
+        }
+
+        // Update player info with new banned status
+        handleServerAction("getStatus");
+    } catch (error) {
+        console.error('Error unbanning player:', error);
+        alert('An error occurred while trying to unban the player.');
+    }
+}
+
+// Update banned players UI - removed as it's now merged into the main table
+
+// Load banned players on page load - removed as it's now loaded with server status
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function () {
@@ -304,4 +459,4 @@ document.addEventListener('DOMContentLoaded', function () {
     setInterval(function () {
         handleServerAction("getStatus");
     }, 1000 * updateInterval); // Use configured update interval
-}); 
+});

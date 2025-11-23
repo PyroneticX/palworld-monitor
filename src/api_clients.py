@@ -12,7 +12,7 @@ class RestClient:
         self.headers = {
             "Content-Type": "application/json"
         }
-        self.auth = HTTPBasicAuth("admin", settings.palworldAdminPassword)
+        self.auth = HTTPBasicAuth("admin", settings.palworldServerAdminPassword)
 
     def _make_request(self, method, endpoint, data=None):
         try:
@@ -100,13 +100,38 @@ class RestClient:
             logging.error(traceback.format_exc())
             return False
 
+    def ban_player(self, steam_id):
+        """Ban a player by their Steam ID using REST API."""
+        try:
+            # Try REST API ban endpoint first (similar structure to kick)
+            ban_data = {"userid": steam_id}
+            result = self._make_request("POST", "ban", ban_data)
+            if result is not None:
+                logging.info(f"Successfully banned player with Steam ID: {steam_id}")
+                return True
+            else:
+                # Fallback to RCON if REST API doesn't work
+                logging.warning(f"REST API ban failed, falling back to RCON for Steam ID: {steam_id}")
+                rcon_client = RconClient()
+                return rcon_client.ban_player(steam_id)
+        except Exception as e:
+            logging.error(f"Error banning player {steam_id}: {e}")
+            logging.error(traceback.format_exc())
+            # Try RCON as fallback
+            try:
+                rcon_client = RconClient()
+                return rcon_client.ban_player(steam_id)
+            except Exception as e2:
+                logging.error(f"RCON fallback also failed: {e2}")
+                return False
+
 
 class RconClient:
     """RCON client for communicating with PalWorld server."""
     def __init__(self):
         self.host = settings.palworldServerHost
         self.port = settings.palworldRCONPort
-        self.password = settings.palworldAdminPassword
+        self.password = settings.palworldServerAdminPassword
 
     def _send_command(self, command):
         try:
@@ -167,5 +192,21 @@ class RconClient:
                 return False
         except Exception as e:
             logging.error(f"Error kicking player {steam_id}: {e}")
+            logging.error(traceback.format_exc())
+            return False
+
+    def ban_player(self, steam_id):
+        """Ban a player by their Steam ID using RCON."""
+        try:
+            command = f"BanPlayer {steam_id}"
+            result = self._send_command(command)
+            if result is not None:
+                logging.info(f"Successfully banned player with Steam ID: {steam_id}")
+                return True
+            else:
+                logging.error(f"Failed to ban player with Steam ID: {steam_id}")
+                return False
+        except Exception as e:
+            logging.error(f"Error banning player {steam_id}: {e}")
             logging.error(traceback.format_exc())
             return False

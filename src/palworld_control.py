@@ -5,6 +5,7 @@ import threading
 from settings import settings
 import traceback
 from player_manager import PlayerManager
+from banlist_manager import BanlistManager
 import os
 
 class PalWorldController:
@@ -15,6 +16,9 @@ class PalWorldController:
 
         # Initialize player manager
         self.player_manager = PlayerManager()
+
+        # Initialize banlist manager
+        self.banlist_manager = BanlistManager()
 
         # Server state information
         self.current_server_info = {
@@ -365,5 +369,87 @@ class PalWorldController:
             return result
         except Exception as e:
             logging.error(f"Error kicking player {steam_id}: {e}")
+            logging.error(traceback.format_exc())
+            return False
+
+    def ban_player(self, steam_id):
+        """Ban a player by their Steam ID.
+        
+        Args:
+            steam_id: The Steam ID of the player to ban
+            
+        Returns:
+            bool: True if ban was successful, False otherwise
+        """
+        try:
+            # First, kick the player if they're online
+            self.client.kick_player(steam_id)
+            
+            # Then ban via RCON command (this adds to server's banlist)
+            ban_success = self.client.ban_player(steam_id)
+            
+            # Also add to banlist file for persistence
+            file_success = self.banlist_manager.add_ban(steam_id)
+            
+            # Consider ban successful if either method worked
+            result = ban_success or file_success
+            
+            if result:
+                logging.info(f"Player with Steam ID {steam_id} was banned successfully")
+                # Trigger an immediate update to refresh player list
+                self.update_current_server_info()
+            else:
+                logging.warning(f"Ban command may have failed, but banlist file was updated")
+            return result
+        except Exception as e:
+            logging.error(f"Error banning player {steam_id}: {e}")
+            logging.error(traceback.format_exc())
+            return False
+
+    def unban_player(self, steam_id):
+        """Unban a player by their Steam ID.
+        
+        Args:
+            steam_id: The Steam ID of the player to unban
+            
+        Returns:
+            bool: True if unban was successful, False otherwise
+        """
+        try:
+            result = self.banlist_manager.remove_ban(steam_id)
+            if result:
+                logging.info(f"Player with Steam ID {steam_id} was unbanned successfully")
+            return result
+        except Exception as e:
+            logging.error(f"Error unbanning player {steam_id}: {e}")
+            logging.error(traceback.format_exc())
+            return False
+
+    def get_banned_players(self):
+        """Get list of banned Steam IDs.
+        
+        Returns:
+            List[str]: List of banned Steam IDs
+        """
+        try:
+            return self.banlist_manager.get_banned_players()
+        except Exception as e:
+            logging.error(f"Error getting banned players: {e}")
+            logging.error(traceback.format_exc())
+            return []
+
+    def is_player_banned(self, steam_id):
+        """Check if a player is banned.
+        
+        Args:
+            steam_id: The Steam ID to check
+            
+        Returns:
+            bool: True if banned, False otherwise
+        """
+        try:
+            return self.banlist_manager.is_banned(steam_id)
+        except Exception as e:
+            logging.error(f"Error checking ban status for {steam_id}: {e}")
             logging.error(traceback.format_exc())
             return False

@@ -267,6 +267,12 @@ h2 {
 	opacity: 0.7;
 }
 
+.players-table tbody tr.banned {
+	border-left: 3px solid #8b0000;
+	opacity: 0.8;
+	background-color: rgba(139, 0, 0, 0.1);
+}
+
 .players-table tbody tr.offline:hover {
 	opacity: 1;
 }
@@ -296,8 +302,14 @@ h2 {
 	font-size: 0.75rem;
 }
 
+.players-table .status-banned {
+	color: #8b0000;
+	font-weight: 600;
+	font-size: 0.75rem;
+}
+
 .players-table .player-actions {
-	text-align: center;
+	text-align: left;
 }
 
 .kick-btn {
@@ -322,7 +334,52 @@ h2 {
 	transform: translateY(0);
 }
 
+.ban-btn {
+	background-color: #8b0000;
+	color: white;
+	border: none;
+	padding: 6px 16px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 0.8rem;
+	font-family: "Poppins", sans-serif;
+	font-weight: 600;
+	transition: background-color 0.2s ease, transform 0.1s ease;
+	margin-left: 5px;
+}
 
+.ban-btn:hover {
+	background-color: #6b0000;
+	transform: translateY(-1px);
+}
+
+.ban-btn:active {
+	transform: translateY(0);
+	background-color: #4b0000;
+}
+
+.unban-btn {
+	background-color: #27c93f;
+	color: white;
+	border: none;
+	padding: 6px 16px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 0.8rem;
+	font-family: "Poppins", sans-serif;
+	font-weight: 600;
+	transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.unban-btn:hover {
+	background-color: #1fa82e;
+	transform: translateY(-1px);
+}
+
+.unban-btn:active {
+	transform: translateY(0);
+	background-color: #178722;
+}
 
 #footer {
 	line-height: 120%;
@@ -453,5 +510,13 @@ h2 {
 		padding: 8px 12px;
 		font-size: 0.7rem;
 		min-height: 36px;
+	}
+
+	.ban-btn,
+	.unban-btn {
+		padding: 8px 12px;
+		font-size: 0.7rem;
+		min-height: 36px;
+		margin-left: 5px;
 	}
 }
