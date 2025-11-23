@@ -114,8 +114,10 @@ class WebServer:
         # Get persistent player data
         player_data = self._get_player_data()
         
-        # Get theme from URL parameter (optional, JavaScript handles default)
-        theme = request.args.get('theme')
+        # Get theme from cookie, default to 'light' if not specified
+        theme = request.cookies.get('theme', 'light')
+        if theme not in ['light', 'dark']:
+            theme = 'light'
 
         return render_template(
             "index.html",
@@ -126,7 +128,7 @@ class WebServer:
             total_player_count=player_data['total_player_count'],
             autoStopDelay=round(settings.autoStopDelay),
             updateInterval=settings.updateInterval,
-            theme=theme,
+            initialTheme=theme,
             git_hash=settings.get_git_hash()
         )
     

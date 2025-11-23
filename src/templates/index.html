@@ -16,7 +16,7 @@
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </head>
 
-<body data-update-interval="{{ updateInterval }}">
+<body data-update-interval="{{ updateInterval }}" data-theme="{{ initialTheme }}">
     <button id="themeToggle" class="theme-toggle" onclick="toggleTheme()">
         <span class="icon">🌙</span>
     </button>

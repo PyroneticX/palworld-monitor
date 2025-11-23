@@ -1,35 +1,39 @@
 // Theme management
-function getThemeFromURL() {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('theme');
+function getThemeFromCookie() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'theme') {
+            return value;
+        }
+    }
+    return null;
 }
 
-function setThemeInURL(theme) {
-    const url = new URL(window.location);
+function setThemeInCookie(theme) {
     if (theme) {
-        url.searchParams.set('theme', theme);
+        // Set cookie with 1 year expiration
+        const expirationDate = new Date();
+        expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+        document.cookie = `theme=${theme}; expires=${expirationDate.toUTCString()}; path=/`;
     } else {
-        url.searchParams.delete('theme');
+        // Remove cookie by setting expiration in the past
+        document.cookie = 'theme=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
     }
-    window.history.replaceState({}, '', url);
 }
 
 function getSystemTheme() {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-function initTheme() {
-    const savedTheme = getThemeFromURL();
-    const systemTheme = getSystemTheme();
-    const theme = savedTheme || systemTheme;
-
-    document.body.setAttribute('data-theme', theme);
-    updateThemeButton(theme);
+function initThemeButton() {
+    const currentTheme = document.body.getAttribute('data-theme');
+    updateThemeButton(currentTheme);
 
     // Listen for system theme changes
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-        // Only auto-switch if no manual theme is set in URL
-        if (!getThemeFromURL()) {
+        // Only auto-switch if no manual theme is set in cookie
+        if (!getThemeFromCookie()) {
             const newTheme = e.matches ? 'dark' : 'light';
             document.body.setAttribute('data-theme', newTheme);
             updateThemeButton(newTheme);
@@ -39,14 +43,14 @@ function initTheme() {
 
 function toggleTheme() {
     const currentTheme = document.body.getAttribute('data-theme');
-    const isManualTheme = getThemeFromURL() !== null;
+    const isManualTheme = getThemeFromCookie() !== null;
 
     // If currently following system theme, set manual theme
     if (!isManualTheme) {
         const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        document.body.setAttribute('data-theme', newTheme);
-        setThemeInURL(newTheme);
-        updateThemeButton(newTheme);
+        setThemeInCookie(newTheme);
+        // Reload page to apply theme from server
+        window.location.reload();
     } else {
         // If manual theme is set, reset to system theme
         resetToSystemTheme();
@@ -54,15 +58,14 @@ function toggleTheme() {
 }
 
 function resetToSystemTheme() {
-    const systemTheme = getSystemTheme();
-    document.body.setAttribute('data-theme', systemTheme);
-    setThemeInURL(null); // Remove manual theme from URL
-    updateThemeButton(systemTheme);
+    setThemeInCookie(null); // Remove manual theme from cookie
+    // Reload page to apply system theme from server
+    window.location.reload();
 }
 
 function updateThemeButton(theme) {
     const button = document.getElementById('themeToggle');
-    const isManualTheme = getThemeFromURL() !== null;
+    const isManualTheme = getThemeFromCookie() !== null;
 
     if (theme === 'dark') {
         button.innerHTML = '<span class="icon">☀️</span>';
@@ -291,7 +294,7 @@ async function handleKickPlayer(steamId, playerName) {
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function () {
-    initTheme();
+    initThemeButton();
     handleServerAction("getStatus");
 
     // Get update interval from data attribute (default to 30 seconds if not set)
