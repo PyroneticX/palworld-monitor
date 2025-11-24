@@ -29,7 +29,7 @@ A Python application for managing PalWorld dedicated servers on Windows and Linu
 
 ## How to Use
 
-#### Step 0: Configure your Palworld Server.
+#### Step 1: Configure your Palworld Server.
 
 <details>
 <summary>Click here to see how to configure your Palworld Server.</summary>
