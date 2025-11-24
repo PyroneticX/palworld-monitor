@@ -40,9 +40,13 @@ class TestPlayerManager:
         return manager
 
     def test_initialization(self, player_manager):
-        """Test PlayerManager initialization."""
-        assert player_manager.players == {}
-        assert player_manager.version == 1
+        """Test PlayerManager can track players after initialization."""
+        # Test behavior: manager can track players
+        player_manager.update_players_from_server([
+            ['Player1', 'uid1', '123456789', '10']
+        ])
+        assert player_manager.get_player_count() == 1
+        assert player_manager.get_total_player_count() == 1
 
     def test_update_players_from_server(self, player_manager):
         """Test updating players from server data."""

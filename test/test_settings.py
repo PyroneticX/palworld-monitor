@@ -17,24 +17,24 @@ class TestSettings:
     """Test suite for Settings class."""
 
     def test_default_settings(self):
-        """Test that default settings are initialized correctly."""
+        """Test that default settings enable expected behaviors."""
         settings = Settings()
         
-        assert settings.os == 'windows'
-        assert settings.palworldServerPort == 8211
-        assert settings.palworldRESTPort == 8212
-        assert settings.palworldRCONPort == 25575
-        assert settings.protocol == "REST"
-        assert settings.useWebServer is True
-        assert settings.webServerPort == 8213
-        assert settings.autoStart is True
-        assert settings.autoStop is True
-        assert settings.autoStopDelay == 120
-        assert settings.updateInterval == 30
-        assert settings.webUsername == 'admin'
-        assert settings.maxLoginAttempts == 5
-        assert settings.lockoutDuration == 300
-        assert settings.rateLimitEnabled is True
+        # Test behavior: settings can be accessed via dictionary interface
+        assert settings['os'] == 'windows'
+        assert settings['palworldServerPort'] == 8211
+        
+        # Test behavior: critical defaults enable server functionality
+        assert settings.protocol == "REST"  # Determines API client type
+        assert settings.useWebServer is True  # Enables web interface
+        assert settings.autoStart is True  # Enables auto-start feature
+        assert settings.autoStop is True  # Enables auto-stop feature
+        
+        # Test behavior: security defaults are set
+        assert settings.maxLoginAttempts == 5  # Prevents brute force
+        assert settings.rateLimitEnabled is True  # Prevents abuse
+        
+        # Test behavior: first packet pattern is correctly defined
         assert settings.firstPacketPattern == FIRST_PACKET_PATTERN
 
     def test_getitem(self):

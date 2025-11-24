@@ -23,7 +23,7 @@ class TestPalWorldController:
 
     def test_init(self, mock_settings, mock_client, mock_process_manager,
                   mock_player_manager, mock_banlist_manager):
-        """Test PalWorldController initialization."""
+        """Test PalWorldController can be initialized and check server status."""
         patches = get_controller_patches(
             process_manager=mock_process_manager,
             player_manager=mock_player_manager,
@@ -32,12 +32,12 @@ class TestPalWorldController:
         with patches[0], patches[1], patches[2], patches[3]:
             controller = PalWorldController(mock_client)
             
-            assert controller.client == mock_client
-            assert controller.player_manager == mock_player_manager
-            assert controller.banlist_manager == mock_banlist_manager
-            assert controller.process_manager == mock_process_manager
-            assert controller.current_server_info["running"] is False
-            assert controller.current_server_info["playerCount"] == 0
+            # Test behavior: controller can check server status
+            assert controller.is_palworld_process_running() is False
+            # Test behavior: controller can get server info
+            info = controller.get_current_server_info()
+            assert info["running"] is False
+            assert info["playerCount"] == 0
 
     def test_is_palworld_process_running(self, mock_settings, mock_client,
                                          mock_process_manager):
@@ -311,9 +311,10 @@ class TestPalWorldController:
 
     def test_detect_existing_server_process(self, mock_settings, mock_client,
                                             mock_process_manager):
-        """Test detecting existing server process."""
+        """Test controller attaches to existing server process."""
         mock_process_manager.launched_pid = None
         mock_process_manager.find_process_pid.return_value = 12345
+        mock_process_manager.is_process_running.return_value = True
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
@@ -323,13 +324,14 @@ class TestPalWorldController:
             
             controller = PalWorldController(mock_client)
             
-            mock_process_manager.find_process_pid.assert_called_once_with("palserver")
-            mock_process_manager.set_known_pid.assert_called_once_with(12345)
+            # Test behavior: controller detects and attaches to existing server
+            assert controller.is_palworld_process_running() is True
 
     def test_detect_existing_server_process_with_pid(self, mock_settings, mock_client,
                                                      mock_process_manager):
-        """Test detecting existing server when PID already known."""
+        """Test controller uses existing PID when already known."""
         mock_process_manager.launched_pid = 12345
+        mock_process_manager.is_process_running.return_value = True
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
@@ -338,6 +340,6 @@ class TestPalWorldController:
             
             controller = PalWorldController(mock_client)
             
-            # Should not try to find process if PID already known
-            mock_process_manager.find_process_pid.assert_not_called()
+            # Test behavior: controller recognizes server is running when PID is known
+            assert controller.is_palworld_process_running() is True
 

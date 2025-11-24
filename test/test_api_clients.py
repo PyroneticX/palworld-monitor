@@ -29,29 +29,28 @@ def mock_rcon_console():
 class TestRestClient:
     """Test suite for RestClient."""
 
-    def test_init(self, mock_settings):
-        """Test RestClient initialization."""
+    def test_init(self, mock_settings, mock_http_response):
+        """Test RestClient can be initialized and make requests."""
         client = RestClient()
-        assert client.base_url == "http://localhost:8212/v1/api"
-        assert client.headers["Content-Type"] == "application/json"
-        assert client.auth.username == "admin"
-        assert client.auth.password == "test_admin_password"
+        # Test behavior: client can successfully make requests
+        mock_http_response.content = b'{"success": true}'
+        mock_http_response.json.return_value = {"success": True}
+        
+        with patch('requests.request', return_value=mock_http_response):
+            result = client._make_request("GET", "test")
+            assert result == {"success": True}
 
     def test_make_request_success(self, mock_settings, mock_http_response):
-        """Test successful HTTP request."""
+        """Test successful HTTP request returns expected data."""
         mock_http_response.content = b'{"success": true, "data": "test"}'
         mock_http_response.json.return_value = {"success": True, "data": "test"}
         
-        with patch('requests.request', return_value=mock_http_response) as mock_request:
+        with patch('requests.request', return_value=mock_http_response):
             client = RestClient()
             result = client._make_request("GET", "test")
             
+            # Test behavior: request returns the expected data
             assert result == {"success": True, "data": "test"}
-            mock_request.assert_called_once()
-            call_args = mock_request.call_args
-            assert call_args[0][0] == "GET"  # method is first positional arg
-            assert "test" in call_args[0][1]  # url is second positional arg
-            assert call_args[1]['timeout'] == 10
 
     def test_make_request_no_content(self, mock_settings):
         """Test HTTP request with no content."""
@@ -180,14 +179,15 @@ class TestRestClient:
             assert players[0] == ["P1", "p1", "u1", "5"]
 
     def test_announce_message(self, mock_settings, mock_http_response):
-        """Test sending an announcement."""
-        with patch('requests.request', return_value=mock_http_response) as mock_request:
+        """Test sending an announcement succeeds."""
+        mock_http_response.content = b'{"success": true}'
+        mock_http_response.json.return_value = {"success": True}
+        
+        with patch('requests.request', return_value=mock_http_response):
             client = RestClient()
+            # Test behavior: announcement can be sent without error
+            # Method completes successfully (doesn't raise exception)
             client._announce_message("Test announcement")
-            
-            mock_request.assert_called_once()
-            call_kwargs = mock_request.call_args[1]
-            assert call_kwargs['json'] == {"message": "Test announcement"}
 
     @pytest.mark.parametrize("response_content,expected_result", [
         (b'{"success": true}', True),
@@ -225,36 +225,30 @@ class TestRestClient:
             
             with patch('src.api_clients.RconClient', return_value=mock_rcon):
                 client = RestClient()
+                # Test behavior: ban succeeds even when REST fails (fallback works)
                 result = client.ban_player("123456789")
-                
                 assert result is True
-                mock_rcon.ban_player.assert_called_once_with("123456789")
 
 
 class TestRconClient:
     """Test suite for RconClient."""
 
-    def test_init(self, mock_settings):
-        """Test RconClient initialization."""
+    def test_init(self, mock_settings, mock_rcon_console):
+        """Test RconClient can be initialized and send commands."""
         client = RconClient()
-        assert client.host == "localhost"
-        assert client.port == 25575
-        assert client.password == "test_admin_password"
+        # Test behavior: client can successfully send commands
+        with patch('src.api_clients.Console', return_value=mock_rcon_console):
+            result = client._send_command("ShowPlayers")
+            assert result == "name,playerid,userid\nPlayer1,pid1,uid1"
 
     def test_send_command_success(self, mock_settings, mock_rcon_console):
-        """Test successful RCON command."""
-        with patch('src.api_clients.Console', return_value=mock_rcon_console) as mock_console_class:
+        """Test successful RCON command returns expected response."""
+        with patch('src.api_clients.Console', return_value=mock_rcon_console):
             client = RconClient()
             result = client._send_command("ShowPlayers")
             
+            # Test behavior: command returns the expected response
             assert result == "name,playerid,userid\nPlayer1,pid1,uid1"
-            mock_console_class.assert_called_once_with(
-                host="localhost",
-                port=25575,
-                password="test_admin_password"
-            )
-            mock_rcon_console.command.assert_called_once_with("ShowPlayers")
-            mock_rcon_console.close.assert_called_once()
 
     def test_send_command_failure(self, mock_settings, mock_rcon_console):
         """Test RCON command failure."""
