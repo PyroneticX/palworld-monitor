@@ -189,3 +189,100 @@ class TestSettings:
         assert isinstance(FIRST_PACKET_PATTERN, bytes)
         assert FIRST_PACKET_PATTERN == b'\x09\x08\x00'
 
+    def test_auto_generate_session_secret_when_missing(self):
+        """Test that sessionSecretKey is auto-generated when missing from settings.json."""
+        settings = Settings()
+        
+        # Create a temporary settings file without sessionSecretKey
+        test_settings = {
+            'os': 'linux',
+            'palworldServerExePath': '/path/to/server.exe',
+            'palworldServerAdminPassword': 'admin123',
+            'webPassword': 'webpass123'
+        }
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(test_settings, f)
+            temp_path = f.name
+        
+        try:
+            settings.readSettings(temp_path)
+            
+            # Verify that a session secret key was generated
+            assert settings.sessionSecretKey is not None
+            assert isinstance(settings.sessionSecretKey, str)
+            assert len(settings.sessionSecretKey) == 64  # secrets.token_hex(32) produces 64 hex chars
+            # Verify it's a valid hex string
+            int(settings.sessionSecretKey, 16)  # Should not raise ValueError
+            
+            # Verify the key was saved back to the file
+            with open(temp_path, 'r') as f:
+                saved_settings = json.load(f)
+            assert 'sessionSecretKey' in saved_settings
+            assert saved_settings['sessionSecretKey'] == settings.sessionSecretKey
+            assert len(saved_settings['sessionSecretKey']) == 64
+        finally:
+            os.unlink(temp_path)
+
+    def test_auto_generate_session_secret_when_none(self):
+        """Test that sessionSecretKey is auto-generated when explicitly set to None."""
+        settings = Settings()
+        
+        # Create a temporary settings file with sessionSecretKey set to None
+        test_settings = {
+            'os': 'linux',
+            'palworldServerExePath': '/path/to/server.exe',
+            'palworldServerAdminPassword': 'admin123',
+            'webPassword': 'webpass123',
+            'sessionSecretKey': None
+        }
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(test_settings, f)
+            temp_path = f.name
+        
+        try:
+            settings.readSettings(temp_path)
+            
+            # Verify that a session secret key was generated
+            assert settings.sessionSecretKey is not None
+            assert isinstance(settings.sessionSecretKey, str)
+            assert len(settings.sessionSecretKey) == 64
+            
+            # Verify the key was saved back to the file
+            with open(temp_path, 'r') as f:
+                saved_settings = json.load(f)
+            assert saved_settings['sessionSecretKey'] == settings.sessionSecretKey
+        finally:
+            os.unlink(temp_path)
+
+    def test_preserve_existing_session_secret(self):
+        """Test that an existing sessionSecretKey is preserved."""
+        settings = Settings()
+        
+        existing_secret = 'existing_secret_key_123456789012345678901234567890123456789012345678901234567890'
+        test_settings = {
+            'os': 'linux',
+            'palworldServerExePath': '/path/to/server.exe',
+            'palworldServerAdminPassword': 'admin123',
+            'webPassword': 'webpass123',
+            'sessionSecretKey': existing_secret
+        }
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(test_settings, f)
+            temp_path = f.name
+        
+        try:
+            settings.readSettings(temp_path)
+            
+            # Verify that the existing secret key was preserved
+            assert settings.sessionSecretKey == existing_secret
+            
+            # Verify the file still has the original key
+            with open(temp_path, 'r') as f:
+                saved_settings = json.load(f)
+            assert saved_settings['sessionSecretKey'] == existing_secret
+        finally:
+            os.unlink(temp_path)
+

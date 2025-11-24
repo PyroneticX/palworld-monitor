@@ -90,7 +90,6 @@ These settings are required and the app won't start without them:
 | `palworldServerExePath` | Full path to PalWorld server executable. Must be accessible and executable. |
 | `palworldServerAdminPassword` | Admin password for server API access. Must match your `PalWorldSettings.ini`. |
 | `webPassword` | Password for web admin interface. Separate from server admin password. |
-| `sessionSecretKey` | Secret key for session encryption. Use whatever unique 32-char string you want. |
 
 ### Step 3: Run the app
 

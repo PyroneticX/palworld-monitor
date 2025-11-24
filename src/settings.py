@@ -16,6 +16,7 @@ import logging
 import traceback
 import os
 import subprocess
+import secrets
 
 # This is what a Palworld client first sends to the server when it connects.
 FIRST_PACKET_PATTERN = b'\x09\x08\x00'
@@ -66,7 +67,7 @@ class Settings:
             'webUsername': 'admin',
             # Web interface password (separate from Palworld server password)
             'webPassword': None,
-            # Secret key for session encryption (REQUIRED - generate with secrets.token_hex(32))
+            # Secret key for session encryption (auto-generated if not provided)
             'sessionSecretKey': None,
             # Session timeout in seconds (default: 1 hour)
             'sessionTimeout': 3600,
@@ -107,7 +108,23 @@ class Settings:
             logging.error(f"Error from readSettings: {e}")
             logging.error(traceback.format_exc())
 
-        # Validation: ensure no setting is None
+        # Auto-generate sessionSecretKey if missing or None
+        if not self.settings.get('sessionSecretKey'):
+            self.settings['sessionSecretKey'] = secrets.token_hex(32)
+            setattr(self, 'sessionSecretKey', self.settings['sessionSecretKey'])
+            
+            # Save the generated key back to the settings file
+            try:
+                with open(file_path, 'r') as file:
+                    file_data = json.load(file)
+                file_data['sessionSecretKey'] = self.settings['sessionSecretKey']
+                with open(file_path, 'w') as file:
+                    json.dump(file_data, file, indent=4)
+                logging.info("Auto-generated sessionSecretKey and saved to settings.json")
+            except Exception as e:
+                logging.warning(f"Could not save auto-generated sessionSecretKey to file: {e}")
+
+        # Validation: ensure no setting is None (excluding sessionSecretKey which is auto-generated)
         missing = [k for k, v in self.settings.items() if v is None]
         if missing:
             raise ValueError(f"The following settings areq REQUIRED: {missing}")

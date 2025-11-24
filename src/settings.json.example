@@ -18,7 +18,6 @@
     "enablePlayerTracking": true,
     "webUsername": "admin",
     "webPassword": "WEB_INTERFACE_PASSWORD",
-    "sessionSecretKey": "GENERATE_WITH_PYTHON_SECRETS_TOKEN_HEX_32",
     "sessionTimeout": 3600,
     "maxLoginAttempts": 5,
     "lockoutDuration": 300,
