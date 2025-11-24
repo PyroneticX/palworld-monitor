@@ -4,12 +4,22 @@ Tests for the PalWorldController module.
 import pytest
 import sys
 import os
+import platform
 from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.palworld_control import PalWorldController
 from test.support import create_mock_api_client, get_controller_patches
+
+
+def get_process_manager_patch(process_manager):
+    """Get the correct process manager patch based on platform."""
+    detected_os = platform.system()
+    if detected_os.lower() == 'linux':
+        return patch('process_manager.LinuxProcessManager', return_value=process_manager)
+    else:
+        return patch('process_manager.WindowsProcessManager', return_value=process_manager)
 
 
 class TestPalWorldController:
@@ -46,7 +56,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False):
             
             controller = PalWorldController(mock_client)
@@ -193,7 +203,7 @@ class TestPalWorldController:
         """Test getting current server info."""
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False):
             
             controller = PalWorldController(mock_client)
@@ -237,7 +247,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False):
             
             controller = PalWorldController(mock_client)
@@ -252,7 +262,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False):
             
             controller = PalWorldController(mock_client)
@@ -286,7 +296,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False):
             
             controller = PalWorldController(mock_client)
@@ -301,7 +311,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False):
             
             controller = PalWorldController(mock_client)
@@ -335,7 +345,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False):
             
             controller = PalWorldController(mock_client)
