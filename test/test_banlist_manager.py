@@ -35,10 +35,13 @@ class TestBanlistManager:
         manager = BanlistManager(banlist_path=temp_banlist_file)
         assert manager.banlist_path == temp_banlist_file
 
-    def test_initialization_without_path(self):
+    def test_initialization_without_path(self, temp_dir):
         """Test initialization without explicit path can read and write banlist."""
+        # Use a temporary directory for the server executable path
+        temp_server_exe = os.path.join(temp_dir, 'PalServer.exe')
+        
         with patch('src.banlist_manager.settings') as mock_settings:
-            mock_settings.palworldServerExePath = '/path/to/server.exe'
+            mock_settings.palworldServerExePath = temp_server_exe
             manager = BanlistManager()
             # Test behavior: manager can read banlist (even if empty)
             banned_ids = manager.get_banned_players()

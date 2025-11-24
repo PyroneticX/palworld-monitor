@@ -137,7 +137,9 @@ class BanlistManager:
             banned_players.add(steam_id)
             
             # Ensure directory exists
-            os.makedirs(os.path.dirname(self.banlist_path), exist_ok=True)
+            banlist_dir = os.path.dirname(self.banlist_path)
+            if banlist_dir:  # Only create directory if path has a directory component
+                os.makedirs(banlist_dir, exist_ok=True)
             
             # Write banlist back to file
             with open(self.banlist_path, 'w', encoding='utf-8') as f:
