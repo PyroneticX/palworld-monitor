@@ -1,5 +1,7 @@
 # Palworld Monitor
 
+![CI](https://github.com/kevinnio/palworld-monitor/actions/workflows/ci.yml/badge.svg)
+
 A Python application for managing PalWorld dedicated servers on Windows and Linux. The server automatically starts when players attempt to connect and shuts down when idle, with a web-based admin interface for monitoring and control.
 
 ## Features
