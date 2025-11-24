@@ -86,7 +86,6 @@ These settings are required and the app won't start without them:
 
 | Setting | Description |
 |---------|-------------|
-| `os` | Operating system type: `windows` or `linux`. Set to `linux` if running on Linux. |
 | `palworldServerExePath` | Full path to PalWorld server executable. Must be accessible and executable. |
 | `palworldServerAdminPassword` | Admin password for server API access. Must match your `PalWorldSettings.ini`. |
 | `webPassword` | Password for web admin interface. Separate from server admin password. |

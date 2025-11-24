@@ -1,5 +1,4 @@
 {
-    "os": "windows",
     "palworldServerExePath": "C:\\\\steamapps\\\\common\\\\PalServer\\\\PalServer.exe",
     "palworldServerHost": "127.0.0.1",
     "palworldServerPort": 8211,

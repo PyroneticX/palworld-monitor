@@ -24,8 +24,6 @@ FIRST_PACKET_PATTERN = b'\x09\x08\x00'
 class Settings:
     def __init__(self):
         self.settings = {
-            # Operating system type: 'windows' or 'linux'
-            'os': 'windows',
             # Path to the Palworld server executable
             'palworldServerExePath': None,
             'palworldMainProcessName': 'PalServer-Win64-Shipping-Cmd.exe',
@@ -93,10 +91,14 @@ class Settings:
         setattr(self, key, value)
 
     def readSettings(self, file_path):
+        file_data = None
+        file_loaded = False
+        
         try:
             with open(file_path, 'r') as file:
-                json_data = json.load(file)
-                for key, value in json_data.items():
+                file_data = json.load(file)
+                file_loaded = True
+                for key, value in file_data.items():
                     self.settings[key] = value
                     setattr(self, key, value)
                 print("Settings loaded successfully.")

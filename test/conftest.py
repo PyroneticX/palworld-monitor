@@ -86,7 +86,6 @@ def mock_settings(monkeypatch):
     
     # Feature flags
     mock.enablePlayerTracking = True
-    mock.os = "windows"
     mock.protocol = "REST"
     mock.controlServerThroughWeb = True
     mock.showServerIPAddress = False

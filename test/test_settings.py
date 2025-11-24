@@ -21,7 +21,6 @@ class TestSettings:
         settings = Settings()
         
         # Test behavior: settings can be accessed via dictionary interface
-        assert settings['os'] == 'windows'
         assert settings['palworldServerPort'] == 8211
         
         # Test behavior: critical defaults enable server functionality
@@ -40,7 +39,6 @@ class TestSettings:
     def test_getitem(self):
         """Test dictionary-like access to settings."""
         settings = Settings()
-        assert settings['os'] == 'windows'
         assert settings['palworldServerPort'] == 8211
 
     def test_setitem(self):
@@ -56,7 +54,6 @@ class TestSettings:
         
         # Create a temporary settings file with required settings
         test_settings = {
-            'os': 'linux',
             'palworldServerPort': 9999,
             'webUsername': 'testuser',
             'palworldServerExePath': '/path/to/server.exe',
@@ -71,7 +68,6 @@ class TestSettings:
         
         try:
             settings.readSettings(temp_path)
-            assert settings.os == 'linux'
             assert settings.palworldServerPort == 9999
             assert settings.webUsername == 'testuser'
         finally:
@@ -80,7 +76,7 @@ class TestSettings:
     def test_read_settings_file_not_found(self):
         """Test handling of missing settings file."""
         settings = Settings()
-        original_os = settings.os
+        original_port = settings.palworldServerPort
         
         # Set required settings in the settings dict to avoid validation error
         settings['palworldServerExePath'] = '/path/to/server.exe'
@@ -92,7 +88,7 @@ class TestSettings:
         settings.readSettings('nonexistent_file.json')
         
         # Settings should remain unchanged
-        assert settings.os == original_os
+        assert settings.palworldServerPort == original_port
 
     def test_read_settings_invalid_json(self):
         """Test handling of invalid JSON in settings file."""
@@ -120,11 +116,9 @@ class TestSettings:
         """Test that reading settings only updates provided keys."""
         settings = Settings()
         original_port = settings.palworldServerPort
-        original_os = settings.os
         
         # Include required settings in partial update
         test_settings = {
-            'os': 'linux',
             'palworldServerExePath': '/path/to/server.exe',
             'palworldServerAdminPassword': 'admin123',
             'webPassword': 'webpass123',
@@ -137,7 +131,6 @@ class TestSettings:
         
         try:
             settings.readSettings(temp_path)
-            assert settings.os == 'linux'
             assert settings.palworldServerPort == original_port  # Should remain unchanged
         finally:
             os.unlink(temp_path)
@@ -171,7 +164,8 @@ class TestSettings:
         settings.palworldServerAdminPassword = None
         
         test_settings = {
-            'os': 'linux'
+            'palworldServerExePath': '/path/to/server.exe',
+            'webPassword': 'webpass123'
         }
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
@@ -195,7 +189,6 @@ class TestSettings:
         
         # Create a temporary settings file without sessionSecretKey
         test_settings = {
-            'os': 'linux',
             'palworldServerExePath': '/path/to/server.exe',
             'palworldServerAdminPassword': 'admin123',
             'webPassword': 'webpass123'
@@ -230,7 +223,6 @@ class TestSettings:
         
         # Create a temporary settings file with sessionSecretKey set to None
         test_settings = {
-            'os': 'linux',
             'palworldServerExePath': '/path/to/server.exe',
             'palworldServerAdminPassword': 'admin123',
             'webPassword': 'webpass123',
@@ -262,7 +254,6 @@ class TestSettings:
         
         existing_secret = 'existing_secret_key_123456789012345678901234567890123456789012345678901234567890'
         test_settings = {
-            'os': 'linux',
             'palworldServerExePath': '/path/to/server.exe',
             'palworldServerAdminPassword': 'admin123',
             'webPassword': 'webpass123',
@@ -285,4 +276,5 @@ class TestSettings:
             assert saved_settings['sessionSecretKey'] == existing_secret
         finally:
             os.unlink(temp_path)
+
 

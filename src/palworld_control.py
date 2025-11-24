@@ -20,6 +20,7 @@ import traceback
 from player_manager import PlayerManager
 from banlist_manager import BanlistManager
 import os
+import platform
 
 class PalWorldController:
     def __init__(self, client):
@@ -60,8 +61,9 @@ class PalWorldController:
         self.update_thread = None
         self.update_thread_stop_event = threading.Event()
         
-        # Select driver
-        if settings.os.lower() == 'linux':
+        # Select driver based on detected OS
+        detected_os = platform.system()
+        if detected_os.lower() == 'linux':
             from process_manager import LinuxProcessManager
             self.process_manager = LinuxProcessManager()
         else:
