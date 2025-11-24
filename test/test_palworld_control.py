@@ -4,32 +4,12 @@ Tests for the PalWorldController module.
 import pytest
 import sys
 import os
-import platform
 from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.palworld_control import PalWorldController
-from test.support import create_mock_api_client, get_controller_patches
-
-
-def get_process_manager_patch(process_manager):
-    """Get the correct process manager patch based on platform."""
-    # The import is "from process_manager import", which resolves to src.process_manager
-    # We use 'new' to replace the class with a callable that returns our mock
-    
-    # Create a callable class that returns the mock when instantiated
-    # Use a closure to capture the process_manager variable
-    mock_pm = process_manager
-    class MockProcessManagerClass:
-        def __new__(cls, *args, **kwargs):
-            return mock_pm
-    
-    detected_os = platform.system()
-    if detected_os.lower() == 'linux':
-        return patch('process_manager.LinuxProcessManager', new=MockProcessManagerClass)
-    else:
-        return patch('process_manager.WindowsProcessManager', new=MockProcessManagerClass)
+from test.support import create_mock_api_client
 
 
 class TestPalWorldController:
@@ -40,52 +20,48 @@ class TestPalWorldController:
         """Create a mock API client."""
         return create_mock_api_client()
 
-
     def test_init(self, mock_settings, mock_client, mock_process_manager,
                   mock_player_manager, mock_banlist_manager):
         """Test PalWorldController can be initialized and check server status."""
-        patches = get_controller_patches(
+        controller = PalWorldController(
+            client=mock_client,
             process_manager=mock_process_manager,
             player_manager=mock_player_manager,
             banlist_manager=mock_banlist_manager
         )
-        with patches[0], patches[1], patches[2], patches[3]:
-            controller = PalWorldController(mock_client)
-            
-            # Test behavior: controller can check server status
-            assert controller.is_palworld_process_running() is False
-            # Test behavior: controller can get server info
-            info = controller.get_current_server_info()
-            assert info["running"] is False
-            assert info["playerCount"] == 0
+        
+        # Test behavior: controller can check server status
+        assert controller.is_palworld_process_running() is False
+        # Test behavior: controller can get server info
+        info = controller.get_current_server_info()
+        assert info["running"] is False
+        assert info["playerCount"] == 0
 
     def test_is_palworld_process_running(self, mock_settings, mock_client,
                                          mock_process_manager):
         """Test checking if process is running."""
         mock_process_manager.is_process_running.return_value = True
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False):
-            
-            controller = PalWorldController(mock_client)
-            assert controller.is_palworld_process_running() is True
+        controller = PalWorldController(
+            client=mock_client,
+            process_manager=mock_process_manager
+        )
+        assert controller.is_palworld_process_running() is True
 
     def test_start_server_success(self, mock_settings, mock_client, mock_process_manager):
         """Test successfully starting the server."""
         # Initially not running, then running after launch
         mock_process_manager.is_process_running.side_effect = [False, True]
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False), \
+        with patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1000), \
              patch.object(PalWorldController, '_handle_server_started'), \
              patch('subprocess.CalledProcessError'):
             
-            controller = PalWorldController(mock_client)
+            controller = PalWorldController(
+                client=mock_client,
+                process_manager=mock_process_manager
+            )
             controller.last_server_started_time = 0
             controller.last_server_stopped_time = 0
             
@@ -99,13 +75,13 @@ class TestPalWorldController:
         """Test starting server when already running."""
         mock_process_manager.is_process_running.return_value = True
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False), \
+        with patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1000):
             
-            controller = PalWorldController(mock_client)
+            controller = PalWorldController(
+                client=mock_client,
+                process_manager=mock_process_manager
+            )
             controller.last_server_started_time = 0
             
             result = controller.start_server()
@@ -118,13 +94,13 @@ class TestPalWorldController:
         """Test starting server too soon after previous start."""
         mock_process_manager.is_process_running.return_value = False
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False), \
+        with patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1003):  # Only 3 seconds since last start
             
-            controller = PalWorldController(mock_client)
+            controller = PalWorldController(
+                client=mock_client,
+                process_manager=mock_process_manager
+            )
             controller.last_server_started_time = 1000
             controller.server_starting_cooldown = 5
             
@@ -137,13 +113,13 @@ class TestPalWorldController:
         """Test starting server too soon after stop."""
         mock_process_manager.is_process_running.return_value = False
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False), \
+        with patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1003):  # Only 3 seconds since last stop
             
-            controller = PalWorldController(mock_client)
+            controller = PalWorldController(
+                client=mock_client,
+                process_manager=mock_process_manager
+            )
             controller.last_server_stopped_time = 1000
             controller.server_stopping_cooldown = 5
             
@@ -156,13 +132,13 @@ class TestPalWorldController:
         """Test starting server when process launch fails."""
         mock_process_manager.is_process_running.return_value = False
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False), \
+        with patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1000):
             
-            controller = PalWorldController(mock_client)
+            controller = PalWorldController(
+                client=mock_client,
+                process_manager=mock_process_manager
+            )
             controller.last_server_started_time = 0
             controller.last_server_stopped_time = 0
             
@@ -176,14 +152,14 @@ class TestPalWorldController:
         mock_process_manager.is_process_running.return_value = True
         mock_process_manager.terminate_process.return_value = True
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False), \
+        with patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1000), \
              patch('threading.Thread'):
             
-            controller = PalWorldController(mock_client)
+            controller = PalWorldController(
+                client=mock_client,
+                process_manager=mock_process_manager
+            )
             controller.last_server_stopped_time = 0
             
             controller.stop_server()
@@ -194,13 +170,13 @@ class TestPalWorldController:
         """Test stopping server when not running."""
         mock_process_manager.is_process_running.return_value = False
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False), \
+        with patch('os.path.exists', return_value=False), \
              patch('threading.Thread'):
             
-            controller = PalWorldController(mock_client)
+            controller = PalWorldController(
+                client=mock_client,
+                process_manager=mock_process_manager
+            )
             controller.stop_server()
             
             # stop_server still attempts termination even when not running
@@ -211,23 +187,21 @@ class TestPalWorldController:
 
     def test_get_current_server_info(self, mock_settings, mock_client, mock_process_manager):
         """Test getting current server info."""
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False):
-            
-            controller = PalWorldController(mock_client)
-            controller.current_server_info = {
-                "running": True,
-                "playerCount": 2,
-                "players": [["Player1"], ["Player2"]]
-            }
-            
-            info = controller.get_current_server_info()
-            
-            assert info["running"] is True
-            assert info["playerCount"] == 2
-            assert len(info["players"]) == 2
+        controller = PalWorldController(
+            client=mock_client,
+            process_manager=mock_process_manager
+        )
+        controller.current_server_info = {
+            "running": True,
+            "playerCount": 2,
+            "players": [["Player1"], ["Player2"]]
+        }
+        
+        info = controller.get_current_server_info()
+        
+        assert info["running"] is True
+        assert info["playerCount"] == 2
+        assert len(info["players"]) == 2
 
     def test_update_current_server_info(self, mock_settings, mock_client, mock_process_manager,
                                         mock_player_manager):
@@ -238,48 +212,43 @@ class TestPalWorldController:
         ]
         mock_process_manager.is_process_running.return_value = True
         
-        with patch('src.palworld_control.PlayerManager', return_value=mock_player_manager), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False):
-            
-            controller = PalWorldController(mock_client)
-            info = controller.update_current_server_info()
-            
-            assert info["running"] is True
-            assert info["playerCount"] == 2
-            mock_client.get_player_names.assert_called_once()
+        controller = PalWorldController(
+            client=mock_client,
+            process_manager=mock_process_manager,
+            player_manager=mock_player_manager
+        )
+        info = controller.update_current_server_info()
+        
+        assert info["running"] is True
+        assert info["playerCount"] == 2
+        mock_client.get_player_names.assert_called_once()
 
     def test_update_current_server_info_server_not_running(self, mock_settings, mock_client,
                                                            mock_process_manager):
         """Test updating server info when server is not running."""
         mock_process_manager.is_process_running.return_value = False
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False):
-            
-            controller = PalWorldController(mock_client)
-            info = controller.update_current_server_info()
-            
-            assert info["running"] is False
-            assert info["playerCount"] == 0
+        controller = PalWorldController(
+            client=mock_client,
+            process_manager=mock_process_manager
+        )
+        info = controller.update_current_server_info()
+        
+        assert info["running"] is False
+        assert info["playerCount"] == 0
 
     def test_kick_player(self, mock_settings, mock_client, mock_process_manager):
         """Test kicking a player."""
         mock_client.kick_player.return_value = True
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False):
-            
-            controller = PalWorldController(mock_client)
-            result = controller.kick_player("123456789")
-            
-            assert result is True
-            mock_client.kick_player.assert_called_once_with("123456789")
+        controller = PalWorldController(
+            client=mock_client,
+            process_manager=mock_process_manager
+        )
+        result = controller.kick_player("123456789")
+        
+        assert result is True
+        mock_client.kick_player.assert_called_once_with("123456789")
 
     def test_ban_player(self, mock_settings, mock_client, mock_process_manager,
                        mock_banlist_manager):
@@ -287,47 +256,42 @@ class TestPalWorldController:
         mock_client.ban_player.return_value = True
         mock_banlist_manager.add_ban.return_value = True
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager', return_value=mock_banlist_manager), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False):
-            
-            controller = PalWorldController(mock_client)
-            result = controller.ban_player("123456789")
-            
-            assert result is True
-            mock_client.ban_player.assert_called_once_with("123456789")
-            mock_banlist_manager.add_ban.assert_called_once_with("123456789")
+        controller = PalWorldController(
+            client=mock_client,
+            process_manager=mock_process_manager,
+            banlist_manager=mock_banlist_manager
+        )
+        result = controller.ban_player("123456789")
+        
+        assert result is True
+        mock_client.ban_player.assert_called_once_with("123456789")
+        mock_banlist_manager.add_ban.assert_called_once_with("123456789")
 
     def test_set_on_server_started_callback(self, mock_settings, mock_client,
                                             mock_process_manager):
         """Test setting server started callback."""
         callback = MagicMock()
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False):
-            
-            controller = PalWorldController(mock_client)
-            controller.set_on_server_started_callback(callback)
-            
-            assert controller.on_server_started_callback == callback
+        controller = PalWorldController(
+            client=mock_client,
+            process_manager=mock_process_manager
+        )
+        controller.set_on_server_started_callback(callback)
+        
+        assert controller.on_server_started_callback == callback
 
     def test_set_on_server_stopped_callback(self, mock_settings, mock_client,
                                             mock_process_manager):
         """Test setting server stopped callback."""
         callback = MagicMock()
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False):
-            
-            controller = PalWorldController(mock_client)
-            controller.set_on_server_stopped_callback(callback)
-            
-            assert controller.on_server_stopped_callback == callback
+        controller = PalWorldController(
+            client=mock_client,
+            process_manager=mock_process_manager
+        )
+        controller.set_on_server_stopped_callback(callback)
+        
+        assert controller.on_server_stopped_callback == callback
 
     def test_detect_existing_server_process(self, mock_settings, mock_client,
                                             mock_process_manager):
@@ -336,13 +300,13 @@ class TestPalWorldController:
         mock_process_manager.find_process_pid.return_value = 12345
         mock_process_manager.is_process_running.return_value = True
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False), \
+        with patch('os.path.exists', return_value=False), \
              patch.object(PalWorldController, '_handle_server_started'):
             
-            controller = PalWorldController(mock_client)
+            controller = PalWorldController(
+                client=mock_client,
+                process_manager=mock_process_manager
+            )
             
             # Test behavior: controller detects and attaches to existing server
             assert controller.is_palworld_process_running() is True
@@ -353,13 +317,11 @@ class TestPalWorldController:
         mock_process_manager.launched_pid = 12345
         mock_process_manager.is_process_running.return_value = True
         
-        with patch('src.palworld_control.PlayerManager'), \
-             patch('src.palworld_control.BanlistManager'), \
-             get_process_manager_patch(mock_process_manager), \
-             patch('os.path.exists', return_value=False):
-            
-            controller = PalWorldController(mock_client)
-            
-            # Test behavior: controller recognizes server is running when PID is known
-            assert controller.is_palworld_process_running() is True
+        controller = PalWorldController(
+            client=mock_client,
+            process_manager=mock_process_manager
+        )
+        
+        # Test behavior: controller recognizes server is running when PID is known
+        assert controller.is_palworld_process_running() is True
 

@@ -23,16 +23,15 @@ import os
 import platform
 
 class PalWorldController:
-    def __init__(self, client):
+    def __init__(self, client, process_manager=None, player_manager=None, banlist_manager=None):
         self.client = client
         self.on_server_started_callback = None
         self.on_server_stopped_callback = None
 
-        # Initialize player manager
-        self.player_manager = PlayerManager()
-
-        # Initialize banlist manager
-        self.banlist_manager = BanlistManager()
+        # Use dependency injection with sensible defaults
+        self.player_manager = player_manager if player_manager is not None else PlayerManager()
+        self.banlist_manager = banlist_manager if banlist_manager is not None else BanlistManager()
+        self.process_manager = process_manager if process_manager is not None else self._create_process_manager()
 
         # Server state information
         self.current_server_info = {
@@ -60,18 +59,19 @@ class PalWorldController:
         # Background update thread management
         self.update_thread = None
         self.update_thread_stop_event = threading.Event()
-        
-        # Select driver based on detected OS
-        detected_os = platform.system()
-        if detected_os.lower() == 'linux':
-            from process_manager import LinuxProcessManager
-            self.process_manager = LinuxProcessManager()
-        else:
-            from process_manager import WindowsProcessManager
-            self.process_manager = WindowsProcessManager()
 
         # If no PID was loaded, try to detect an already running Palworld server
         self._detect_existing_server_process()
+
+    def _create_process_manager(self):
+        """Factory method to create the appropriate process manager based on OS."""
+        detected_os = platform.system()
+        if detected_os.lower() == 'linux':
+            from process_manager import LinuxProcessManager
+            return LinuxProcessManager()
+        else:
+            from process_manager import WindowsProcessManager
+            return WindowsProcessManager()
 
 
     def is_palworld_process_running(self):
