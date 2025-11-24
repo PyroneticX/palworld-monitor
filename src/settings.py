@@ -102,7 +102,7 @@ class Settings:
         except FileNotFoundError:
             logging.info(f"Error: File {file_path} not found.")
         except json.JSONDecodeError:
-            logging.warn(f"Error: Invalid JSON format in {file_path}.")
+            logging.warning(f"Error: Invalid JSON format in {file_path}.")
         except Exception as e:
             logging.error(f"Error from readSettings: {e}")
             logging.error(traceback.format_exc())

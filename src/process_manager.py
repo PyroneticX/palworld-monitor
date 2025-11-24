@@ -136,6 +136,7 @@ class WindowsProcessManager(OSProcessManager):
             subprocess.HIGH_PRIORITY_CLASS
             | subprocess.DETACHED_PROCESS
             | subprocess.CREATE_NEW_PROCESS_GROUP
+            | subprocess.CREATE_NO_WINDOW
         )
         process = subprocess.Popen(
             [exe_path] + exe_args.split(),
