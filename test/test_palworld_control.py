@@ -15,11 +15,21 @@ from test.support import create_mock_api_client, get_controller_patches
 
 def get_process_manager_patch(process_manager):
     """Get the correct process manager patch based on platform."""
+    # The import is "from process_manager import", which resolves to src.process_manager
+    # We use 'new' to replace the class with a callable that returns our mock
+    
+    # Create a callable class that returns the mock when instantiated
+    # Use a closure to capture the process_manager variable
+    mock_pm = process_manager
+    class MockProcessManagerClass:
+        def __new__(cls, *args, **kwargs):
+            return mock_pm
+    
     detected_os = platform.system()
     if detected_os.lower() == 'linux':
-        return patch('process_manager.LinuxProcessManager', return_value=process_manager)
+        return patch('process_manager.LinuxProcessManager', new=MockProcessManagerClass)
     else:
-        return patch('process_manager.WindowsProcessManager', return_value=process_manager)
+        return patch('process_manager.WindowsProcessManager', new=MockProcessManagerClass)
 
 
 class TestPalWorldController:
@@ -69,7 +79,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1000), \
              patch.object(PalWorldController, '_handle_server_started'), \
@@ -91,7 +101,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1000):
             
@@ -110,7 +120,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1003):  # Only 3 seconds since last start
             
@@ -129,7 +139,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1003):  # Only 3 seconds since last stop
             
@@ -148,7 +158,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1000):
             
@@ -168,7 +178,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1000), \
              patch('threading.Thread'):
@@ -186,7 +196,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False), \
              patch('threading.Thread'):
             
@@ -230,7 +240,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager', return_value=mock_player_manager), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False):
             
             controller = PalWorldController(mock_client)
@@ -279,7 +289,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager', return_value=mock_banlist_manager), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False):
             
             controller = PalWorldController(mock_client)
@@ -328,7 +338,7 @@ class TestPalWorldController:
         
         with patch('src.palworld_control.PlayerManager'), \
              patch('src.palworld_control.BanlistManager'), \
-             patch('process_manager.WindowsProcessManager', return_value=mock_process_manager), \
+             get_process_manager_patch(mock_process_manager), \
              patch('os.path.exists', return_value=False), \
              patch.object(PalWorldController, '_handle_server_started'):
             

@@ -17,11 +17,21 @@ def get_controller_patches(process_manager=None, player_manager=None, banlist_ma
         list: List of patch context managers ready to use in 'with' statement
     """
     # Patch the correct process manager based on platform
+    # The import is "from process_manager import", which resolves to src.process_manager
+    # We use 'new' to replace the class with a callable that returns our mock
     detected_os = platform.system()
+    
+    # Create a callable class that returns the mock when instantiated
+    # Use a closure to capture the process_manager variable
+    mock_pm = process_manager
+    class MockProcessManagerClass:
+        def __new__(cls, *args, **kwargs):
+            return mock_pm
+    
     if detected_os.lower() == 'linux':
-        process_manager_patch = patch('process_manager.LinuxProcessManager', return_value=process_manager)
+        process_manager_patch = patch('process_manager.LinuxProcessManager', new=MockProcessManagerClass)
     else:
-        process_manager_patch = patch('process_manager.WindowsProcessManager', return_value=process_manager)
+        process_manager_patch = patch('process_manager.WindowsProcessManager', new=MockProcessManagerClass)
     
     patches = [
         patch('src.palworld_control.PlayerManager', return_value=player_manager),
