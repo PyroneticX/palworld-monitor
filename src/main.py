@@ -37,7 +37,15 @@ try:
     # read settings if settings.json exists
     settings_path = os.path.join(os.path.dirname(__file__), "settings.json")
     settings.readSettings(settings_path)
-    
+
+    # Validate settings at startup
+    try:
+        settings.validate_settings()
+    except ValueError as e:
+        logging.error(f"Settings validation failed: {e}")
+        logging.error("Please fix the settings and try again.")
+        exit(1)
+
     # Create instances of managers
     auto_start_manager = None
 
@@ -53,7 +61,7 @@ try:
         exit()
 
     palworld_controller = PalWorldController(client)
-    
+
     # Start the background server info update thread only if server is running
     server_running = palworld_controller.is_palworld_process_running()
     if server_running:
@@ -61,10 +69,10 @@ try:
 
     if not server_running and settings.autoStart:
         auto_start_manager = AutoStartManager(palworld_controller)
-        
+
         palworld_controller.set_on_server_started_callback(auto_start_manager.stop_listen_thread)
         palworld_controller.set_on_server_stopped_callback(auto_start_manager.listen_palworld_access)
-        
+
         auto_start_manager.listen_palworld_access()
 
     if settings.useWebServer:

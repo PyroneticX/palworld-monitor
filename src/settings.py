@@ -92,8 +92,7 @@ class Settings:
 
     def readSettings(self, file_path):
         file_data = None
-        file_loaded = False
-        
+
         try:
             with open(file_path, 'r') as file:
                 file_data = json.load(file)
@@ -114,7 +113,7 @@ class Settings:
         if not self.settings.get('sessionSecretKey'):
             self.settings['sessionSecretKey'] = secrets.token_hex(32)
             setattr(self, 'sessionSecretKey', self.settings['sessionSecretKey'])
-            
+
             # Save the generated key back to the settings file
             try:
                 with open(file_path, 'r') as file:
@@ -126,10 +125,36 @@ class Settings:
             except Exception as e:
                 logging.warning(f"Could not save auto-generated sessionSecretKey to file: {e}")
 
-        # Validation: ensure no setting is None (excluding sessionSecretKey which is auto-generated)
-        missing = [k for k, v in self.settings.items() if v is None]
-        if missing:
-            raise ValueError(f"The following settings areq REQUIRED: {missing}")
+    def validate_settings(self):
+        """Validate that mandatory settings are set and server executable exists.
+
+        Raises:
+            ValueError: If mandatory settings are missing or server executable doesn't exist.
+        """
+        errors = []
+
+        # Check mandatory settings
+        if not self.settings.get('palworldServerExePath'):
+            errors.append("palworldServerExePath is required")
+
+        if not self.settings.get('palworldServerAdminPassword'):
+            errors.append("palworldServerAdminPassword is required")
+
+        # Check webPassword only if web server is enabled
+        if self.settings.get('useWebServer', True) and not self.settings.get('webPassword'):
+            errors.append("webPassword is required when useWebServer is enabled")
+
+        # Check that server executable exists
+        server_exe_path = self.settings.get('palworldServerExePath')
+        if server_exe_path:
+            if not os.path.exists(server_exe_path):
+                errors.append(f"Palworld server executable does not exist at: {server_exe_path}")
+            elif not os.path.isfile(server_exe_path):
+                errors.append(f"Palworld server path is not a file: {server_exe_path}")
+
+        if errors:
+            error_message = "Settings validation failed:\n" + "\n".join(f"  - {error}" for error in errors)
+            raise ValueError(error_message)
 
     def get_git_hash(self):
         """Return the current git commit hash.
