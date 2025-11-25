@@ -9,14 +9,14 @@ A Python application for managing PalWorld dedicated servers on Windows and Linu
 - **Cross-platform support**: Windows and Linux compatibility
 - **REST API communication**: Recommended protocol for reliable server communication
 - **RCON protocol support**: Legacy protocol option for older setups
-- **Automatic server management**: 
+- **Automatic server management**:
   - Auto-start when players attempt to connect
   - Auto-stop when server is empty (configurable delay)
-- **Web-based admin interface**: 
+- **Web-based admin interface**:
   - Real-time server monitoring
   - Player tracking and stats
   - Server control capabilities
-- **Player management**: 
+- **Player management**:
   - Track online/offline players
   - Detailed player information (name, Steam ID, level)
   - Kick or ban players
@@ -29,7 +29,7 @@ A Python application for managing PalWorld dedicated servers on Windows and Linu
 
 ## How to Use
 
-#### Step 1: Configure your Palworld Server.
+### Step 1: Configure your Palworld Server.
 
 <details>
 <summary>Click here to see how to configure your Palworld Server.</summary>
