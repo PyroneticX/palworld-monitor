@@ -18,7 +18,7 @@ A Python application for managing PalWorld dedicated servers on Windows and Linu
   - Track online/offline players
   - Kick or ban players
   - Detailed player information (name, Steam ID, level)
-- **Configurable settings**: JSON-based configuration system
+- **Configurable settings**: YAML-based configuration file
 
 ## Limitations
 
@@ -74,17 +74,19 @@ Only use RCON if for some reason the REST API is not available:
 
 ### Step 2: Configure your monitor
 
-Copy `src/settings.json.example` into `src/settings.json` and change settings at will. See `src/settings.py` for all available options.
+Copy `src/settings.yaml.example` into `src/settings.yaml` and change settings at will.
 
 #### Required Settings
 
 These settings are required and the app won't start without them:
 
-| Setting | Description |
-|---------|-------------|
-| `palworldServerExePath` | Full path to PalWorld server executable. Must be accessible and executable. |
-| `palworldServerAdminPassword` | Admin password for server API access. Must match the one in your server's `PalWorldSettings.ini`. |
-| `webPassword` | Password for web admin interface. Ideally different from `palworldServerAdminPassword`. |
+| Domain | Setting | Description |
+|--------|---------|-------------|
+| `palserver` | `exePath` | Full path to PalWorld server executable. Must be accessible and executable. |
+| `palserver` | `adminPassword` | Admin password for server API access. Must match the one in your server's `PalWorldSettings.ini`. |
+| `web` | `password` | Password for web admin interface. Ideally different from server admin password. |
+
+See `src/settings.yaml.example` for all available settings.
 
 ### Step 3: Run the app
 

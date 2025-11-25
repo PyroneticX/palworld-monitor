@@ -1,0 +1,72 @@
+# ============================================================================
+# Palworld Server Configuration
+# ============================================================================
+palserver:
+  # Path to the Palworld server executable (required)
+  exePath: "C:\\Program Files (x86)\\Steam\\steamapps\\common\\PalServer\\PalServer.exe"
+  # IP address for the Palworld server
+  host: "127.0.0.1"
+  # Port for the Palworld server. The monitor will listen on this port for players
+  # attempting to connect.
+  port: 8211
+  # Admin password for the Palworld server (required)
+  adminPassword: null
+  # Protocol used for server communication (REST or RCON)
+  protocol: "REST"
+  # Port for the REST API
+  restPort: 8212
+  # Port for the RCON interface
+  rconPort: 25575
+
+# ============================================================================
+# Web Server Configuration
+# ============================================================================
+web:
+  # Whether to enable the web server
+  enabled: true
+  # Port for the web server
+  port: 8213
+  # Web interface username
+  username: "admin"
+  # Web interface password (required)
+  password: null
+  # Enable server control through web interface (combines all button controls)
+  controlServer: true
+  # Show server IP address in UI
+  showServerIP: false
+
+# ============================================================================
+# Feature flags
+# ============================================================================
+features:
+  playerTracking: true
+  autoStart: true
+  autoStop: true
+
+# ============================================================================
+# Auto Stop settings
+# ============================================================================
+autoStop:
+  # Seconds before auto-stopping the server
+  stopDelay: 600
+  # Interval (seconds) to check for players before attempting to auto-stop
+  updateInterval: 30
+
+# ============================================================================
+# Security & Rate Limiting
+# ============================================================================
+security:
+  # Secret key for session encryption (auto-generated if not provided)
+  sessionSecretKey: null
+  # Session timeout in seconds (default: 1 hour)
+  sessionTimeout: 3600
+  # Maximum failed login attempts before lockout
+  maxLoginAttempts: 5
+  # Lockout duration in seconds after max failed attempts (default: 5 minutes)
+  lockoutDuration: 300
+  # Enable rate limiting for requests
+  rateLimitEnabled: true
+  # Maximum requests per window
+  rateLimitRequests: 100
+  # Rate limit window in seconds
+  rateLimitWindow: 60

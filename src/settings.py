@@ -11,7 +11,7 @@
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
 
-import json
+import yaml
 import logging
 import traceback
 import os
@@ -90,40 +90,124 @@ class Settings:
         self.settings[key] = value
         setattr(self, key, value)
 
-    def readSettings(self, file_path):
-        file_data = None
+    def _ensure_session_secret_key(self, settings_file_path):
+        """Ensure a session secret key exists, loading from file or generating new one.
 
+        Args:
+            settings_file_path: Path to the settings file (used to locate session_secret.key)
+        """
+        # First check if we have a saved session key file
+        session_key_file = os.path.join(os.path.dirname(settings_file_path), 'session_secret.key')
+        if os.path.exists(session_key_file):
+            try:
+                with open(session_key_file, 'r') as f:
+                    saved_key = f.read().strip()
+                    if saved_key and len(saved_key) == 64:
+                        self.settings['sessionSecretKey'] = saved_key
+                        setattr(self, 'sessionSecretKey', self.settings['sessionSecretKey'])
+                        logging.info("Loaded sessionSecretKey from session_secret.key")
+                        return
+            except Exception as e:
+                logging.warning(f"Could not read session_secret.key: {e}")
+
+        # Generate new key if missing or invalid
+        if not self.settings.get('sessionSecretKey'):
+            self.settings['sessionSecretKey'] = secrets.token_hex(32)
+            setattr(self, 'sessionSecretKey', self.settings['sessionSecretKey'])
+
+            # Save the generated key to a separate file (preserves settings.yaml comments)
+            try:
+                with open(session_key_file, 'w') as f:
+                    f.write(self.settings['sessionSecretKey'])
+                logging.info("Auto-generated sessionSecretKey and saved to session_secret.key")
+            except Exception as e:
+                logging.warning(f"Could not save auto-generated sessionSecretKey to file: {e}")
+
+    def _load_nested_settings(self, data):
+        """Load settings from nested YAML structure.
+
+        Maps nested keys to expected flat keys for internal use.
+        """
+        # Mapping from nested structure to flat keys
+        mapping = {
+            'palserver': {
+                'exePath': 'palworldServerExePath',
+                'host': 'palworldServerHost',
+                'port': 'palworldServerPort',
+                'adminPassword': 'palworldServerAdminPassword',
+                'protocol': 'protocol',
+                'restPort': 'palworldRESTPort',
+                'rconPort': 'palworldRCONPort'
+            },
+            'web': {
+                'enabled': 'useWebServer',
+                'port': 'webServerPort',
+                'username': 'webUsername',
+                'password': 'webPassword',
+                'controlServer': 'controlServerThroughWeb',
+                'showServerIP': 'showServerIPAddress'
+            },
+            'features': {
+                'playerTracking': 'enablePlayerTracking',
+                'autoStart': 'autoStart',
+                'autoStop': 'autoStop'
+            },
+            'autoStop': {
+                'stopDelay': 'autoStopDelay',
+                'updateInterval': 'updateInterval'
+            },
+            'security': {
+                'sessionSecretKey': 'sessionSecretKey',
+                'sessionTimeout': 'sessionTimeout',
+                'maxLoginAttempts': 'maxLoginAttempts',
+                'lockoutDuration': 'lockoutDuration',
+                'rateLimitEnabled': 'rateLimitEnabled',
+                'rateLimitRequests': 'rateLimitRequests',
+                'rateLimitWindow': 'rateLimitWindow'
+            }
+        }
+
+        flat_settings = {}
+
+        # Process nested structure
+        for domain, domain_mapping in mapping.items():
+            if domain in data and isinstance(data[domain], dict):
+                for nested_key, flat_key in domain_mapping.items():
+                    if nested_key in data[domain]:
+                        flat_settings[flat_key] = data[domain][nested_key]
+
+        # Include any top-level keys that might exist (like sessionSecretKey if moved)
+        for key, value in data.items():
+            if key not in mapping and isinstance(value, (str, int, bool, type(None))):
+                flat_settings[key] = value
+
+        return flat_settings
+
+    def readSettings(self, file_path):
         try:
             with open(file_path, 'r') as file:
-                file_data = json.load(file)
-                file_loaded = True
-                for key, value in file_data.items():
+                file_data = yaml.safe_load(file)
+                if file_data is None:
+                    file_data = {}
+
+                # Load settings from nested structure
+                flat_settings = self._load_nested_settings(file_data)
+
+                # Update settings with flattened values
+                for key, value in flat_settings.items():
                     self.settings[key] = value
                     setattr(self, key, value)
                 print("Settings loaded successfully.")
         except FileNotFoundError:
             logging.info(f"Error: File {file_path} not found.")
-        except json.JSONDecodeError:
-            logging.warning(f"Error: Invalid JSON format in {file_path}.")
+        except yaml.YAMLError as e:
+            logging.warning(f"Error: Invalid YAML format in {file_path}: {e}")
         except Exception as e:
             logging.error(f"Error from readSettings: {e}")
             logging.error(traceback.format_exc())
 
-        # Auto-generate sessionSecretKey if missing or None
-        if not self.settings.get('sessionSecretKey'):
-            self.settings['sessionSecretKey'] = secrets.token_hex(32)
-            setattr(self, 'sessionSecretKey', self.settings['sessionSecretKey'])
-
-            # Save the generated key back to the settings file
-            try:
-                with open(file_path, 'r') as file:
-                    file_data = json.load(file)
-                file_data['sessionSecretKey'] = self.settings['sessionSecretKey']
-                with open(file_path, 'w') as file:
-                    json.dump(file_data, file, indent=4)
-                logging.info("Auto-generated sessionSecretKey and saved to settings.json")
-            except Exception as e:
-                logging.warning(f"Could not save auto-generated sessionSecretKey to file: {e}")
+        # Load or generate session secret key
+        self._ensure_session_secret_key(file_path)
 
     def validate_settings(self):
         """Validate that mandatory settings are set and server executable exists.

@@ -2,7 +2,7 @@
 Tests for the Settings module.
 """
 import pytest
-import json
+import yaml
 import tempfile
 import os
 import sys
@@ -65,21 +65,27 @@ class TestSettings:
         assert settings.test_key == 'test_value'
 
     def test_read_settings_from_file(self):
-        """Test reading settings from a JSON file."""
+        """Test reading settings from a nested YAML file."""
         settings = Settings()
 
-        # Create a temporary settings file with required settings
+        # Create a temporary settings file with required settings in nested structure
         test_settings = {
-            'palworldServerPort': 9999,
-            'webUsername': 'testuser',
-            'palworldServerExePath': '/path/to/server.exe',
-            'palworldServerAdminPassword': 'admin123',
-            'webPassword': 'webpass123',
-            'sessionSecretKey': 'test_secret_key_123456789012345678901234567890'
+            'palserver': {
+                'port': 9999,
+                'exePath': '/path/to/server.exe',
+                'adminPassword': 'admin123'
+            },
+            'web': {
+                'username': 'testuser',
+                'password': 'webpass123'
+            },
+            'security': {
+                'sessionSecretKey': 'test_secret_key_123456789012345678901234567890'
+            }
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(test_settings, f)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.safe_dump(test_settings, f)
             temp_path = f.name
 
         try:
@@ -101,13 +107,13 @@ class TestSettings:
         settings['sessionSecretKey'] = 'test_secret_key_123456789012345678901234567890'
 
         # Should not raise an exception, just log
-        settings.readSettings('nonexistent_file.json')
+        settings.readSettings('nonexistent_file.yaml')
 
         # Settings should remain unchanged
         assert settings.palworldServerPort == original_port
 
-    def test_read_settings_invalid_json(self):
-        """Test handling of invalid JSON in settings file."""
+    def test_read_settings_invalid_yaml(self):
+        """Test handling of invalid YAML in settings file."""
         settings = Settings()
         original_port = settings.palworldServerPort
 
@@ -117,8 +123,8 @@ class TestSettings:
         settings['webPassword'] = 'webpass123'
         settings['sessionSecretKey'] = 'test_secret_key_123456789012345678901234567890'
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            f.write('{ invalid json }')
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write('invalid: yaml: content: [')
             temp_path = f.name
 
         try:
@@ -133,16 +139,22 @@ class TestSettings:
         settings = Settings()
         original_port = settings.palworldServerPort
 
-        # Include required settings in partial update
+        # Include required settings in partial nested update
         test_settings = {
-            'palworldServerExePath': '/path/to/server.exe',
-            'palworldServerAdminPassword': 'admin123',
-            'webPassword': 'webpass123',
-            'sessionSecretKey': 'test_secret_key_123456789012345678901234567890'
+            'palserver': {
+                'exePath': '/path/to/server.exe',
+                'adminPassword': 'admin123'
+            },
+            'web': {
+                'password': 'webpass123'
+            },
+            'security': {
+                'sessionSecretKey': 'test_secret_key_123456789012345678901234567890'
+            }
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(test_settings, f)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.safe_dump(test_settings, f)
             temp_path = f.name
 
         try:
@@ -178,18 +190,22 @@ class TestSettings:
         assert FIRST_PACKET_PATTERN == b'\x09\x08\x00'
 
     def test_auto_generate_session_secret_when_missing(self):
-        """Test that sessionSecretKey is auto-generated when missing from settings.json."""
+        """Test that sessionSecretKey is auto-generated when missing from settings.yaml."""
         settings = Settings()
 
         # Create a temporary settings file without sessionSecretKey
         test_settings = {
-            'palworldServerExePath': '/path/to/server.exe',
-            'palworldServerAdminPassword': 'admin123',
-            'webPassword': 'webpass123'
+            'palserver': {
+                'exePath': '/path/to/server.exe',
+                'adminPassword': 'admin123'
+            },
+            'web': {
+                'password': 'webpass123'
+            }
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(test_settings, f)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.safe_dump(test_settings, f)
             temp_path = f.name
 
         try:
@@ -202,12 +218,15 @@ class TestSettings:
             # Verify it's a valid hex string
             int(settings.sessionSecretKey, 16)  # Should not raise ValueError
 
-            # Verify the key was saved back to the file
-            with open(temp_path, 'r') as f:
-                saved_settings = json.load(f)
-            assert 'sessionSecretKey' in saved_settings
-            assert saved_settings['sessionSecretKey'] == settings.sessionSecretKey
-            assert len(saved_settings['sessionSecretKey']) == 64
+            # Verify the key was saved to the session_secret.key file
+            session_key_file = os.path.join(os.path.dirname(temp_path), 'session_secret.key')
+            assert os.path.exists(session_key_file)
+            with open(session_key_file, 'r') as f:
+                saved_key = f.read().strip()
+            assert saved_key == settings.sessionSecretKey
+            assert len(saved_key) == 64
+            # Clean up
+            os.unlink(session_key_file)
         finally:
             os.unlink(temp_path)
 
@@ -217,14 +236,20 @@ class TestSettings:
 
         # Create a temporary settings file with sessionSecretKey set to None
         test_settings = {
-            'palworldServerExePath': '/path/to/server.exe',
-            'palworldServerAdminPassword': 'admin123',
-            'webPassword': 'webpass123',
-            'sessionSecretKey': None
+            'palserver': {
+                'exePath': '/path/to/server.exe',
+                'adminPassword': 'admin123'
+            },
+            'web': {
+                'password': 'webpass123'
+            },
+            'security': {
+                'sessionSecretKey': None
+            }
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(test_settings, f)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.safe_dump(test_settings, f)
             temp_path = f.name
 
         try:
@@ -235,10 +260,14 @@ class TestSettings:
             assert isinstance(settings.sessionSecretKey, str)
             assert len(settings.sessionSecretKey) == 64
 
-            # Verify the key was saved back to the file
-            with open(temp_path, 'r') as f:
-                saved_settings = json.load(f)
-            assert saved_settings['sessionSecretKey'] == settings.sessionSecretKey
+            # Verify the key was saved to the session_secret.key file
+            session_key_file = os.path.join(os.path.dirname(temp_path), 'session_secret.key')
+            assert os.path.exists(session_key_file)
+            with open(session_key_file, 'r') as f:
+                saved_key = f.read().strip()
+            assert saved_key == settings.sessionSecretKey
+            # Clean up
+            os.unlink(session_key_file)
         finally:
             os.unlink(temp_path)
 
@@ -248,14 +277,20 @@ class TestSettings:
 
         existing_secret = 'existing_secret_key_123456789012345678901234567890123456789012345678901234567890'
         test_settings = {
-            'palworldServerExePath': '/path/to/server.exe',
-            'palworldServerAdminPassword': 'admin123',
-            'webPassword': 'webpass123',
-            'sessionSecretKey': existing_secret
+            'palserver': {
+                'exePath': '/path/to/server.exe',
+                'adminPassword': 'admin123'
+            },
+            'web': {
+                'password': 'webpass123'
+            },
+            'security': {
+                'sessionSecretKey': existing_secret
+            }
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(test_settings, f)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.safe_dump(test_settings, f)
             temp_path = f.name
 
         try:
@@ -266,8 +301,8 @@ class TestSettings:
 
             # Verify the file still has the original key
             with open(temp_path, 'r') as f:
-                saved_settings = json.load(f)
-            assert saved_settings['sessionSecretKey'] == existing_secret
+                saved_settings = yaml.safe_load(f)
+            assert saved_settings['security']['sessionSecretKey'] == existing_secret
         finally:
             os.unlink(temp_path)
 
@@ -277,13 +312,17 @@ class TestSettings:
 
         with self._temp_server_exe() as server_exe_path:
             test_settings = {
-                'palworldServerExePath': server_exe_path,
-                'palworldServerAdminPassword': 'admin123',
-                'webPassword': 'webpass123'
+                'palserver': {
+                    'exePath': server_exe_path,
+                    'adminPassword': 'admin123'
+                },
+                'web': {
+                    'password': 'webpass123'
+                }
             }
 
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                json.dump(test_settings, f)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+                yaml.safe_dump(test_settings, f)
                 temp_path = f.name
 
             try:
@@ -298,12 +337,16 @@ class TestSettings:
         settings = Settings()
 
         test_settings = {
-            'palworldServerAdminPassword': 'admin123',
-            'webPassword': 'webpass123'
+            'server': {
+                'adminPassword': 'admin123'
+            },
+            'web': {
+                'password': 'webpass123'
+            }
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(test_settings, f)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.safe_dump(test_settings, f)
             temp_path = f.name
 
         try:
@@ -319,12 +362,16 @@ class TestSettings:
 
         with self._temp_server_exe() as server_exe_path:
             test_settings = {
-                'palworldServerExePath': server_exe_path,
-                'webPassword': 'webpass123'
+                'server': {
+                    'exePath': server_exe_path
+                },
+                'web': {
+                    'password': 'webpass123'
+                }
             }
 
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                json.dump(test_settings, f)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+                yaml.safe_dump(test_settings, f)
                 temp_path = f.name
 
             try:
@@ -340,13 +387,17 @@ class TestSettings:
 
         with self._temp_server_exe() as server_exe_path:
             test_settings = {
-                'palworldServerExePath': server_exe_path,
-                'palworldServerAdminPassword': 'admin123',
-                'useWebServer': True
+                'server': {
+                    'exePath': server_exe_path,
+                    'adminPassword': 'admin123'
+                },
+                'web': {
+                    'enabled': True
+                }
             }
 
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                json.dump(test_settings, f)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+                yaml.safe_dump(test_settings, f)
                 temp_path = f.name
 
             try:
@@ -362,13 +413,17 @@ class TestSettings:
 
         with self._temp_server_exe() as server_exe_path:
             test_settings = {
-                'palworldServerExePath': server_exe_path,
-                'palworldServerAdminPassword': 'admin123',
-                'useWebServer': False
+                'palserver': {
+                    'exePath': server_exe_path,
+                    'adminPassword': 'admin123'
+                },
+                'web': {
+                    'enabled': False
+                }
             }
 
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                json.dump(test_settings, f)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+                yaml.safe_dump(test_settings, f)
                 temp_path = f.name
 
             try:
@@ -383,18 +438,22 @@ class TestSettings:
         settings = Settings()
 
         test_settings = {
-            'palworldServerExePath': '/nonexistent/path/to/server.exe',
-            'palworldServerAdminPassword': 'admin123',
-            'webPassword': 'webpass123'
+            'palserver': {
+                'exePath': '/nonexistent/path/to/server.exe',
+                'adminPassword': 'admin123'
+            },
+            'web': {
+                'password': 'webpass123'
+            }
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(test_settings, f)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.safe_dump(test_settings, f)
             temp_path = f.name
 
         try:
             settings.readSettings(temp_path)
-            with pytest.raises(ValueError, match="does not exist"):
+            with pytest.raises(ValueError, match="Palworld server executable does not exist"):
                 settings.validate_settings()
         finally:
             os.unlink(temp_path)

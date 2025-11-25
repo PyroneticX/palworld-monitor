@@ -34,15 +34,15 @@ try:
         ]
     )
 
-    # read settings if settings.json exists
-    settings_path = os.path.join(os.path.dirname(__file__), "settings.json")
+    # read settings if settings.yaml exists
+    settings_path = os.path.join(os.path.dirname(__file__), "settings.yaml")
     settings.readSettings(settings_path)
 
     # Validate settings at startup
     try:
         settings.validate_settings()
     except ValueError as e:
-        logging.error(f"Settings validation failed: {e}")
+        logging.error(e)
         logging.error("Please fix the settings and try again.")
         exit(1)
 

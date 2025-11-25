@@ -5,4 +5,5 @@
 __pycache__/
 *.pyc
 *.log
-src/settings.json
+src/settings.yaml
+session_secret.key
