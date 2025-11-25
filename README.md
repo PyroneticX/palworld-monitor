@@ -110,10 +110,6 @@ venv\Scripts\python src/main.py
 
 That's it! Your monitor should be running at http://localhost:8213.
 
-**Web Admin Interface:**
-
-<img src="images/AdminPageSample.png?raw=true" width="300px">
-
 Access the admin panel using:
 - **Username**: `admin` (You can change it in settings)
 - **Password**: Your configured web password
