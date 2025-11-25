@@ -1,4 +1,4 @@
-# Palworld Monitor
+# PalWorld Monitor
 
 ![CI](https://github.com/kevinnio/palworld-monitor/actions/workflows/ci.yml/badge.svg)
 
@@ -7,8 +7,6 @@ A Python application for managing PalWorld dedicated servers on Windows and Linu
 ## Features
 
 - **Cross-platform support**: Windows and Linux compatibility
-- **REST API communication**: Recommended protocol for reliable server communication
-- **RCON protocol support**: Legacy protocol option for older setups
 - **Automatic server management**:
   - Auto-start when players attempt to connect
   - Auto-stop when server is empty (configurable delay)
@@ -18,8 +16,8 @@ A Python application for managing PalWorld dedicated servers on Windows and Linu
   - Server control capabilities
 - **Player management**:
   - Track online/offline players
-  - Detailed player information (name, Steam ID, level)
   - Kick or ban players
+  - Detailed player information (name, Steam ID, level)
 - **Configurable settings**: JSON-based configuration system
 
 ## Limitations
@@ -36,7 +34,7 @@ A Python application for managing PalWorld dedicated servers on Windows and Linu
 
 **REST API Protocol (Recommended)**
 
-The REST API is the recommended communication method for better reliability and Unicode support. To enable it:
+The REST API is the recommended way to talk to your PalWorld server. To enable it:
 
 1. **Locate `PalWorldSettings.ini`**
    ```
@@ -76,19 +74,17 @@ Only use RCON if for some reason the REST API is not available:
 
 ### Step 2: Configure your monitor
 
-Copy `src/settings.json.example` into `src/settings.json` and change settings at will.
+Copy `src/settings.json.example` into `src/settings.json` and change settings at will. See `src/settings.py` for all available options.
 
-Most settings are optional and have sensible defaults. Feel free to change if you need to. See `src/settings.py` for all available options.
-
-### Required Settings
+#### Required Settings
 
 These settings are required and the app won't start without them:
 
 | Setting | Description |
 |---------|-------------|
 | `palworldServerExePath` | Full path to PalWorld server executable. Must be accessible and executable. |
-| `palworldServerAdminPassword` | Admin password for server API access. Must match your `PalWorldSettings.ini`. |
-| `webPassword` | Password for web admin interface. Separate from server admin password. |
+| `palworldServerAdminPassword` | Admin password for server API access. Must match the one in your server's `PalWorldSettings.ini`. |
+| `webPassword` | Password for web admin interface. Ideally different from `palworldServerAdminPassword`. |
 
 ### Step 3: Run the app
 
@@ -101,7 +97,16 @@ pip install -r requirements.txt
 python src/main.py
 ```
 
-That's it. Your monitor should be running at http://localhost:8213.
+Or if you prefer using a venv:
+```bash
+python -m venv venv
+# Install dependencies into your venv
+venv\Scripts\pip install -r requirements.txt
+# Launch the app
+venv\Scripts\python src/main.py
+```
+
+That's it! Your monitor should be running at http://localhost:8213.
 
 **Web Admin Interface:**
 
