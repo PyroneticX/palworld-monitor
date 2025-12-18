@@ -29,7 +29,7 @@ class TestPalWorldController:
             player_manager=mock_player_manager,
             banlist_manager=mock_banlist_manager
         )
-        
+
         # Test behavior: controller can check server status
         assert controller.is_palworld_process_running() is False
         # Test behavior: controller can get server info
@@ -41,7 +41,7 @@ class TestPalWorldController:
                                          mock_process_manager):
         """Test checking if process is running."""
         mock_process_manager.is_process_running.return_value = True
-        
+
         controller = PalWorldController(
             client=mock_client,
             process_manager=mock_process_manager
@@ -52,21 +52,21 @@ class TestPalWorldController:
         """Test successfully starting the server."""
         # Initially not running, then running after launch
         mock_process_manager.is_process_running.side_effect = [False, True]
-        
+
         with patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1000), \
              patch.object(PalWorldController, '_handle_server_started'), \
              patch('subprocess.CalledProcessError'):
-            
+
             controller = PalWorldController(
                 client=mock_client,
                 process_manager=mock_process_manager
             )
             controller.last_server_started_time = 0
             controller.last_server_stopped_time = 0
-            
+
             result = controller.start_server()
-            
+
             assert result is True
             mock_process_manager.launch_process.assert_called_once()
 
@@ -74,18 +74,18 @@ class TestPalWorldController:
                                           mock_process_manager):
         """Test starting server when already running."""
         mock_process_manager.is_process_running.return_value = True
-        
+
         with patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1000):
-            
+
             controller = PalWorldController(
                 client=mock_client,
                 process_manager=mock_process_manager
             )
             controller.last_server_started_time = 0
-            
+
             result = controller.start_server()
-            
+
             assert result is False  # Should be blocked
             mock_process_manager.launch_process.assert_not_called()
 
@@ -93,57 +93,57 @@ class TestPalWorldController:
                                                mock_process_manager):
         """Test starting server too soon after previous start."""
         mock_process_manager.is_process_running.return_value = False
-        
+
         with patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1003):  # Only 3 seconds since last start
-            
+
             controller = PalWorldController(
                 client=mock_client,
                 process_manager=mock_process_manager
             )
             controller.last_server_started_time = 1000
             controller.server_starting_cooldown = 5
-            
+
             result = controller.start_server()
-            
+
             assert result is False  # Should be blocked by cooldown
 
     def test_start_server_too_soon_after_stop(self, mock_settings, mock_client,
                                                mock_process_manager):
         """Test starting server too soon after stop."""
         mock_process_manager.is_process_running.return_value = False
-        
+
         with patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1003):  # Only 3 seconds since last stop
-            
+
             controller = PalWorldController(
                 client=mock_client,
                 process_manager=mock_process_manager
             )
             controller.last_server_stopped_time = 1000
             controller.server_stopping_cooldown = 5
-            
+
             result = controller.start_server()
-            
+
             assert result is False  # Should be blocked by cooldown
 
     def test_start_server_process_fails(self, mock_settings, mock_client,
                                         mock_process_manager):
         """Test starting server when process launch fails."""
         mock_process_manager.is_process_running.return_value = False
-        
+
         with patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1000):
-            
+
             controller = PalWorldController(
                 client=mock_client,
                 process_manager=mock_process_manager
             )
             controller.last_server_started_time = 0
             controller.last_server_stopped_time = 0
-            
+
             result = controller.start_server()
-            
+
             assert result is True  # Method returns True even if process doesn't start
             mock_process_manager.launch_process.assert_called_once()
 
@@ -151,34 +151,34 @@ class TestPalWorldController:
         """Test successfully stopping the server."""
         mock_process_manager.is_process_running.return_value = True
         mock_process_manager.terminate_process.return_value = True
-        
+
         with patch('os.path.exists', return_value=False), \
              patch('time.time', return_value=1000), \
              patch('threading.Thread'):
-            
+
             controller = PalWorldController(
                 client=mock_client,
                 process_manager=mock_process_manager
             )
             controller.last_server_stopped_time = 0
-            
+
             controller.stop_server()
-            
+
             mock_process_manager.terminate_process.assert_called()
 
     def test_stop_server_not_running(self, mock_settings, mock_client, mock_process_manager):
         """Test stopping server when not running."""
         mock_process_manager.is_process_running.return_value = False
-        
+
         with patch('os.path.exists', return_value=False), \
              patch('threading.Thread'):
-            
+
             controller = PalWorldController(
                 client=mock_client,
                 process_manager=mock_process_manager
             )
             controller.stop_server()
-            
+
             # stop_server still attempts termination even when not running
             # Verify it updates server info and attempts termination
             assert controller.current_server_info["running"] is False
@@ -196,9 +196,9 @@ class TestPalWorldController:
             "playerCount": 2,
             "players": [["Player1"], ["Player2"]]
         }
-        
+
         info = controller.get_current_server_info()
-        
+
         assert info["running"] is True
         assert info["playerCount"] == 2
         assert len(info["players"]) == 2
@@ -211,14 +211,14 @@ class TestPalWorldController:
             ["Player2", "pid2", "uid2", "15"]
         ]
         mock_process_manager.is_process_running.return_value = True
-        
+
         controller = PalWorldController(
             client=mock_client,
             process_manager=mock_process_manager,
             player_manager=mock_player_manager
         )
         info = controller.update_current_server_info()
-        
+
         assert info["running"] is True
         assert info["playerCount"] == 2
         mock_client.get_player_names.assert_called_once()
@@ -227,70 +227,100 @@ class TestPalWorldController:
                                                            mock_process_manager):
         """Test updating server info when server is not running."""
         mock_process_manager.is_process_running.return_value = False
-        
+
         controller = PalWorldController(
             client=mock_client,
             process_manager=mock_process_manager
         )
         info = controller.update_current_server_info()
-        
+
         assert info["running"] is False
         assert info["playerCount"] == 0
 
-    def test_kick_player(self, mock_settings, mock_client, mock_process_manager):
+    def test_kick_player(self, mock_settings, mock_client, mock_process_manager,
+                         mock_player_manager):
         """Test kicking a player."""
         mock_client.kick_player.return_value = True
-        
-        controller = PalWorldController(
-            client=mock_client,
-            process_manager=mock_process_manager
-        )
-        result = controller.kick_player("123456789")
-        
-        assert result is True
-        mock_client.kick_player.assert_called_once_with("123456789")
+        # Set up player in mock player manager
+        player = {"steam_id": "123456789", "name": "TestPlayer"}
+        mock_player_manager.players = {"123456789": player}
 
-    def test_ban_player(self, mock_settings, mock_client, mock_process_manager,
-                       mock_banlist_manager):
-        """Test banning a player."""
-        mock_client.ban_player.return_value = True
-        mock_banlist_manager.add_ban.return_value = True
-        
         controller = PalWorldController(
             client=mock_client,
             process_manager=mock_process_manager,
+            player_manager=mock_player_manager
+        )
+        result = controller.kick_player("123456789")
+
+        assert result is True
+        mock_client.kick_player.assert_called_once_with(player)
+
+    def test_ban_player(self, mock_settings, mock_client, mock_process_manager,
+                       mock_player_manager, mock_banlist_manager):
+        """Test banning a player."""
+        mock_client.ban_player.return_value = True
+        mock_banlist_manager.add_ban.return_value = True
+        # Set up player in mock player manager
+        player = {"steam_id": "123456789", "name": "TestPlayer"}
+        mock_player_manager.players = {"123456789": player}
+
+        controller = PalWorldController(
+            client=mock_client,
+            process_manager=mock_process_manager,
+            player_manager=mock_player_manager,
             banlist_manager=mock_banlist_manager
         )
         result = controller.ban_player("123456789")
-        
+
         assert result is True
-        mock_client.ban_player.assert_called_once_with("123456789")
+        mock_client.ban_player.assert_called_once_with(player)
         mock_banlist_manager.add_ban.assert_called_once_with("123456789")
+
+    def test_unban_player(self, mock_settings, mock_client, mock_process_manager,
+                         mock_player_manager, mock_banlist_manager):
+        """Test unbanning a player."""
+        mock_client.unban_player.return_value = True
+        mock_banlist_manager.remove_ban.return_value = True
+        # Set up player in mock player manager
+        player = {"steam_id": "123456789", "name": "TestPlayer"}
+        mock_player_manager.players = {"123456789": player}
+
+        controller = PalWorldController(
+            client=mock_client,
+            process_manager=mock_process_manager,
+            player_manager=mock_player_manager,
+            banlist_manager=mock_banlist_manager
+        )
+        result = controller.unban_player("123456789")
+
+        assert result is True
+        mock_client.unban_player.assert_called_once_with(player)
+        mock_banlist_manager.remove_ban.assert_called_once_with("123456789")
 
     def test_set_on_server_started_callback(self, mock_settings, mock_client,
                                             mock_process_manager):
         """Test setting server started callback."""
         callback = MagicMock()
-        
+
         controller = PalWorldController(
             client=mock_client,
             process_manager=mock_process_manager
         )
         controller.set_on_server_started_callback(callback)
-        
+
         assert controller.on_server_started_callback == callback
 
     def test_set_on_server_stopped_callback(self, mock_settings, mock_client,
                                             mock_process_manager):
         """Test setting server stopped callback."""
         callback = MagicMock()
-        
+
         controller = PalWorldController(
             client=mock_client,
             process_manager=mock_process_manager
         )
         controller.set_on_server_stopped_callback(callback)
-        
+
         assert controller.on_server_stopped_callback == callback
 
     def test_detect_existing_server_process(self, mock_settings, mock_client,
@@ -299,15 +329,15 @@ class TestPalWorldController:
         mock_process_manager.launched_pid = None
         mock_process_manager.find_process_pid.return_value = 12345
         mock_process_manager.is_process_running.return_value = True
-        
+
         with patch('os.path.exists', return_value=False), \
              patch.object(PalWorldController, '_handle_server_started'):
-            
+
             controller = PalWorldController(
                 client=mock_client,
                 process_manager=mock_process_manager
             )
-            
+
             # Test behavior: controller detects and attaches to existing server
             assert controller.is_palworld_process_running() is True
 
@@ -316,12 +346,11 @@ class TestPalWorldController:
         """Test controller uses existing PID when already known."""
         mock_process_manager.launched_pid = 12345
         mock_process_manager.is_process_running.return_value = True
-        
+
         controller = PalWorldController(
             client=mock_client,
             process_manager=mock_process_manager
         )
-        
+
         # Test behavior: controller recognizes server is running when PID is known
         assert controller.is_palworld_process_running() is True
-

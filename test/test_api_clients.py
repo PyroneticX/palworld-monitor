@@ -35,20 +35,20 @@ class TestRestClient:
         # Test behavior: client can successfully make requests
         mock_http_response.content = b'{"success": true}'
         mock_http_response.json.return_value = {"success": True}
-        
-        with patch('requests.request', return_value=mock_http_response):
-            result = client._make_request("GET", "test")
+
+        with patch('requests.get', return_value=mock_http_response):
+            result = client._make_get_request("test")
             assert result == {"success": True}
 
     def test_make_request_success(self, mock_settings, mock_http_response):
         """Test successful HTTP request returns expected data."""
         mock_http_response.content = b'{"success": true, "data": "test"}'
         mock_http_response.json.return_value = {"success": True, "data": "test"}
-        
-        with patch('requests.request', return_value=mock_http_response):
+
+        with patch('requests.get', return_value=mock_http_response):
             client = RestClient()
-            result = client._make_request("GET", "test")
-            
+            result = client._make_get_request("test")
+
             # Test behavior: request returns the expected data
             assert result == {"success": True, "data": "test"}
 
@@ -58,29 +58,29 @@ class TestRestClient:
         mock_response.status_code = 204
         mock_response.content = b''
         mock_response.raise_for_status.return_value = None
-        
-        with patch('requests.request', return_value=mock_response):
+
+        with patch('requests.post', return_value=mock_response):
             client = RestClient()
-            result = client._make_request("POST", "test")
-            
-            assert result is None
+            result = client._make_post_request("test")
+
+            assert result == {}
 
     def test_make_request_connection_error(self, mock_settings):
         """Test failed HTTP request with connection error."""
-        with patch('requests.request', 
+        with patch('requests.get',
                   side_effect=requests.exceptions.ConnectionError("Connection failed")):
             client = RestClient()
-            result = client._make_request("GET", "test")
-            
+            result = client._make_get_request("test")
+
             assert result is None
 
     def test_make_request_timeout(self, mock_settings):
         """Test HTTP request timeout."""
-        with patch('requests.request',
+        with patch('requests.get',
                   side_effect=requests.exceptions.Timeout("Request timeout")):
             client = RestClient()
-            result = client._make_request("GET", "test")
-            
+            result = client._make_get_request("test")
+
             assert result is None
 
     def test_make_request_http_error(self, mock_settings):
@@ -88,11 +88,11 @@ class TestRestClient:
         mock_response = MagicMock()
         mock_response.status_code = 500
         mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("Server error")
-        
-        with patch('requests.request', return_value=mock_response):
+
+        with patch('requests.get', return_value=mock_response):
             client = RestClient()
-            result = client._make_request("GET", "test")
-            
+            result = client._make_get_request("test")
+
             assert result is None
 
     def test_parse_players_list_from_list(self, mock_settings):
@@ -102,9 +102,9 @@ class TestRestClient:
             {"name": "Player1", "playerId": "pid1", "userId": "uid1", "level": "10"},
             {"name": "Player2", "playerId": "pid2", "userId": "uid2", "level": "15"}
         ]
-        
+
         result = client._parse_players_list(players_data)
-        
+
         assert len(result) == 2
         assert result[0] == ["Player1", "pid1", "uid1", "10"]
         assert result[1] == ["Player2", "pid2", "uid2", "15"]
@@ -117,9 +117,9 @@ class TestRestClient:
                 {"name": "Player1", "playerId": "pid1", "userId": "uid1", "level": "10"}
             ]
         }
-        
+
         result = client._parse_players_list(players_data)
-        
+
         assert len(result) == 1
         assert result[0] == ["Player1", "pid1", "uid1", "10"]
 
@@ -135,9 +135,9 @@ class TestRestClient:
         players_data = [
             {"name": "Player1"}  # Missing other fields
         ]
-        
+
         result = client._parse_players_list(players_data)
-        
+
         assert len(result) == 1
         assert result[0] == ["Player1", "Unknown", "Unknown", "Unknown"]
 
@@ -149,20 +149,20 @@ class TestRestClient:
         """Test getting player count with various scenarios."""
         mock_http_response.content = json.dumps({"players": players_data}).encode()
         mock_http_response.json.return_value = {"players": players_data}
-        
-        with patch('requests.request', return_value=mock_http_response):
+
+        with patch('requests.get', return_value=mock_http_response):
             client = RestClient()
             count = client.get_player_count()
-            
+
             assert count == expected_count
 
     def test_get_player_count_request_fails(self, mock_settings):
         """Test getting player count when request fails."""
-        with patch('requests.request',
+        with patch('requests.get',
                   side_effect=requests.exceptions.RequestException("Error")):
             client = RestClient()
             count = client.get_player_count()
-            
+
             assert count == 0
 
     def test_get_player_names(self, mock_settings, mock_http_response):
@@ -170,11 +170,11 @@ class TestRestClient:
         player_data = [{"name": "P1", "userId": "u1", "playerId": "p1", "level": "5"}]
         mock_http_response.content = json.dumps(player_data).encode()
         mock_http_response.json.return_value = player_data
-        
-        with patch('requests.request', return_value=mock_http_response):
+
+        with patch('requests.get', return_value=mock_http_response):
             client = RestClient()
             players = client.get_player_names()
-            
+
             assert len(players) == 1
             assert players[0] == ["P1", "p1", "u1", "5"]
 
@@ -182,52 +182,63 @@ class TestRestClient:
         """Test sending an announcement succeeds."""
         mock_http_response.content = b'{"success": true}'
         mock_http_response.json.return_value = {"success": True}
-        
-        with patch('requests.request', return_value=mock_http_response):
+
+        with patch('requests.post', return_value=mock_http_response):
             client = RestClient()
             # Test behavior: announcement can be sent without error
             # Method completes successfully (doesn't raise exception)
             client._announce_message("Test announcement")
 
-    @pytest.mark.parametrize("response_content,expected_result", [
-        (b'{"success": true}', True),
-        (b'', False),
+    @pytest.mark.parametrize("status_code,expected_result", [
+        (200, True),
+        (400, False),
+        (500, False),
     ])
-    def test_kick_player(self, mock_settings, mock_http_response, response_content, expected_result):
+    def test_kick_player(self, mock_settings, status_code, expected_result):
         """Test kicking a player with success and failure scenarios."""
-        mock_http_response.content = response_content
-        mock_http_response.json.return_value = {"success": True} if response_content else None
-        
-        with patch('requests.request', return_value=mock_http_response):
+        mock_response = MagicMock()
+        mock_response.status_code = status_code
+
+        with patch('requests.post', return_value=mock_response):
             client = RestClient()
-            result = client.kick_player("123456789")
-            
+            player = {"steam_id": "123456789", "name": "TestPlayer"}
+            result = client.kick_player(player)
+
             assert result == expected_result
 
-    def test_ban_player_success(self, mock_settings, mock_http_response):
-        """Test successfully banning a player via REST."""
-        with patch('requests.request', return_value=mock_http_response):
-            client = RestClient()
-            result = client.ban_player("123456789")
-            
-            assert result is True
-
-    def test_ban_player_fallback_to_rcon(self, mock_settings):
-        """Test ban player falls back to RCON when REST fails."""
+    @pytest.mark.parametrize("status_code,expected_result", [
+        (200, True),
+        (400, False),
+        (500, False),
+    ])
+    def test_ban_player(self, mock_settings, status_code, expected_result):
+        """Test banning a player via REST API."""
         mock_response = MagicMock()
-        mock_response.content = b''
-        mock_response.raise_for_status.return_value = None
-        
-        with patch('requests.request', return_value=mock_response):
-            # Mock RconClient
-            mock_rcon = MagicMock()
-            mock_rcon.ban_player.return_value = True
-            
-            with patch('src.api_clients.RconClient', return_value=mock_rcon):
-                client = RestClient()
-                # Test behavior: ban succeeds even when REST fails (fallback works)
-                result = client.ban_player("123456789")
-                assert result is True
+        mock_response.status_code = status_code
+
+        with patch('requests.post', return_value=mock_response):
+            client = RestClient()
+            player = {"steam_id": "123456789", "name": "TestPlayer"}
+            result = client.ban_player(player)
+
+            assert result == expected_result
+
+    @pytest.mark.parametrize("status_code,expected_result", [
+        (200, True),
+        (400, False),
+        (500, False),
+    ])
+    def test_unban_player(self, mock_settings, status_code, expected_result):
+        """Test unbanning a player via REST API."""
+        mock_response = MagicMock()
+        mock_response.status_code = status_code
+
+        with patch('requests.post', return_value=mock_response):
+            client = RestClient()
+            player = {"steam_id": "123456789", "name": "TestPlayer"}
+            result = client.unban_player(player)
+
+            assert result == expected_result
 
 
 class TestRconClient:
@@ -246,18 +257,18 @@ class TestRconClient:
         with patch('src.api_clients.Console', return_value=mock_rcon_console):
             client = RconClient()
             result = client._send_command("ShowPlayers")
-            
+
             # Test behavior: command returns the expected response
             assert result == "name,playerid,userid\nPlayer1,pid1,uid1"
 
     def test_send_command_failure(self, mock_settings, mock_rcon_console):
         """Test RCON command failure."""
         mock_rcon_console.command.side_effect = Exception("Connection error")
-        
+
         with patch('src.api_clients.Console', return_value=mock_rcon_console):
             client = RconClient()
             result = client._send_command("ShowPlayers")
-            
+
             assert result is None
 
     @pytest.mark.parametrize("command_response,expected_count", [
@@ -268,11 +279,11 @@ class TestRconClient:
     def test_get_player_count(self, mock_settings, mock_rcon_console, command_response, expected_count):
         """Test getting player count via RCON with various scenarios."""
         mock_rcon_console.command.return_value = command_response
-        
+
         with patch('src.api_clients.Console', return_value=mock_rcon_console):
             client = RconClient()
             count = client.get_player_count()
-            
+
             assert count == expected_count
 
     @pytest.mark.parametrize("command_response,expected_players", [
@@ -285,11 +296,11 @@ class TestRconClient:
     def test_get_player_names(self, mock_settings, mock_rcon_console, command_response, expected_players):
         """Test getting player names via RCON with various scenarios."""
         mock_rcon_console.command.return_value = command_response
-        
+
         with patch('src.api_clients.Console', return_value=mock_rcon_console):
             client = RconClient()
             players = client.get_player_names()
-            
+
             assert players == expected_players
 
     @pytest.mark.parametrize("command_response,expected_result", [
@@ -299,11 +310,12 @@ class TestRconClient:
     def test_kick_player(self, mock_settings, mock_rcon_console, command_response, expected_result):
         """Test kicking a player via RCON with success and failure scenarios."""
         mock_rcon_console.command.return_value = command_response
-        
+
         with patch('src.api_clients.Console', return_value=mock_rcon_console):
             client = RconClient()
-            result = client.kick_player("123456789")
-            
+            player = {"steam_id": "123456789", "name": "TestPlayer"}
+            result = client.kick_player(player)
+
             assert result == expected_result
 
     @pytest.mark.parametrize("command_response,expected_result", [
@@ -313,10 +325,25 @@ class TestRconClient:
     def test_ban_player(self, mock_settings, mock_rcon_console, command_response, expected_result):
         """Test banning a player via RCON with success and failure scenarios."""
         mock_rcon_console.command.return_value = command_response
-        
+
         with patch('src.api_clients.Console', return_value=mock_rcon_console):
             client = RconClient()
-            result = client.ban_player("123456789")
-            
+            player = {"steam_id": "123456789", "name": "TestPlayer"}
+            result = client.ban_player(player)
+
             assert result == expected_result
 
+    @pytest.mark.parametrize("command_response,expected_result", [
+        ("Player unbanned successfully", True),
+        (None, False),
+    ])
+    def test_unban_player(self, mock_settings, mock_rcon_console, command_response, expected_result):
+        """Test unbanning a player via RCON with success and failure scenarios."""
+        mock_rcon_console.command.return_value = command_response
+
+        with patch('src.api_clients.Console', return_value=mock_rcon_console):
+            client = RconClient()
+            player = {"steam_id": "123456789", "name": "TestPlayer"}
+            result = client.unban_player(player)
+
+            assert result == expected_result
