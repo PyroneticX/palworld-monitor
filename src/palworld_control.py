@@ -39,7 +39,7 @@ class PalWorldController:
             "playerCount": 0,
             "players": []
         }
-        
+
         # Server control flags and timestamps
         self.is_palworld_server_starting = False
         self.server_starting_cooldown = 5  # seconds
@@ -47,15 +47,15 @@ class PalWorldController:
         self.server_stopping_cooldown = 5  # seconds
         self.last_server_stopped_time = 0
         self.server_startup_auto_stop_delay = settings.autoStopDelay  # Use the same delay as auto-stop
-        
+
         # Stop event tracking
         self.triggered_time_check_stopped_event = -1
         self.is_triggered_check_stopped_event = False
-        
+
         # Auto-stop delay tracking
         self.auto_stop_delay_thread = None
         self.auto_stop_delay_cancelled = False
-        
+
         # Background update thread management
         self.update_thread = None
         self.update_thread_stop_event = threading.Event()
@@ -178,7 +178,7 @@ class PalWorldController:
             current_time = time.time()
             if current_time - self.triggered_time_check_stopped_event > timeout:
                 break
-            
+
             time.sleep(1)
         self.is_triggered_check_stopped_event = False
         if self.on_server_stopped_callback:
@@ -253,7 +253,7 @@ class PalWorldController:
 
     def _update_server_info_with_players(self):
         self.current_server_info["running"] = self.is_palworld_process_running()
-        
+
         current_players = self.get_player_names()
         self.current_server_info["playerCount"] = len(current_players)
         self.current_server_info["players"] = current_players
@@ -266,20 +266,20 @@ class PalWorldController:
         # If auto-stop delay is already triggered, don't trigger again
         if self.auto_stop_delay_thread and self.auto_stop_delay_thread.is_alive():
             return
-        
+
         # Check if enough time has passed since server startup
         current_time = time.time()
         time_since_startup = current_time - self.last_server_started_time
-        
+
         if time_since_startup < self.server_startup_auto_stop_delay:
             remaining_time = self.server_startup_auto_stop_delay - time_since_startup
             logging.info(f"Auto-stop blocked: Server started {time_since_startup:.0f}s ago. Auto-stop will be available in {remaining_time:.0f}s.")
             return
-        
+
         # Reset cancellation flag
         self.auto_stop_delay_cancelled = False
         logging.info(f"Auto-stop condition met. Server will stop in {settings.autoStopDelay} seconds.")
-        
+
         # Start delay thread
         self.auto_stop_delay_thread = threading.Thread(target=self._auto_stop_delay_worker, daemon=True)
         self.auto_stop_delay_thread.start()
@@ -294,7 +294,7 @@ class PalWorldController:
         """Worker thread that waits for the auto-stop delay and then stops the server."""
         try:
             time.sleep(settings.autoStopDelay)
-            
+
             # Check if the delay was cancelled
             if not self.auto_stop_delay_cancelled:
                 logging.info("Auto-stop delay completed. Stopping server.")
@@ -320,11 +320,11 @@ class PalWorldController:
     def set_on_server_stopped_callback(self, callback):
         """Set the callback function to be called when the server is stopped."""
         self.on_server_stopped_callback = callback
-    
+
     def set_on_server_started_callback(self, callback):
         """Set the callback function to be called when the server is started."""
         self.on_server_started_callback = callback
-    
+
     def get_player_manager(self):
         """Get the player manager instance."""
         return self.player_manager
@@ -334,7 +334,7 @@ class PalWorldController:
         if self.update_thread and self.update_thread.is_alive():
             logging.info("Server info update thread is already running.")
             return
-        
+
         self.update_thread_stop_event.clear()
         self.update_thread = threading.Thread(target=self._server_info_update_loop, daemon=True)
         self.update_thread.start()
@@ -344,7 +344,7 @@ class PalWorldController:
         """Stop the background server info update thread."""
         if not self.update_thread or not self.update_thread.is_alive():
             return
-        
+
         self.update_thread_stop_event.set()
         self.update_thread.join(timeout=5)
         logging.info("Server info update thread stopped.")
@@ -357,7 +357,7 @@ class PalWorldController:
             except Exception as e:
                 logging.error(f"Error in server info update loop: {e}")
                 logging.error(traceback.format_exc())
-            
+
             # Wait for the specified interval or until stop event is set
             if self.update_thread_stop_event.wait(settings.updateInterval):
                 break
@@ -368,17 +368,21 @@ class PalWorldController:
 
     def kick_player(self, steam_id):
         """Kick a player by their Steam ID.
-        
+
         Args:
             steam_id: The Steam ID of the player to kick
-            
+
         Returns:
             bool: True if kick was successful, False otherwise
         """
         try:
-            result = self.client.kick_player(steam_id)
+            player = self.player_manager.players.get(steam_id)
+            if not player:
+                logging.error(f"Player with Steam ID {steam_id} not found")
+                return False
+
+            result = self.client.kick_player(player)
             if result:
-                logging.info(f"Player with Steam ID {steam_id} was kicked successfully")
                 # Trigger an immediate update to refresh player list
                 self.update_current_server_info()
             return result
@@ -389,28 +393,32 @@ class PalWorldController:
 
     def ban_player(self, steam_id):
         """Ban a player by their Steam ID.
-        
+
         Args:
             steam_id: The Steam ID of the player to ban
-            
+
         Returns:
             bool: True if ban was successful, False otherwise
         """
         try:
+            player = self.player_manager.players.get(steam_id)
+            if not player:
+                logging.error(f"Player with Steam ID {steam_id} not found")
+                return False
+
             # First, kick the player if they're online
-            self.client.kick_player(steam_id)
-            
+            self.client.kick_player(player)
+
             # Then ban via RCON command (this adds to server's banlist)
-            ban_success = self.client.ban_player(steam_id)
-            
+            ban_success = self.client.ban_player(player)
+
             # Also add to banlist file for persistence
             file_success = self.banlist_manager.add_ban(steam_id)
-            
+
             # Consider ban successful if either method worked
             result = ban_success or file_success
-            
+
             if result:
-                logging.info(f"Player with Steam ID {steam_id} was banned successfully")
                 # Trigger an immediate update to refresh player list
                 self.update_current_server_info()
             else:
@@ -423,17 +431,31 @@ class PalWorldController:
 
     def unban_player(self, steam_id):
         """Unban a player by their Steam ID.
-        
+
         Args:
             steam_id: The Steam ID of the player to unban
-            
+
         Returns:
             bool: True if unban was successful, False otherwise
         """
         try:
-            result = self.banlist_manager.remove_ban(steam_id)
+             # First, try to unban via the game server API/RCON
+            player = self.player_manager.players.get(steam_id)
+            if player:
+                client_result = self.client.unban_player(player)
+            else:
+                logging.error(f"Player with Steam ID {steam_id} not found")
+                return False
+
+            # Also remove from banlist file for persistence
+            file_result = self.banlist_manager.remove_ban(steam_id)
+
+            # Consider unban successful if either method worked
+            result = client_result or file_result
+
             if result:
-                logging.info(f"Player with Steam ID {steam_id} was unbanned successfully")
+                player_name = player.get('name', 'Unknown')
+                logging.info(f"Player {player_name} (Steam ID: {steam_id}) was unbanned successfully")
             return result
         except Exception as e:
             logging.error(f"Error unbanning player {steam_id}: {e}")
@@ -442,7 +464,7 @@ class PalWorldController:
 
     def get_banned_players(self):
         """Get list of banned Steam IDs.
-        
+
         Returns:
             List[str]: List of banned Steam IDs
         """
@@ -455,10 +477,10 @@ class PalWorldController:
 
     def is_player_banned(self, steam_id):
         """Check if a player is banned.
-        
+
         Args:
             steam_id: The Steam ID to check
-            
+
         Returns:
             bool: True if banned, False otherwise
         """
