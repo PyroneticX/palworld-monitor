@@ -9,15 +9,20 @@ A Python application for managing PalWorld dedicated servers on Windows and Linu
 - **Cross-platform support**: Windows and Linux compatibility
 - **Automatic server management**:
   - Auto-start when players attempt to connect
-  - Auto-stop when server is empty (configurable delay)
+  - Auto-stop after configured delay when server is empty (default: 10 minutes)
+  - Supports both REST and RCON (legacy) APIs when talking to PalServer
 - **Web-based admin interface**:
   - Real-time server monitoring
-  - Player tracking and stats
   - Server control capabilities
+  - Light/dark theme support
 - **Player management**:
-  - Track online/offline players
+  - Track online/offline players (session-based)
   - Kick or ban players
-  - Detailed player information (name, Steam ID, level)
+  - Player details: name, Steam ID, level
+- **Security**:
+  - Web interface with authentication (username/password login)
+  - CSRF protection and rate limiting
+  - Login attempt lockout after failed attempts
 - **Configurable settings**: YAML-based configuration file
 
 ## Limitations
