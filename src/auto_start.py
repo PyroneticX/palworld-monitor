@@ -168,15 +168,34 @@ class AutoStartManager:
         if self.controller is None or self.controller.is_palworld_process_running():
             return
 
-        if not self.open_palworld_port_socket():
-            return
+        max_start_retries = 3
+        retry_delay = 10
 
-        if self.wait_for_player_connection():
-            self.close_palworld_port_socket()
-            # Small delay to ensure socket is properly closed
-            time.sleep(0.5)
-            if self.controller is not None:
-                self.controller.start_server()
+        for attempt in range(max_start_retries):
+            if self.is_aborting:
+                return
+
+            if not self.open_palworld_port_socket():
+                return
+
+            if self.wait_for_player_connection():
+                self.close_palworld_port_socket()
+                time.sleep(0.5)
+                if self.controller is not None:
+                    self.controller.start_server()
+                    time.sleep(2)
+                    if self.controller.is_palworld_process_running():
+                        return
+                    logging.warning(
+                        f"Server did not start successfully (attempt {attempt + 1}/{max_start_retries}). "
+                        f"Reconnecting socket in {retry_delay}s..."
+                    )
+                    time.sleep(retry_delay)
+                else:
+                    return
+            else:
+                self.close_palworld_port_socket()
+                return
 
     def listen_palworld_access(self):
         """Start listening for PalWorld access."""
@@ -207,4 +226,3 @@ class AutoStartManager:
             self.listen_thread = None
             logging.info("Auto-start listen thread stopped.")
 
-        #TODO: If the server did not start successfully, reconnect the socket after a certain period of time.
