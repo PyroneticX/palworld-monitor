@@ -20,18 +20,18 @@ import logging
 import traceback
 import os
 
-if __name__ != '__main__':
+if __name__ != "__main__":
     exit()
 
 try:
     # Configure logging to write messages to the console and a file
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
+        format="%(asctime)s - %(levelname)s - %(message)s",
         handlers=[
             logging.StreamHandler(),  # Log to console
-            logging.FileHandler('app.log', mode='a')
-        ]
+            logging.FileHandler("app.log", mode="a"),
+        ],
     )
 
     # read settings if settings.yaml exists
@@ -50,11 +50,13 @@ try:
     auto_start_manager = None
 
     # Choose the client based on the protocol setting
-    if settings.protocol.upper() == 'REST':
+    if settings.protocol.upper() == "REST":
         from api_clients import RestClient
+
         client = RestClient()
-    elif settings.protocol.upper() == 'RCON':
+    elif settings.protocol.upper() == "RCON":
         from api_clients import RconClient
+
         client = RconClient()
     else:
         logging.error(f"Invalid protocol specified in settings: {settings.protocol}")
@@ -70,8 +72,12 @@ try:
     if not server_running and settings.autoStart:
         auto_start_manager = AutoStartManager(palworld_controller)
 
-        palworld_controller.set_on_server_started_callback(auto_start_manager.stop_listen_thread)
-        palworld_controller.set_on_server_stopped_callback(auto_start_manager.listen_palworld_access)
+        palworld_controller.set_on_server_started_callback(
+            auto_start_manager.stop_listen_thread
+        )
+        palworld_controller.set_on_server_stopped_callback(
+            auto_start_manager.listen_palworld_access
+        )
 
         auto_start_manager.listen_palworld_access()
 

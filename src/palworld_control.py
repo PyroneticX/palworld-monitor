@@ -22,23 +22,30 @@ from banlist_manager import BanlistManager
 import os
 import platform
 
+
 class PalWorldController:
-    def __init__(self, client, process_manager=None, player_manager=None, banlist_manager=None):
+    def __init__(
+        self, client, process_manager=None, player_manager=None, banlist_manager=None
+    ):
         self.client = client
         self.on_server_started_callback = None
         self.on_server_stopped_callback = None
 
         # Use dependency injection with sensible defaults
-        self.player_manager = player_manager if player_manager is not None else PlayerManager()
-        self.banlist_manager = banlist_manager if banlist_manager is not None else BanlistManager()
-        self.process_manager = process_manager if process_manager is not None else self._create_process_manager()
+        self.player_manager = (
+            player_manager if player_manager is not None else PlayerManager()
+        )
+        self.banlist_manager = (
+            banlist_manager if banlist_manager is not None else BanlistManager()
+        )
+        self.process_manager = (
+            process_manager
+            if process_manager is not None
+            else self._create_process_manager()
+        )
 
         # Server state information
-        self.current_server_info = {
-            "running": False,
-            "playerCount": 0,
-            "players": []
-        }
+        self.current_server_info = {"running": False, "playerCount": 0, "players": []}
 
         # Server control flags and timestamps
         self.is_palworld_server_starting = False
@@ -46,7 +53,9 @@ class PalWorldController:
         self.last_server_started_time = 0
         self.server_stopping_cooldown = 5  # seconds
         self.last_server_stopped_time = 0
-        self.server_startup_auto_stop_delay = settings.autoStopDelay  # Use the same delay as auto-stop
+        self.server_startup_auto_stop_delay = (
+            settings.autoStopDelay
+        )  # Use the same delay as auto-stop
 
         # Stop event tracking
         self.triggered_time_check_stopped_event = -1
@@ -66,13 +75,14 @@ class PalWorldController:
     def _create_process_manager(self):
         """Factory method to create the appropriate process manager based on OS."""
         detected_os = platform.system()
-        if detected_os.lower() == 'linux':
+        if detected_os.lower() == "linux":
             from process_manager import LinuxProcessManager
+
             return LinuxProcessManager()
         else:
             from process_manager import WindowsProcessManager
-            return WindowsProcessManager()
 
+            return WindowsProcessManager()
 
     def is_palworld_process_running(self):
         """Check if the PalWorld server process is currently running."""
@@ -93,9 +103,13 @@ class PalWorldController:
             if self.is_palworld_process_running():
                 self._handle_server_started(source="launch")
             else:
-                logging.error("Palworld server failed to launch (process not running after start).")
+                logging.error(
+                    "Palworld server failed to launch (process not running after start)."
+                )
         except subprocess.CalledProcessError as e:
-            logging.error(f"Error occurred while executing the Palworld executable file : {e}")
+            logging.error(
+                f"Error occurred while executing the Palworld executable file : {e}"
+            )
             return_val = False
         finally:
             self.is_palworld_server_starting = False
@@ -105,16 +119,22 @@ class PalWorldController:
 
     def _should_block_start(self, current_time):
         if self.is_palworld_process_running():
-            logging.warning("The attempt to start the Palworld server was made, but it is already running.")
+            logging.warning(
+                "The attempt to start the Palworld server was made, but it is already running."
+            )
             return True
         if self.is_palworld_server_starting:
             logging.warning("Palworld Server is already starting.")
             return True
         if current_time - self.last_server_started_time < self.server_starting_cooldown:
-            logging.warning("Tried to start the server too quickly multiple times. This attempt will be ignored.")
+            logging.warning(
+                "Tried to start the server too quickly multiple times. This attempt will be ignored."
+            )
             return True
         if current_time - self.last_server_stopped_time < self.server_stopping_cooldown:
-            logging.warning("You attempted to restart the server too quickly shortly after trying to stop it. This attempt will be ignored.")
+            logging.warning(
+                "You attempted to restart the server too quickly shortly after trying to stop it. This attempt will be ignored."
+            )
             return True
         if self.is_stop_event_running():
             logging.warning("Stop event is running. starting server is ignored")
@@ -123,11 +143,12 @@ class PalWorldController:
 
     def _launch_process(self, palworld_exe_path):
         self.is_palworld_server_starting = True
-        self.process_manager.launch_process(palworld_exe_path, settings.palworldExeArguments)
+        self.process_manager.launch_process(
+            palworld_exe_path, settings.palworldExeArguments
+        )
 
     def _detect_existing_server_process(self):
-        """Detect a running Palworld server and register its PID in the process manager.
-        """
+        """Detect a running Palworld server and register its PID in the process manager."""
         try:
             # If PID is already known (from PID file), skip
             if self.process_manager.launched_pid is not None:
@@ -140,7 +161,9 @@ class PalWorldController:
             pid = self.process_manager.find_process_pid("palserver")
             if pid is not None:
                 self.process_manager.set_known_pid(pid)
-                logging.info(f"Detected existing Palworld server (PID {pid}). Attaching controller.")
+                logging.info(
+                    f"Detected existing Palworld server (PID {pid}). Attaching controller."
+                )
                 self._handle_server_started(source="attach")
         except Exception:
             # best-effort only
@@ -207,7 +230,9 @@ class PalWorldController:
 
         if not self.is_triggered_check_stopped_event:
             self.is_triggered_check_stopped_event = True
-            thread = threading.Thread(target=self.check_is_stopped_palworld_process_core)
+            thread = threading.Thread(
+                target=self.check_is_stopped_palworld_process_core
+            )
             thread.start()
 
         terminated = self.process_manager.terminate_process()
@@ -220,15 +245,21 @@ class PalWorldController:
         if terminated:
             logging.info("Palworld server stopped successfully.")
         else:
-            logging.warning("Failed to stop Palworld server; process may not be running.")
+            logging.warning(
+                "Failed to stop Palworld server; process may not be running."
+            )
 
     def _should_block_stop(self):
         if not self.is_palworld_process_running():
-            logging.error("An attempt to stop the Palworld server was made, but it was not running.")
+            logging.error(
+                "An attempt to stop the Palworld server was made, but it was not running."
+            )
             return True
         current_time = time.time()
         if current_time - self.last_server_stopped_time < self.server_stopping_cooldown:
-            logging.warning("You attempted to restart the server too quickly shortly after trying to stop it. This attempt will be ignored.")
+            logging.warning(
+                "You attempted to restart the server too quickly shortly after trying to stop it. This attempt will be ignored."
+            )
             return True
         return False
 
@@ -273,15 +304,21 @@ class PalWorldController:
 
         if time_since_startup < self.server_startup_auto_stop_delay:
             remaining_time = self.server_startup_auto_stop_delay - time_since_startup
-            logging.info(f"Auto-stop blocked: Server started {time_since_startup:.0f}s ago. Auto-stop will be available in {remaining_time:.0f}s.")
+            logging.info(
+                f"Auto-stop blocked: Server started {time_since_startup:.0f}s ago. Auto-stop will be available in {remaining_time:.0f}s."
+            )
             return
 
         # Reset cancellation flag
         self.auto_stop_delay_cancelled = False
-        logging.info(f"Auto-stop condition met. Server will stop in {settings.autoStopDelay} seconds.")
+        logging.info(
+            f"Auto-stop condition met. Server will stop in {settings.autoStopDelay} seconds."
+        )
 
         # Start delay thread
-        self.auto_stop_delay_thread = threading.Thread(target=self._auto_stop_delay_worker, daemon=True)
+        self.auto_stop_delay_thread = threading.Thread(
+            target=self._auto_stop_delay_worker, daemon=True
+        )
         self.auto_stop_delay_thread.start()
 
     def _cancel_auto_stop_delay(self):
@@ -336,7 +373,9 @@ class PalWorldController:
             return
 
         self.update_thread_stop_event.clear()
-        self.update_thread = threading.Thread(target=self._server_info_update_loop, daemon=True)
+        self.update_thread = threading.Thread(
+            target=self._server_info_update_loop, daemon=True
+        )
         self.update_thread.start()
         logging.info("Server info update thread started.")
 
@@ -422,7 +461,9 @@ class PalWorldController:
                 # Trigger an immediate update to refresh player list
                 self.update_current_server_info()
             else:
-                logging.warning(f"Ban command may have failed, but banlist file was updated")
+                logging.warning(
+                    "Ban command may have failed, but banlist file was updated"
+                )
             return result
         except Exception as e:
             logging.error(f"Error banning player {steam_id}: {e}")
@@ -439,7 +480,7 @@ class PalWorldController:
             bool: True if unban was successful, False otherwise
         """
         try:
-             # First, try to unban via the game server API/RCON
+            # First, try to unban via the game server API/RCON
             player = self.player_manager.players.get(steam_id)
             if player:
                 client_result = self.client.unban_player(player)
@@ -454,8 +495,10 @@ class PalWorldController:
             result = client_result or file_result
 
             if result:
-                player_name = player.get('name', 'Unknown')
-                logging.info(f"Player {player_name} (Steam ID: {steam_id}) was unbanned successfully")
+                player_name = player.get("name", "Unknown")
+                logging.info(
+                    f"Player {player_name} (Steam ID: {steam_id}) was unbanned successfully"
+                )
             return result
         except Exception as e:
             logging.error(f"Error unbanning player {steam_id}: {e}")

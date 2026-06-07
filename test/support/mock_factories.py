@@ -1,11 +1,13 @@
 """
 Factory functions for creating mock objects used across tests.
 """
+
 from unittest.mock import MagicMock
 
 
-def create_mock_http_response(status_code=200, content=b'{"success": true}',
-                              json_data=None, raise_for_status=None):
+def create_mock_http_response(
+    status_code=200, content=b'{"success": true}', json_data=None, raise_for_status=None
+):
     """Create a mock HTTP response object.
 
     Args:
@@ -37,7 +39,9 @@ def create_mock_rcon_console(command_response=None, close_return=None):
         MagicMock configured as an RCON console
     """
     console = MagicMock()
-    console.command.return_value = command_response or "name,playerid,userid\nPlayer1,pid1,uid1"
+    console.command.return_value = (
+        command_response or "name,playerid,userid\nPlayer1,pid1,uid1"
+    )
     console.close.return_value = close_return
     return console
 

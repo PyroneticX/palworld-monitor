@@ -19,66 +19,67 @@ import subprocess
 import secrets
 
 # This is what a Palworld client first sends to the server when it connects.
-FIRST_PACKET_PATTERN = b'\x09\x08\x00'
+FIRST_PACKET_PATTERN = b"\x09\x08\x00"
+
 
 class Settings:
     def __init__(self):
         self.settings = {
             # Path to the Palworld server executable
-            'palworldServerExePath': None,
-            'palworldMainProcessName': 'PalServer-Win64-Shipping-Cmd.exe',
+            "palworldServerExePath": None,
+            "palworldMainProcessName": "PalServer-Win64-Shipping-Cmd.exe",
             # Default arguments for the server executable
-            'palworldExeArguments': "-useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS -NumberOfWorkerThreadsServer=16",
+            "palworldExeArguments": "-useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS -NumberOfWorkerThreadsServer=16",
             # IP address for the Palworld server
-            'palworldServerHost': "localhost",
+            "palworldServerHost": "localhost",
             # Port for the Palworld server
-            'palworldServerPort': 8211,
+            "palworldServerPort": 8211,
             # Initial packet pattern sent by Palworld client
-            'firstPacketPattern': FIRST_PACKET_PATTERN,
+            "firstPacketPattern": FIRST_PACKET_PATTERN,
             # Port for the REST API
-            'palworldRESTPort': 8212,
+            "palworldRESTPort": 8212,
             # Port for the RCON interface
-            'palworldRCONPort': 25575,
+            "palworldRCONPort": 25575,
             # Admin password for the Palworld server (used for REST/RCON communication)
-            'palworldServerAdminPassword': None,
+            "palworldServerAdminPassword": None,
             # Protocol used for server communication
-            'protocol': "REST",
+            "protocol": "REST",
             # WhetherPto enable the web server
-            'useWebServer': True,
+            "useWebServer": True,
             # Port for the web server
-            'webServerPort': 8213,
+            "webServerPort": 8213,
             # Enable server control through web interface (combines all button controls)
-            'controlServerThroughWeb': True,
+            "controlServerThroughWeb": True,
             # Show server IP address in UI
-            'showServerIPAddress': False,
+            "showServerIPAddress": False,
             # Enable auto-start for the server
-            'autoStart': True,
+            "autoStart": True,
             # Enable auto-stop for the server
-            'autoStop': True,
+            "autoStop": True,
             # Seconds before auto-stopping the server
-            'autoStopDelay': 120,
+            "autoStopDelay": 120,
             # Interval (seconds) to check for auto-stop condition
-            'updateInterval': 30,
+            "updateInterval": 30,
             # Enable player tracking feature
-            'enablePlayerTracking': True,
+            "enablePlayerTracking": True,
             # Web interface username
-            'webUsername': 'admin',
+            "webUsername": "admin",
             # Web interface password (separate from Palworld server password)
-            'webPassword': None,
+            "webPassword": None,
             # Secret key for session encryption (auto-generated if not provided)
-            'sessionSecretKey': None,
+            "sessionSecretKey": None,
             # Session timeout in seconds (default: 1 hour)
-            'sessionTimeout': 3600,
+            "sessionTimeout": 3600,
             # Maximum failed login attempts before lockout
-            'maxLoginAttempts': 5,
+            "maxLoginAttempts": 5,
             # Lockout duration in seconds after max failed attempts (default: 5 minutes)
-            'lockoutDuration': 300,
+            "lockoutDuration": 300,
             # Enable rate limiting for requests
-            'rateLimitEnabled': True,
+            "rateLimitEnabled": True,
             # Maximum requests per window
-            'rateLimitRequests': 100,
+            "rateLimitRequests": 100,
             # Rate limit window in seconds
-            'rateLimitWindow': 60
+            "rateLimitWindow": 60,
         }
         for key, value in self.settings.items():
             setattr(self, key, value)
@@ -97,31 +98,39 @@ class Settings:
             settings_file_path: Path to the settings file (used to locate session_secret.key)
         """
         # First check if we have a saved session key file
-        session_key_file = os.path.join(os.path.dirname(settings_file_path), 'session_secret.key')
+        session_key_file = os.path.join(
+            os.path.dirname(settings_file_path), "session_secret.key"
+        )
         if os.path.exists(session_key_file):
             try:
-                with open(session_key_file, 'r') as f:
+                with open(session_key_file, "r") as f:
                     saved_key = f.read().strip()
                     if saved_key and len(saved_key) == 64:
-                        self.settings['sessionSecretKey'] = saved_key
-                        setattr(self, 'sessionSecretKey', self.settings['sessionSecretKey'])
+                        self.settings["sessionSecretKey"] = saved_key
+                        setattr(
+                            self, "sessionSecretKey", self.settings["sessionSecretKey"]
+                        )
                         logging.info("Loaded sessionSecretKey from session_secret.key")
                         return
             except Exception as e:
                 logging.warning(f"Could not read session_secret.key: {e}")
 
         # Generate new key if missing or invalid
-        if not self.settings.get('sessionSecretKey'):
-            self.settings['sessionSecretKey'] = secrets.token_hex(32)
-            setattr(self, 'sessionSecretKey', self.settings['sessionSecretKey'])
+        if not self.settings.get("sessionSecretKey"):
+            self.settings["sessionSecretKey"] = secrets.token_hex(32)
+            setattr(self, "sessionSecretKey", self.settings["sessionSecretKey"])
 
             # Save the generated key to a separate file (preserves settings.yaml comments)
             try:
-                with open(session_key_file, 'w') as f:
-                    f.write(self.settings['sessionSecretKey'])
-                logging.info("Auto-generated sessionSecretKey and saved to session_secret.key")
+                with open(session_key_file, "w") as f:
+                    f.write(self.settings["sessionSecretKey"])
+                logging.info(
+                    "Auto-generated sessionSecretKey and saved to session_secret.key"
+                )
             except Exception as e:
-                logging.warning(f"Could not save auto-generated sessionSecretKey to file: {e}")
+                logging.warning(
+                    f"Could not save auto-generated sessionSecretKey to file: {e}"
+                )
 
     def _load_nested_settings(self, data):
         """Load settings from nested YAML structure.
@@ -130,41 +139,41 @@ class Settings:
         """
         # Mapping from nested structure to flat keys
         mapping = {
-            'palserver': {
-                'exePath': 'palworldServerExePath',
-                'host': 'palworldServerHost',
-                'port': 'palworldServerPort',
-                'adminPassword': 'palworldServerAdminPassword',
-                'protocol': 'protocol',
-                'restPort': 'palworldRESTPort',
-                'rconPort': 'palworldRCONPort'
+            "palserver": {
+                "exePath": "palworldServerExePath",
+                "host": "palworldServerHost",
+                "port": "palworldServerPort",
+                "adminPassword": "palworldServerAdminPassword",
+                "protocol": "protocol",
+                "restPort": "palworldRESTPort",
+                "rconPort": "palworldRCONPort",
             },
-            'web': {
-                'enabled': 'useWebServer',
-                'port': 'webServerPort',
-                'username': 'webUsername',
-                'password': 'webPassword',
-                'controlServer': 'controlServerThroughWeb',
-                'showServerIP': 'showServerIPAddress'
+            "web": {
+                "enabled": "useWebServer",
+                "port": "webServerPort",
+                "username": "webUsername",
+                "password": "webPassword",
+                "controlServer": "controlServerThroughWeb",
+                "showServerIP": "showServerIPAddress",
             },
-            'features': {
-                'playerTracking': 'enablePlayerTracking',
-                'autoStart': 'autoStart',
-                'autoStop': 'autoStop'
+            "features": {
+                "playerTracking": "enablePlayerTracking",
+                "autoStart": "autoStart",
+                "autoStop": "autoStop",
             },
-            'autoStop': {
-                'stopDelay': 'autoStopDelay',
-                'updateInterval': 'updateInterval'
+            "autoStop": {
+                "stopDelay": "autoStopDelay",
+                "updateInterval": "updateInterval",
             },
-            'security': {
-                'sessionSecretKey': 'sessionSecretKey',
-                'sessionTimeout': 'sessionTimeout',
-                'maxLoginAttempts': 'maxLoginAttempts',
-                'lockoutDuration': 'lockoutDuration',
-                'rateLimitEnabled': 'rateLimitEnabled',
-                'rateLimitRequests': 'rateLimitRequests',
-                'rateLimitWindow': 'rateLimitWindow'
-            }
+            "security": {
+                "sessionSecretKey": "sessionSecretKey",
+                "sessionTimeout": "sessionTimeout",
+                "maxLoginAttempts": "maxLoginAttempts",
+                "lockoutDuration": "lockoutDuration",
+                "rateLimitEnabled": "rateLimitEnabled",
+                "rateLimitRequests": "rateLimitRequests",
+                "rateLimitWindow": "rateLimitWindow",
+            },
         }
 
         flat_settings = {}
@@ -185,7 +194,7 @@ class Settings:
 
     def readSettings(self, file_path):
         try:
-            with open(file_path, 'r') as file:
+            with open(file_path, "r") as file:
                 file_data = yaml.safe_load(file)
                 if file_data is None:
                     file_data = {}
@@ -218,26 +227,32 @@ class Settings:
         errors = []
 
         # Check mandatory settings
-        if not self.settings.get('palworldServerExePath'):
+        if not self.settings.get("palworldServerExePath"):
             errors.append("palworldServerExePath is required")
 
-        if not self.settings.get('palworldServerAdminPassword'):
+        if not self.settings.get("palworldServerAdminPassword"):
             errors.append("palworldServerAdminPassword is required")
 
         # Check webPassword only if web server is enabled
-        if self.settings.get('useWebServer', True) and not self.settings.get('webPassword'):
+        if self.settings.get("useWebServer", True) and not self.settings.get(
+            "webPassword"
+        ):
             errors.append("webPassword is required when useWebServer is enabled")
 
         # Check that server executable exists
-        server_exe_path = self.settings.get('palworldServerExePath')
+        server_exe_path = self.settings.get("palworldServerExePath")
         if server_exe_path:
             if not os.path.exists(server_exe_path):
-                errors.append(f"Palworld server executable does not exist at: {server_exe_path}")
+                errors.append(
+                    f"Palworld server executable does not exist at: {server_exe_path}"
+                )
             elif not os.path.isfile(server_exe_path):
                 errors.append(f"Palworld server path is not a file: {server_exe_path}")
 
         if errors:
-            error_message = "Settings validation failed:\n" + "\n".join(f"  - {error}" for error in errors)
+            error_message = "Settings validation failed:\n" + "\n".join(
+                f"  - {error}" for error in errors
+            )
             raise ValueError(error_message)
 
     def get_git_hash(self):
@@ -257,5 +272,6 @@ class Settings:
             return result.stdout.strip()
         except Exception:
             return None
+
 
 settings = Settings()

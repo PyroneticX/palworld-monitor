@@ -15,6 +15,7 @@ import subprocess
 import psutil
 import os
 
+
 class OSProcessManager:
     def __init__(self):
         self.launched_pid = None
@@ -29,7 +30,7 @@ class OSProcessManager:
 
     def _save_pid_to_file(self, pid):
         try:
-            with open(self.pid_file_name(), 'w') as f:
+            with open(self.pid_file_name(), "w") as f:
                 f.write(str(pid))
         except Exception:
             pass
@@ -37,7 +38,7 @@ class OSProcessManager:
     def _load_pid_from_file(self):
         if os.path.exists(self.pid_file_name()):
             try:
-                with open(self.pid_file_name(), 'r') as f:
+                with open(self.pid_file_name(), "r") as f:
                     pid = int(f.read().strip())
                     self.launched_pid = pid
             except Exception:
@@ -110,25 +111,30 @@ class OSProcessManager:
         """
         try:
             target = (name or "").lower()
-            for proc in psutil.process_iter(attrs=['pid', 'name', 'exe', 'cmdline']):
+            for proc in psutil.process_iter(attrs=["pid", "name", "exe", "cmdline"]):
                 try:
                     info = proc.info
-                    exe = info.get('exe') or ''
-                    pname = info.get('name') or ''
-                    cmdline_list = info.get('cmdline') or []
-                    combined = ' '.join([exe, pname, ' '.join(cmdline_list)]).lower()
+                    exe = info.get("exe") or ""
+                    pname = info.get("name") or ""
+                    cmdline_list = info.get("cmdline") or []
+                    combined = " ".join([exe, pname, " ".join(cmdline_list)]).lower()
                     if target and target in combined:
-                        return info['pid']
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                        return info["pid"]
+                except (
+                    psutil.NoSuchProcess,
+                    psutil.AccessDenied,
+                    psutil.ZombieProcess,
+                ):
                     continue
         except Exception:
             # best-effort
             pass
         return None
 
+
 class WindowsProcessManager(OSProcessManager):
     def pid_file_name(self):
-        return 'palworld_server.win.pid'
+        return "palworld_server.win.pid"
 
     def launch_process(self, exe_path, exe_args):
         # Detach so the child survives if this controller exits
@@ -148,9 +154,10 @@ class WindowsProcessManager(OSProcessManager):
         )
         self._after_launch(process)
 
+
 class LinuxProcessManager(OSProcessManager):
     def pid_file_name(self):
-        return 'palworld_server.linux.pid'
+        return "palworld_server.linux.pid"
 
     def launch_process(self, exe_path, exe_args):
         # Start a new session (setsid) and detach stdio so it survives parent exit

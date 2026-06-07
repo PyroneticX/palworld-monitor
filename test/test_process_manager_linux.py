@@ -3,20 +3,17 @@ Tests for LinuxProcessManager.
 
 These tests are Linux-specific and will be skipped on other platforms.
 """
+
 import sys
 import os
 import pytest
 import time
 import psutil
-
-# Skip all tests if not on Linux
-pytestmark = pytest.mark.skipif(
-    sys.platform == 'win32',
-    reason="Linux-specific tests"
-)
-
 from src.process_manager import LinuxProcessManager
 from test.support import get_python_executable
+
+# Skip all tests if not on Linux
+pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="Linux-specific tests")
 
 
 class TestLinuxProcessManager:
@@ -25,58 +22,64 @@ class TestLinuxProcessManager:
     def test_pid_file_name(self):
         """Test that PID file name is correct."""
         manager = LinuxProcessManager()
-        assert manager.pid_file_name() == 'palworld_server.linux.pid'
+        assert manager.pid_file_name() == "palworld_server.linux.pid"
 
     def test_launch_and_check_process(self, test_sleep_script):
         """Test launching a process and checking if it's running."""
         manager = LinuxProcessManager()
-        
+
         # Ensure no existing PID
         manager.launched_pid = None
-        
+
         # Use Python executable from venv
         python_exe = get_python_executable()
         script_path = os.path.abspath(test_sleep_script)
-        
+
         # Launch process
         manager.launch_process(python_exe, script_path)
-        
+
         # Give it a moment to start
         time.sleep(1)
-        
+
         # Check if running
-        assert manager.is_process_running() is True, "Process should be running after launch"
-        
+        assert manager.is_process_running() is True, (
+            "Process should be running after launch"
+        )
+
         # Clean up
         manager.terminate_process()
 
     def test_terminate_process(self, test_sleep_script):
         """Test terminating a launched process."""
         manager = LinuxProcessManager()
-        
+
         # Ensure no existing PID
         manager.launched_pid = None
-        
+
         # Use Python executable from venv
         python_exe = get_python_executable()
         script_path = os.path.abspath(test_sleep_script)
-        
+
         # Launch process
         manager.launch_process(python_exe, script_path)
         time.sleep(1)
-        
+
         # Verify it's running
-        assert manager.is_process_running() is True, "Process should be running after launch"
-        
+        assert manager.is_process_running() is True, (
+            "Process should be running after launch"
+        )
+
         # Terminate
         result = manager.terminate_process()
         assert result is True
-        
+
         # Give it a moment to terminate
         time.sleep(1)
-        
+
         # Verify it's not running
-        assert manager.is_process_running() is False, "Process should not be running after termination"
+        assert manager.is_process_running() is False, (
+            "Process should not be running after termination"
+        )
         assert manager.launched_pid is None
 
     def test_is_process_running_with_no_pid(self):
@@ -96,52 +99,52 @@ class TestLinuxProcessManager:
         """Test that PID is saved to and loaded from file."""
         manager1 = LinuxProcessManager()
         manager1.launched_pid = None
-        
+
         # Use Python executable from venv
         python_exe = get_python_executable()
         script_path = os.path.abspath(test_sleep_script)
-        
+
         # Launch process
         manager1.launch_process(python_exe, script_path)
         time.sleep(1)
-        
+
         pid1 = manager1.launched_pid
         assert pid1 is not None
-        
+
         # Check PID file exists
         assert os.path.exists(manager1.pid_file_name())
-        
+
         # Create new manager instance - should load PID from file
         manager2 = LinuxProcessManager()
         assert manager2.launched_pid == pid1
-        
+
         # Clean up
         manager2.terminate_process()
 
     def test_set_known_pid(self):
         """Test setting a known PID."""
         manager = LinuxProcessManager()
-        
+
         # Set a known PID (use current process PID as test)
         test_pid = os.getpid()
         manager.set_known_pid(test_pid)
-        
+
         assert manager.launched_pid == test_pid
         assert os.path.exists(manager.pid_file_name())
-        
+
         # Verify it was saved to file
-        with open(manager.pid_file_name(), 'r') as f:
+        with open(manager.pid_file_name(), "r") as f:
             saved_pid = int(f.read().strip())
             assert saved_pid == test_pid
 
     def test_find_process_pid(self):
         """Test finding a process by name."""
         manager = LinuxProcessManager()
-        
+
         # Find Python process (should exist since we're running Python)
-        pid = manager.find_process_pid('python')
+        pid = manager.find_process_pid("python")
         assert pid is not None
-        
+
         # Verify it's a valid PID
         try:
             process = psutil.Process(pid)
@@ -152,7 +155,7 @@ class TestLinuxProcessManager:
     def test_find_process_pid_not_found(self):
         """Test finding a process that doesn't exist."""
         manager = LinuxProcessManager()
-        pid = manager.find_process_pid('nonexistent_process_xyz123')
+        pid = manager.find_process_pid("nonexistent_process_xyz123")
         assert pid is None
 
     def test_terminate_nonexistent_process(self):
@@ -171,4 +174,3 @@ class TestLinuxProcessManager:
         # Set PID to a very high number that won't exist
         manager.launched_pid = 99999999
         assert manager.is_process_running() is False
-

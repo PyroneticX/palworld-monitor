@@ -14,7 +14,7 @@
 import requests
 import logging
 import traceback
-from abc import ABC, abstractmethod
+from abc import ABC
 from requests.auth import HTTPBasicAuth
 from settings import settings
 from rcon import Console
@@ -36,23 +36,24 @@ class PalworldApiClient(ABC):
             logging.error("Player must be a dict with steam_id")
             return None, None
 
-        steam_id = player.get('steam_id')
+        steam_id = player.get("steam_id")
         if not steam_id:
             logging.error("Player object missing steam_id")
             return None, None
 
-        player_name = player.get('name', '')
+        player_name = player.get("name", "")
 
         return steam_id, player_name
 
 
 class RestClient(PalworldApiClient):
     """REST API client for communicating with PalWorld server."""
+
     def __init__(self):
-        self.base_url = f"http://{settings.palworldServerHost}:{settings.palworldRESTPort}/v1/api"
-        self.headers = {
-            "Content-Type": "application/json"
-        }
+        self.base_url = (
+            f"http://{settings.palworldServerHost}:{settings.palworldRESTPort}/v1/api"
+        )
+        self.headers = {"Content-Type": "application/json"}
         self.auth = HTTPBasicAuth("admin", settings.palworldServerAdminPassword)
 
     def _make_get_request(self, endpoint, data=None):
@@ -68,11 +69,7 @@ class RestClient(PalworldApiClient):
         try:
             url = f"{self.base_url}/{endpoint}"
             response = requests.get(
-                url,
-                headers=self.headers,
-                json=data,
-                auth=self.auth,
-                timeout=10
+                url, headers=self.headers, json=data, auth=self.auth, timeout=10
             )
             response.raise_for_status()
             return response.json() if response.content else {}
@@ -107,21 +104,23 @@ class RestClient(PalworldApiClient):
             url = f"{self.base_url}/{endpoint}"
 
             response = requests.post(
-                url,
-                headers=self.headers,
-                json=data,
-                auth=self.auth,
-                timeout=10
+                url, headers=self.headers, json=data, auth=self.auth, timeout=10
             )
 
             # Handle player action requests (return bool)
             if action_name is not None:
                 if response.status_code == 200:
-                    logging.info(f"Successfully {action_name}ed player{player_info} (Steam ID: {steam_id})")
+                    logging.info(
+                        f"Successfully {action_name}ed player{player_info} (Steam ID: {steam_id})"
+                    )
                     return True
                 else:
-                    response_text = response.text.strip() if response.text else "No response body"
-                    logging.error(f"Failed to {action_name} player{player_info} (Steam ID: {steam_id}, status: {response.status_code}, response: {response_text})")
+                    response_text = (
+                        response.text.strip() if response.text else "No response body"
+                    )
+                    logging.error(
+                        f"Failed to {action_name} player{player_info} (Steam ID: {steam_id}, status: {response.status_code}, response: {response_text})"
+                    )
                     return False
 
             # Handle other requests (return JSON or None)
@@ -129,7 +128,9 @@ class RestClient(PalworldApiClient):
             return response.json() if response.content else {}
         except requests.exceptions.RequestException as e:
             if action_name is not None:
-                logging.error(f"Unexpected error {action_name}ing player{player_info} (Steam ID: {steam_id}): {e}")
+                logging.error(
+                    f"Unexpected error {action_name}ing player{player_info} (Steam ID: {steam_id}): {e}"
+                )
             else:
                 logging.error(f"Error making POST request to {endpoint}: {e}")
             if action_name is not None:
@@ -137,7 +138,9 @@ class RestClient(PalworldApiClient):
             return False if action_name is not None else None
         except Exception as e:
             if action_name is not None:
-                logging.error(f"Unexpected error {action_name}ing player{player_info} (Steam ID: {steam_id}): {e}")
+                logging.error(
+                    f"Unexpected error {action_name}ing player{player_info} (Steam ID: {steam_id}): {e}"
+                )
             else:
                 logging.error(f"Unexpected error in POST request to {endpoint}: {e}")
             logging.error(traceback.format_exc())
@@ -152,17 +155,17 @@ class RestClient(PalworldApiClient):
             return players
         if isinstance(players_data, list):
             player_list = players_data
-        elif isinstance(players_data, dict) and 'players' in players_data:
-            player_list = players_data['players']
+        elif isinstance(players_data, dict) and "players" in players_data:
+            player_list = players_data["players"]
         else:
             return players
         for player in player_list:
             if isinstance(player, dict):
                 player_info = [
-                    player.get('name', 'Unknown'),
-                    player.get('playerId', 'Unknown'),
-                    player.get('userId', 'Unknown'),
-                    player.get('level', 'Unknown')
+                    player.get("name", "Unknown"),
+                    player.get("playerId", "Unknown"),
+                    player.get("userId", "Unknown"),
+                    player.get("level", "Unknown"),
                 ]
                 players.append(player_info)
         return players
@@ -206,11 +209,7 @@ class RestClient(PalworldApiClient):
             return False
 
         player_info = f" {player_name}" if player_name else ""
-        data = {
-            "steam_id": steam_id,
-            "player_info": player_info,
-            "action_name": "kick"
-        }
+        data = {"steam_id": steam_id, "player_info": player_info, "action_name": "kick"}
         return self._make_post_request("kick", data)
 
     def ban_player(self, player):
@@ -227,11 +226,7 @@ class RestClient(PalworldApiClient):
             return False
 
         player_info = f" {player_name}" if player_name else ""
-        data = {
-            "steam_id": steam_id,
-            "player_info": player_info,
-            "action_name": "ban"
-        }
+        data = {"steam_id": steam_id, "player_info": player_info, "action_name": "ban"}
         return self._make_post_request("ban", data)
 
     def unban_player(self, player):
@@ -251,14 +246,14 @@ class RestClient(PalworldApiClient):
         data = {
             "steam_id": steam_id,
             "player_info": player_info,
-            "action_name": "unban"
+            "action_name": "unban",
         }
         return self._make_post_request("unban", data)
 
 
-
 class RconClient(PalworldApiClient):
     """RCON client for communicating with PalWorld server."""
+
     def __init__(self):
         self.host = settings.palworldServerHost
         self.port = settings.palworldRCONPort
@@ -266,15 +261,11 @@ class RconClient(PalworldApiClient):
 
     def _send_command(self, command):
         try:
-            console = Console(
-                host=self.host,
-                port=self.port,
-                password=self.password
-            )
+            console = Console(host=self.host, port=self.port, password=self.password)
             response = console.command(command)
             console.close()
             return response
-        except Exception as e:
+        except Exception:
             logging.error(f"Error from send_rcon_command. command={command}")
             logging.error(traceback.format_exc())
             return None
@@ -282,23 +273,23 @@ class RconClient(PalworldApiClient):
     def _send_command_with_error_details(self, command):
         """Send RCON command and return both response and error details."""
         try:
-            console = Console(
-                host=self.host,
-                port=self.port,
-                password=self.password
-            )
+            console = Console(host=self.host, port=self.port, password=self.password)
             response = console.command(command)
             console.close()
             return response, None
         except Exception as e:
             error_details = str(e)
-            logging.error(f"Error from send_rcon_command. command={command}, error: {error_details}")
+            logging.error(
+                f"Error from send_rcon_command. command={command}, error: {error_details}"
+            )
             logging.error(traceback.format_exc())
             return None, error_details
 
     def get_player_count(self):
         try:
-            show_players, error_details = self._send_command_with_error_details("ShowPlayers")
+            show_players, error_details = self._send_command_with_error_details(
+                "ShowPlayers"
+            )
             if show_players is None:
                 error_info = f", error: {error_details}" if error_details else ""
                 logging.error(f"Failed to get player count{error_info}")
@@ -312,7 +303,9 @@ class RconClient(PalworldApiClient):
 
     def get_player_names(self):
         try:
-            show_players, error_details = self._send_command_with_error_details("ShowPlayers")
+            show_players, error_details = self._send_command_with_error_details(
+                "ShowPlayers"
+            )
             if show_players is None:
                 error_info = f", error: {error_details}" if error_details else ""
                 logging.error(f"Failed to get player names{error_info}")
@@ -322,7 +315,7 @@ class RconClient(PalworldApiClient):
             if player_count >= 1:
                 players = []
                 for i in range(player_count):
-                    players.append(split_text[i + 1].split(','))
+                    players.append(split_text[i + 1].split(","))
                 return players
             else:
                 return []
@@ -350,14 +343,20 @@ class RconClient(PalworldApiClient):
             result, error_details = self._send_command_with_error_details(command)
 
             if result is not None:
-                logging.info(f"Successfully kicked player{player_info} (Steam ID: {steam_id})")
+                logging.info(
+                    f"Successfully kicked player{player_info} (Steam ID: {steam_id})"
+                )
                 return True
             else:
                 error_info = f", error: {error_details}" if error_details else ""
-                logging.error(f"Failed to kick player{player_info} (Steam ID: {steam_id}){error_info}")
+                logging.error(
+                    f"Failed to kick player{player_info} (Steam ID: {steam_id}){error_info}"
+                )
                 return False
         except Exception as e:
-            logging.error(f"Error kicking player{player_info} (Steam ID: {steam_id}): {e}")
+            logging.error(
+                f"Error kicking player{player_info} (Steam ID: {steam_id}): {e}"
+            )
             logging.error(traceback.format_exc())
             return False
 
@@ -380,14 +379,20 @@ class RconClient(PalworldApiClient):
             result, error_details = self._send_command_with_error_details(command)
 
             if result is not None:
-                logging.info(f"Successfully banned player{player_info} (Steam ID: {steam_id})")
+                logging.info(
+                    f"Successfully banned player{player_info} (Steam ID: {steam_id})"
+                )
                 return True
             else:
                 error_info = f", error: {error_details}" if error_details else ""
-                logging.error(f"Failed to ban player{player_info} (Steam ID: {steam_id}){error_info}")
+                logging.error(
+                    f"Failed to ban player{player_info} (Steam ID: {steam_id}){error_info}"
+                )
                 return False
         except Exception as e:
-            logging.error(f"Error banning player{player_info} (Steam ID: {steam_id}): {e}")
+            logging.error(
+                f"Error banning player{player_info} (Steam ID: {steam_id}): {e}"
+            )
             logging.error(traceback.format_exc())
             return False
 
@@ -410,13 +415,19 @@ class RconClient(PalworldApiClient):
             result, error_details = self._send_command_with_error_details(command)
 
             if result is not None:
-                logging.info(f"Successfully unbanned player{player_info} (Steam ID: {steam_id})")
+                logging.info(
+                    f"Successfully unbanned player{player_info} (Steam ID: {steam_id})"
+                )
                 return True
             else:
                 error_info = f", error: {error_details}" if error_details else ""
-                logging.error(f"Failed to unban player{player_info} (Steam ID: {steam_id}){error_info}")
+                logging.error(
+                    f"Failed to unban player{player_info} (Steam ID: {steam_id}){error_info}"
+                )
                 return False
         except Exception as e:
-            logging.error(f"Error unbanning player{player_info} (Steam ID: {steam_id}): {e}")
+            logging.error(
+                f"Error unbanning player{player_info} (Steam ID: {steam_id}): {e}"
+            )
             logging.error(traceback.format_exc())
             return False
