@@ -113,22 +113,21 @@ class AutoStartManager:
         return False
 
     def close_palworld_port_socket(self):
-        """Close socket."""
-        if self.sock is None:
-            return True
-
-        logging.info("No longer listening on Palworld Server port")
+        """Close socket. Thread-safe."""
         self.is_aborting = True
-        try:
-            self.sock.close()
-            self.sock = None
+        sock = self.sock
+        if sock is None:
             return True
+        logging.info("No longer listening on Palworld Server port")
+        try:
+            sock.close()
         except Exception as e:
             logging.error(f"Error closing PalWorld port socket: {e}")
             logging.error(traceback.format_exc())
-            self.sock = None
             return False
-
+        finally:
+            self.sock = None
+        return True
     def wait_for_port_available(self, port, timeout=30):
         """Wait up to `timeout` seconds for the port to become available. Returns True if available, False if timeout."""
         start_time = time.time()

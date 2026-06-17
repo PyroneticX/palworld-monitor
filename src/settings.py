@@ -29,7 +29,7 @@ class Settings:
             "palworldServerExePath": None,
             "palworldMainProcessName": "PalServer-Win64-Shipping-Cmd.exe",
             # Default arguments for the server executable
-            "palworldExeArguments": "-useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS -NumberOfWorkerThreadsServer=16",
+            "palworldExeArguments": "-useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS -NumberOfWorkerThreadsServer=16 -restapi",
             # IP address for the Palworld server
             "palworldServerHost": "localhost",
             # Port for the Palworld server

@@ -28,7 +28,6 @@ class PalWorldController:
         self.last_server_started_time = 0
         self.server_stopping_cooldown = 5
         self.last_server_stopped_time = 0
-        self.server_startup_auto_stop_delay = settings.autoStopDelay
 
         self._auto_mode_cancelled = False
         self.update_thread = None
@@ -158,8 +157,8 @@ class PalWorldController:
     def _handle_auto_stop_condition(self):
         if self.auto_stop_delay_thread and self.auto_stop_delay_thread.is_alive():
             return
-        if time.time() - self.last_server_started_time < self.server_startup_auto_stop_delay:
-            remaining = self.server_startup_auto_stop_delay - (time.time() - self.last_server_started_time)
+        if time.time() - self.last_server_started_time < 30:
+            remaining = 30 - (time.time() - self.last_server_started_time)
             logging.info(f"Auto-stop startup guard active, {remaining:.0f}s remaining")
             return
         logging.info("Auto-stop condition met, starting delay thread")
