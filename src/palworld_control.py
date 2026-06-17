@@ -33,6 +33,7 @@ class PalWorldController:
         self._auto_mode_cancelled = False
         self.update_thread = None
         self.update_thread_stop_event = threading.Event()
+        self.auto_stop_delay_thread = None
 
         self._setup_subscriptions()
         self._detect_existing_server_process()
