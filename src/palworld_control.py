@@ -123,7 +123,7 @@ class PalWorldController:
             return False
         self._cancel_auto_stop_delay()
         try:
-            bus.publish(Event.CMD_STOP_SERVER)
+            bus.publish(Event.CMD_STOP_SERVER, {})
             return True
         except Exception as e:
             logging.error(f"Error issuing stop command: {e}")

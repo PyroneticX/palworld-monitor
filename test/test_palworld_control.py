@@ -71,7 +71,7 @@ class TestPalWorldController:
             controller.last_server_stopped_time = 0
             result = controller.stop_server()
             assert result is True
-            mock_publish.assert_any_call(Event.CMD_STOP_SERVER)
+            mock_publish.assert_any_call(Event.CMD_STOP_SERVER, {})
 
     def test_stop_server_not_running(self, mock_settings, mock_client, mock_process_manager):
         mock_process_manager.is_process_running.return_value = False
@@ -132,7 +132,7 @@ class TestPalWorldController:
         with patch("src.events.bus.publish") as mock_publish:
             result = controller.stop_server()
             assert result is True
-            mock_publish.assert_any_call(Event.CMD_STOP_SERVER)
+            mock_publish.assert_any_call(Event.CMD_STOP_SERVER, {})
 
     def test_server_info_attribute_access(self, mock_settings, mock_client, mock_process_manager):
         controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
