@@ -94,6 +94,7 @@ class WebServer:
         from src.events import bus, Event
         bus.subscribe(Event.SERVER_STARTED, self._on_server_started)
         bus.subscribe(Event.SERVER_STOPPED, self._on_server_stopped)
+        bus.subscribe(Event.SERVER_STATUS, self._on_server_status)
         bus.subscribe(Event.PLAYER_JOINED, self._on_player_joined)
         bus.subscribe(Event.PLAYER_LEFT, self._on_player_left)
         bus.subscribe(Event.BAN_ADDED, self._on_ban_added)
@@ -122,6 +123,12 @@ class WebServer:
             self.state_cache["running"] = False
             self.state_cache["players"] = []
             self.state_cache["playerCount"] = 0
+
+    def _on_server_status(self, data):
+        with self._lock:
+            self.state_cache["running"] = data.get("running", False)
+            self.state_cache["playerCount"] = data.get("playerCount", 0)
+            self.state_cache["players"] = list(data.get("players", []))
 
     def _on_player_joined(self, data):
         with self._lock:
@@ -308,8 +315,6 @@ class WebServer:
             self.palworld_controller.start_server()
         elif action == "stopServer":
             self.palworld_controller.stop_server()
-        elif action == "getStatus":
-            self.palworld_controller.update_current_server_info()
 
         self._sync_running_state()
 

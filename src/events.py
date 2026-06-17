@@ -46,7 +46,9 @@ class Event:
     BAN_ADDED = "BAN_ADDED"
     BAN_REMOVED = "BAN_REMOVED"
     CONFIG_LOADED = "CONFIG_LOADED"
-    
+
+    # Status events
+    SERVER_STATUS = "SERVER_STATUS"
     # Command events
     CMD_START_SERVER = "CMD_START_SERVER"
     CMD_STOP_SERVER = "CMD_STOP_SERVER"

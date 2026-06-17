@@ -49,6 +49,7 @@ class PalWorldController:
     def _setup_subscriptions(self):
         bus.subscribe(Event.SERVER_STARTED, self._on_server_started)
         bus.subscribe(Event.SERVER_STOPPED, self._on_server_stopped)
+        bus.subscribe(Event.SERVER_STATUS, self._on_server_status)
         bus.subscribe(Event.PLAYER_JOINED, self._on_player_update)
         bus.subscribe(Event.PLAYER_LEFT, self._on_player_update)
         bus.subscribe(Event.BAN_ADDED, self._on_ban_update)
@@ -62,6 +63,15 @@ class PalWorldController:
         self.last_server_stopped_time = time.time()
         logging.info("Controller: Server stopped event received")
         self.stop_server_info_update_thread()
+
+    def _on_server_status(self, data):
+        self.current_server_info["running"] = data.get("running", False)
+        self.current_server_info["playerCount"] = data.get("playerCount", 0)
+        self.current_server_info["players"] = data.get("players", [])
+        if settings.autoStop and data.get("playerCount", 0) == 0:
+            self._handle_auto_stop_condition()
+        else:
+            self._cancel_auto_stop_delay()
 
     def _on_player_update(self, data):
         pass
@@ -135,6 +145,11 @@ class PalWorldController:
         return False
 
     def update_current_server_info(self):
+        """Fetch latest server data and return current info.
+        
+        Deprecated in favor of _update_server_status + SERVER_STATUS event.
+        Kept for test compatibility.
+        """
         try:
             self._update_server_info_with_players()
             if settings.autoStop and self.player_manager.get_player_count() == 0:
@@ -145,6 +160,15 @@ class PalWorldController:
         except Exception as e:
             logging.error(f"Error in update: {e}")
             return None
+
+    def _update_server_status(self):
+        """Poll server and emit SERVER_STATUS event."""
+        self._update_server_info_with_players()
+        bus.publish(Event.SERVER_STATUS, {
+            "running": self.current_server_info["running"],
+            "playerCount": self.current_server_info["playerCount"],
+            "players": list(self.current_server_info["players"]),
+        })
 
     def _update_server_info_with_players(self):
         self.current_server_info["running"] = self.is_palworld_process_running()
@@ -225,7 +249,7 @@ class PalWorldController:
     def _server_info_update_loop(self):
         while not self.update_thread_stop_event.is_set():
             try:
-                self.update_current_server_info()
+                self._update_server_status()
             except Exception as e:
                 logging.error(f"Update loop error: {e}")
             if self.update_thread_stop_event.wait(settings.updateInterval):
