@@ -16,7 +16,7 @@ class PalWorldController:
         self.client = client
         self.player_manager = player_manager if player_manager is not None else PlayerManager()
         self.banlist_manager = banlist_manager if banlist_manager is not None else BanlistManager()
-        
+
         if process_manager is not None:
             self.process_manager = process_manager
         else:
@@ -53,12 +53,12 @@ class PalWorldController:
     def _on_server_started(self, data):
         self.last_server_started_time = time.time()
         self.is_palworld_server_starting = False
-        logging.info(f"Controller: Server started event received (PID: {data.get('pid')})")
+        logging.debug(f"Controller: Server started event received (PID: {data.get('pid')})")
         self.start_server_info_update_thread()
 
     def _on_server_stopped(self, data):
         self.last_server_stopped_time = time.time()
-        logging.info("Controller: Server stopped event received")
+        logging.debug("Controller: Server stopped event received")
         self.stop_server_info_update_thread()
 
     def _on_server_status(self, data):
@@ -126,7 +126,7 @@ class PalWorldController:
 
     def _should_block_stop(self):
         if not self.is_palworld_process_running():
-            logging.error("An attempt to stop the Palworld server was made, but it was not running.")
+            logging.warning("An attempt to stop the Palworld server was made, but it was not running.")
             return True
         current_time = time.time()
         if current_time - self.last_server_stopped_time < self.server_stopping_cooldown:
@@ -157,7 +157,7 @@ class PalWorldController:
             return
         if time.time() - self.last_server_started_time < 30:
             remaining = 30 - (time.time() - self.last_server_started_time)
-            logging.info(f"Auto-stop startup guard active, {remaining:.0f}s remaining")
+            logging.debug(f"Auto-stop startup guard active, {remaining:.0f}s remaining")
             return
         logging.info("Auto-stop condition met, starting delay thread")
         self._auto_mode_cancelled = False
@@ -166,14 +166,14 @@ class PalWorldController:
 
     def _cancel_auto_stop_delay(self):
         if self.auto_stop_delay_thread and self.auto_stop_delay_thread.is_alive():
-            logging.info("Auto-stop cancelled (players detected)")
+            logging.debug("Auto-stop cancelled (players detected)")
             self._auto_mode_cancelled = True
 
     def _auto_stop_delay_worker(self):
         logging.info(f"Auto-stop delay started, stopping in {settings.autoStopDelay}s")
         time.sleep(settings.autoStopDelay)
         if self._auto_mode_cancelled:
-            logging.info("Auto-stop cancelled during sleep")
+            logging.debug("Auto-stop cancelled during sleep")
             return
         logging.info("Auto-stop delay elapsed, stopping server")
         self.stop_server()

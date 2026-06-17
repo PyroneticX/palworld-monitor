@@ -81,7 +81,7 @@ class AutoStartManager:
                 else:
                     logging.error(f"OSError opening PalWorld port socket: {e}")
                 if attempt < max_retries - 1:
-                    logging.info(f"Retrying in {retry_delay} seconds... (attempt {attempt + 1}/{max_retries})")
+                    logging.debug(f"Retrying in {retry_delay} seconds... (attempt {attempt + 1}/{max_retries})")
                     time.sleep(retry_delay)
                 else:
                     logging.error(traceback.format_exc())
@@ -101,7 +101,7 @@ class AutoStartManager:
 
         if sock is None:
             return True
-        logging.info("No longer listening on Palworld Server port")
+        logging.debug("No longer listening on Palworld Server port")
         try:
             sock.close()
         except Exception as e:
@@ -209,7 +209,7 @@ class AutoStartManager:
     def stop_listen_thread(self, data=None):
         """Stop the listen thread if it's running."""
         if self.listen_thread and self.listen_thread.is_alive():
-            logging.info("Stopping auto-start listen thread...")
+            logging.debug("Stopping auto-start listen thread...")
             self.is_aborting = True
             self.close_palworld_port_socket()
 
@@ -217,7 +217,7 @@ class AutoStartManager:
             if threading.current_thread() != self.listen_thread:
                 self.listen_thread.join(timeout=5)
             else:
-                logging.info("Skipping thread join to avoid deadlock")
+                logging.debug("Skipping thread join to avoid deadlock")
 
             self.listen_thread = None
-            logging.info("Auto-start listen thread stopped.")
+            logging.debug("Auto-start listen thread stopped.")

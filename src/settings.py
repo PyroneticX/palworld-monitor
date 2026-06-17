@@ -110,7 +110,7 @@ class Settings:
                         setattr(
                             self, "sessionSecretKey", self.settings["sessionSecretKey"]
                         )
-                        logging.info("Loaded sessionSecretKey from session_secret.key")
+                        logging.debug("Loaded sessionSecretKey from session_secret.key")
                         return
             except Exception as e:
                 logging.warning(f"Could not read session_secret.key: {e}")
@@ -208,7 +208,7 @@ class Settings:
                     setattr(self, key, value)
                 print("Settings loaded successfully.")
         except FileNotFoundError:
-            logging.info(f"Error: File {file_path} not found.")
+            logging.warning(f"Settings file not found: {file_path}")
         except yaml.YAMLError as e:
             logging.warning(f"Error: Invalid YAML format in {file_path}: {e}")
         except Exception as e:

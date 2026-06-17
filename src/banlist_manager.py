@@ -12,7 +12,7 @@ class BanlistManager:
     def __init__(self, banlist_path=None):
         """
         Initialize the banlist manager.
-        
+
         Args:
             banlist_path: Optional path to banlist.txt. If None, will try to auto-detect.
         """
@@ -47,12 +47,12 @@ class BanlistManager:
             # Check if any of these paths exist
             for path in possible_paths:
                 if os.path.exists(path):
-                    logging.info(f"Found banlist at: {path}")
+                    logging.debug(f"Found banlist at: {path}")
                     return path
 
             # If none exist, use the server root directory as default
             default_path = os.path.join(server_dir, "banlist.txt")
-            logging.info(f"Using default banlist path: {default_path}")
+            logging.debug(f"Using default banlist path: {default_path}")
             return default_path
 
         except Exception as e:
@@ -63,7 +63,7 @@ class BanlistManager:
     def get_banned_players(self) -> List[str]:
         """
         Read and return list of banned Steam IDs from banlist.txt.
-        
+
         Returns:
             List of Steam IDs (as strings)
         """
@@ -74,7 +74,7 @@ class BanlistManager:
         with self._lock:
             try:
                 if not os.path.exists(self.banlist_path):
-                    logging.info(
+                    logging.debug(
                         f"Banlist file does not exist at {self.banlist_path}, returning empty list"
                     )
                     return []
@@ -87,7 +87,7 @@ class BanlistManager:
                         if line and not line.startswith("#"):
                             banned_steam_ids.append(line)
 
-                logging.info(
+                logging.debug(
                     f"Loaded {len(banned_steam_ids)} banned players from {self.banlist_path}"
                 )
                 return banned_steam_ids
@@ -100,10 +100,10 @@ class BanlistManager:
     def is_banned(self, steam_id: str) -> bool:
         """
         Check if a Steam ID is banned.
-        
+
         Args:
             steam_id: Steam ID to check
-        
+
         Returns:
             True if banned, False otherwise
         """
@@ -113,10 +113,10 @@ class BanlistManager:
     def add_ban(self, steam_id: str) -> bool:
         """
         Add a Steam ID to the banlist.
-        
+
         Args:
             steam_id: Steam ID to ban
-        
+
         Returns:
             True if successful, False otherwise
         """
@@ -131,7 +131,7 @@ class BanlistManager:
 
                 # Add new ban
                 if steam_id in banned_players:
-                    logging.info(f"Steam ID {steam_id} is already banned")
+                    logging.debug(f"Steam ID {steam_id} is already banned")
                     return True
 
                 banned_players.add(steam_id)
@@ -158,10 +158,10 @@ class BanlistManager:
     def remove_ban(self, steam_id: str) -> bool:
         """
         Remove a Steam ID from the banlist (unban).
-        
+
         Args:
             steam_id: Steam ID to unban
-        
+
         Returns:
             True if successful, False otherwise
         """
@@ -176,7 +176,7 @@ class BanlistManager:
 
                 # Remove ban
                 if steam_id not in banned_players:
-                    logging.info(f"Steam ID {steam_id} is not banned")
+                    logging.debug(f"Steam ID {steam_id} is not banned")
                     return True
 
                 banned_players.remove(steam_id)

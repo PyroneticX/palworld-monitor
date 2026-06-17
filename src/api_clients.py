@@ -33,12 +33,12 @@ class PalworldApiClient(ABC):
             tuple: (steam_id, player_name) or (None, None) if invalid
         """
         if not isinstance(player, dict):
-            logging.error("Player must be a dict with steam_id")
+            logging.warning("Player must be a dict with steam_id")
             return None, None
 
         steam_id = player.get("steam_id")
         if not steam_id:
-            logging.error("Player object missing steam_id")
+            logging.warning("Player object missing steam_id")
             return None, None
 
         player_name = player.get("name", "")

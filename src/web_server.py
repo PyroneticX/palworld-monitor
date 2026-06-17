@@ -245,7 +245,7 @@ class WebServer:
             ip = ip + ":" + str(settings.webServerPort)
             return ip
         except Exception as e:
-            logging.error(f"Error while getting server IP: {e}")
+            logging.warning(f"Error while getting server IP: {e}")
             return "unknown"
 
     def _handle_index(self):
