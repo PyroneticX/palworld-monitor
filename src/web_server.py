@@ -19,9 +19,9 @@ from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from datetime import timedelta
-from settings import settings
-from palworld_control import PalWorldController
-from auth import User, LoginAttemptTracker, verify_password
+from src.settings import settings
+from src.palworld_control import PalWorldController
+from src.auth import User, LoginAttemptTracker, verify_password
 import logging
 import threading
 

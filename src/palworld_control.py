@@ -1,12 +1,12 @@
-# Copyright (c) 2024 Nomomo
+# Copyright (c 2024 Nomomo
 # Copyright (c) 2024 Kevin Perez - Modified work
 
 import logging
 import time
 import threading
-from settings import settings
-from player_manager import PlayerManager
-from banlist_manager import BanlistManager
+from src.settings import settings
+from src.player_manager import PlayerManager
+from src.banlist_manager import BanlistManager
 from src.events import bus, Event
 import os
 import platform
@@ -41,10 +41,10 @@ class PalWorldController:
     def _create_process_manager(self):
         detected_os = platform.system()
         if detected_os.lower() == "linux":
-            from process_manager import LinuxProcessManager
+            from src.process_manager import LinuxProcessManager
             return LinuxProcessManager()
         else:
-            from process_manager import WindowsProcessManager
+            from src.process_manager import WindowsProcessManager
             return WindowsProcessManager()
 
     def _setup_subscriptions(self):
@@ -53,7 +53,13 @@ class PalWorldController:
         bus.subscribe(Event.PLAYER_JOINED, self._on_player_update)
         bus.subscribe(Event.PLAYER_LEFT, self._on_player_update)
         bus.subscribe(Event.BAN_ADDED, self._on_ban_update)
-        bus.subscribe(Event.BAN_REMOVED, self._on_ban_update)
+        bus.subscribe(Event.BAN_REMOVED,self._on_ban_update)
+
+    def set_on_server_started_callback(self, callback):
+        self.on_server_started_callback = callback
+
+    def set_on_server_stopped_callback(self, callback):
+        self.on_server_stopped_callback = callback
 
     def _on_server_started(self, data):
         self.last_server_started_time = time.time()
@@ -111,7 +117,7 @@ class PalWorldController:
         except Exception:
             pass
 
-    def stop_server(self):
+    def stop_server(self,):
         logging.info("Palworld server stop command received")
         if self._should_block_stop():
             return False
@@ -129,7 +135,7 @@ class PalWorldController:
             return True
         current_time = time.time()
         if current_time - self.last_server_stopped_time < self.server_stopping_cooldown:
-            logging.warning("You attempted to restart the server too quickly after trying to stop it.")
+            logging.warning("You attempted to restart the server too Quickly after trying to stop it.")
             return True
         return False
 

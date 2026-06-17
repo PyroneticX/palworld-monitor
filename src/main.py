@@ -1,10 +1,10 @@
 # Copyright (c) 2024 Nomomo
 # Copyright (c) 2024 Kevin Perez - Modified work
 
-from palworld_control import PalWorldController
-from settings import settings
-from web_server import WebServer
-from auto_start import AutoStartManager
+from src.palworld_control import PalWorldController
+from src.settings import settings
+from src.web_server import WebServer
+from src.auto_start import AutoStartManager
 import threading
 import logging
 import traceback
@@ -42,10 +42,10 @@ try:
 
     # Choose the client based on the protocol setting
     if settings.protocol.upper() == "REST":
-        from api_clients import RestClient
+        from src.api_clients import RestClient
         client = RestClient()
     elif settings.protocol.upper() == "RCON":
-        from api_clients import RconClient
+        from src.api_clients import RconClient
         client = RconClient()
     else:
         logging.error(f"Invalid protocol specified in settings: {settings.protocol}")
@@ -90,7 +90,7 @@ try:
 except KeyboardInterrupt:
     logging.info("CTRL+C received during startup. Shutting down...")
 except Exception as e:
-    logging.error(f"Error from main routine: {e}")
+    logging.error(f"Error from src.main routine: {e}")
     logging.error(traceback.format_exc())
 
 if __name__ != "__main__":

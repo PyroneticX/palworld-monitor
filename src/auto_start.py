@@ -12,8 +12,8 @@
 # copies or substantial portions of the Software.
 
 import socket
-from settings import settings
-from palworld_control import PalWorldController
+from src.settings import settings
+from src.palworld_control import PalWorldController
 import logging
 import threading
 import traceback
