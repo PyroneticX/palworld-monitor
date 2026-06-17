@@ -3,11 +3,10 @@ Tests for the PalWorldController module.
 """
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from src.palworld_control import PalWorldController
 from test.support import create_mock_api_client
-from src.events import bus, Event
-import time
+from src.events import Event
 
 class TestPalWorldController:
     """Test suite for PalWorldController."""
@@ -139,3 +138,30 @@ class TestPalWorldController:
         assert "running" in controller.current_server_info
         assert "playerCount" in controller.current_server_info
         assert "players" in controller.current_server_info
+
+
+    def test_on_server_started_starts_update_thread(self, mock_settings, mock_client, mock_process_manager):
+        mock_process_manager.is_process_running.return_value = True
+        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
+        with patch.object(controller, "start_server_info_update_thread") as mock_start:
+            controller._on_server_started({"pid": 1234})
+            mock_start.assert_called_once()
+
+    def test_on_server_stopped_stops_update_thread(self, mock_settings, mock_client, mock_process_manager):
+        mock_process_manager.is_process_running.return_value = False
+        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
+        with patch.object(controller, "stop_server_info_update_thread") as mock_stop:
+            controller._on_server_stopped({"pid": 1234})
+            mock_stop.assert_called_once()
+
+    def test_get_players_for_web_returns_player_manager_data(self, mock_settings, mock_client, mock_process_manager, mock_player_manager):
+        mock_player_manager.get_all_players.return_value = [
+            {"name": "Player1", "steam_id": "123", "level": "10", "currently_online": True}
+        ]
+        controller = PalWorldController(
+            client=mock_client,
+            process_manager=mock_process_manager,
+            player_manager=mock_player_manager,
+        )
+        players = controller.get_players_for_web()
+        assert players == mock_player_manager.get_all_players.return_value

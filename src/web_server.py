@@ -99,12 +99,23 @@ class WebServer:
         bus.subscribe(Event.BAN_ADDED, self._on_ban_added)
         bus.subscribe(Event.BAN_REMOVED, self._on_ban_removed)
 
+        self._sync_running_state()
+        self._sync_banned_players()
+
+    def _sync_running_state(self):
+        """Sync the cached running flag with the actual process state."""
+        with self._lock:
+            self.state_cache["running"] = self.palworld_controller.is_palworld_process_running()
+
+    def _sync_banned_players(self):
+        """Sync the cached banned list with the actual banlist file."""
+        with self._lock:
+            self.state_cache["banned_players"] = list(self.palworld_controller.get_banned_players())
+
     def _on_server_started(self, data):
         with self._lock:
             self.state_cache["running"] = True
-            # Update list of players and count from the controller's current view
-            self.state_cache["players"] = self.palworld_controller.get_player_names()
-            self.state_cache["playerCount"] = len(self.state_cache["players"])
+            # Player list will be populated by the update thread via PLAYER_JOINED events.
 
     def _on_server_stopped(self, data):
         with self._lock:
@@ -114,13 +125,13 @@ class WebServer:
 
     def _on_player_joined(self, data):
         with self._lock:
-            self.state_cache["players"] = self.palworld_controller.get_player_names()
-            self.state_cache["playerCount"] = len(self.state_cache["players"])
+            self.state_cache["players"] = self.palworld_controller.get_players_for_web()
+            self.state_cache["playerCount"] = len(self.palworld_controller.player_manager.get_online_players())
 
     def _on_player_left(self, data):
         with self._lock:
-            self.state_cache["players"] = self.palworld_controller.get_player_names()
-            self.state_cache["playerCount"] = len(self.state_cache["players"])
+            self.state_cache["players"] = self.palworld_controller.get_players_for_web()
+            self.state_cache["playerCount"] = len(self.palworld_controller.player_manager.get_online_players())
 
     def _on_ban_added(self, data):
         with self._lock:
@@ -255,6 +266,10 @@ class WebServer:
 
     def _handle_index(self):
         """Handle the main page route."""
+        self._sync_running_state()
+        players = self.palworld_controller.get_players_for_web()
+        total_player_count = len(self.palworld_controller.player_manager.get_online_players())
+
         with self._lock:
             current_server_info = self.state_cache.copy()
 
@@ -272,8 +287,8 @@ class WebServer:
             controlServerThroughWeb=settings.controlServerThroughWeb,
             showServerIPAddress=settings.showServerIPAddress,
             data=current_server_info,
-            players=current_server_info["players"],
-            total_player_count=current_server_info["playerCount"],
+            players=players,
+            total_player_count=total_player_count,
             autoStopDelay=round(settings.autoStopDelay),
             updateInterval=settings.updateInterval,
             initialTheme=theme,
@@ -293,12 +308,19 @@ class WebServer:
             self.palworld_controller.start_server()
         elif action == "stopServer":
             self.palworld_controller.stop_server()
+        elif action == "getStatus":
+            self.palworld_controller.update_current_server_info()
+
+        self._sync_running_state()
+
+        players = self.palworld_controller.get_players_for_web()
+        total_player_count = len(self.palworld_controller.player_manager.get_online_players())
 
         with self._lock:
             return jsonify(
                 data=dict(self.state_cache),
-                players=list(self.state_cache["players"]),
-                total_player_count=self.state_cache["playerCount"],
+                players=list(players),
+                total_player_count=total_player_count,
                 autoStopDelay=round(settings.autoStopDelay),
                 banned_players=list(self.state_cache["banned_players"]),
             )
@@ -315,14 +337,18 @@ class WebServer:
         )
 
         success = self.palworld_controller.kick_player(steam_id)
+        self._sync_running_state()
+
+        players = self.palworld_controller.get_players_for_web()
+        total_player_count = len(self.palworld_controller.player_manager.get_online_players())
 
         with self._lock:
             return jsonify(
                 success=success,
                 message=f"Player {'kicked successfully' if success else 'kick failed'}",
                 data=dict(self.state_cache),
-                players=list(self.state_cache["players"]),
-                total_player_count=self.state_cache["playerCount"],
+                players=list(players),
+                total_player_count=total_player_count,
             )
 
     def _handle_ban(self):
@@ -337,14 +363,18 @@ class WebServer:
         )
 
         success = self.palworld_controller.ban_player(steam_id)
+        self._sync_running_state()
+
+        players = self.palworld_controller.get_players_for_web()
+        total_player_count = len(self.palworld_controller.player_manager.get_online_players())
 
         with self._lock:
             return jsonify(
                 success=success,
                 message=f"Player {'banned successfully' if success else 'ban failed'}",
                 data=dict(self.state_cache),
-                players=list(self.state_cache["players"]),
-                total_player_count=self.state_cache["playerCount"],
+                players=list(players),
+                total_player_count=total_player_count,
                 banned_players=list(self.state_cache["banned_players"]),
             )
 
@@ -360,16 +390,24 @@ class WebServer:
         )
 
         success = self.palworld_controller.unban_player(steam_id)
+        self._sync_running_state()
+
+        players = self.palworld_controller.get_players_for_web()
+        total_player_count = len(self.palworld_controller.player_manager.get_online_players())
 
         with self._lock:
             return jsonify(
                 success=success,
                 message=f"Player {'unbanned successfully' if success else 'unban failed'}",
+                data=dict(self.state_cache),
+                players=list(players),
+                total_player_count=total_player_count,
                 banned_players=list(self.state_cache["banned_players"]),
             )
 
     def _handle_get_banned(self):
         """Handle request to get list of banned players."""
+        self._sync_banned_players()
         with self._lock:
             return jsonify(success=True, banned_players=list(self.state_cache["banned_players"]))
 

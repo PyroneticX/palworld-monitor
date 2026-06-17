@@ -53,21 +53,16 @@ class PalWorldController:
         bus.subscribe(Event.PLAYER_JOINED, self._on_player_update)
         bus.subscribe(Event.PLAYER_LEFT, self._on_player_update)
         bus.subscribe(Event.BAN_ADDED, self._on_ban_update)
-        bus.subscribe(Event.BAN_REMOVED,self._on_ban_update)
-
-    def set_on_server_started_callback(self, callback):
-        self.on_server_started_callback = callback
-
-    def set_on_server_stopped_callback(self, callback):
-        self.on_server_stopped_callback = callback
-
     def _on_server_started(self, data):
         self.last_server_started_time = time.time()
+        self.is_palworld_server_starting = False
         logging.info(f"Controller: Server started event received (PID: {data.get('pid')})")
+        self.start_server_info_update_thread()
 
     def _on_server_stopped(self, data):
         self.last_server_stopped_time = time.time()
         logging.info("Controller: Server stopped event received")
+        self.stop_server_info_update_thread()
 
     def _on_player_update(self, data):
         pass
@@ -113,7 +108,8 @@ class PalWorldController:
         try:
             if not self.process_manager.launched_pid and not os.path.exists(self.process_manager.pid_file_name()):
                 pid = self.process_manager.find_process_pid("palserver")
-                if pid: self.process_manager.set_known_pid(pid)
+                if pid:
+                    self.process_manager.set_known_pid(pid)
         except Exception:
             pass
 
@@ -179,6 +175,7 @@ class PalWorldController:
 
     def get_player_count(self): return self.client.get_player_count()
     def get_player_names(self): return self.client.get_player_names()
+    def get_players_for_web(self): return self.player_manager.get_all_players()
 
     def kick_player(self, steam_id):
         try:
@@ -220,8 +217,12 @@ class PalWorldController:
 
     def _server_info_update_loop(self):
         while not self.update_thread_stop_event.is_set():
-            try: self.update_current_server_info()
-            except Exception as e: logging.error(f"Update loop error: {e}")
-            if self.update_thread_stop_event.wait(settings.updateInterval): break
+            try:
+                self.update_current_server_info()
+            except Exception as e:
+                logging.error(f"Update loop error: {e}")
+            if self.update_thread_stop_event.wait(settings.updateInterval):
+                break
 
-    def get_current_server_for_web(self): return self.current_server_info
+    def get_current_server_for_web(self):
+        return self.current_server_info

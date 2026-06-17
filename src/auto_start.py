@@ -12,6 +12,7 @@
 # copies or substantial portions of the Software.
 
 import socket
+from src.events import bus, Event
 from src.settings import settings
 from src.palworld_control import PalWorldController
 import logging
@@ -27,6 +28,11 @@ class AutoStartManager:
         self.sock = None
         self.is_aborting = False
         self.listen_thread = None
+        self._setup_subscriptions()
+
+    def _setup_subscriptions(self):
+        bus.subscribe(Event.SERVER_STARTED, self.stop_listen_thread)
+        bus.subscribe(Event.SERVER_STOPPED, self.listen_palworld_access)
 
     def is_port_available(self, port):
         """Check if PalWorld server port is available."""
@@ -209,13 +215,11 @@ class AutoStartManager:
                         f"Reconnecting socket in {retry_delay}s..."
                     )
                     time.sleep(retry_delay)
-                else:
-                    return
             else:
                 self.close_palworld_port_socket()
                 return
 
-    def listen_palworld_access(self):
+    def listen_palworld_access(self, data=None):
         """Start listening for PalWorld access."""
         # Stop any existing listen thread
         self.stop_listen_thread()
@@ -230,7 +234,7 @@ class AutoStartManager:
         )
         self.listen_thread.start()
 
-    def stop_listen_thread(self):
+    def stop_listen_thread(self, data=None):
         """Stop the listen thread if it's running."""
         if self.listen_thread and self.listen_thread.is_alive():
             logging.info("Stopping auto-start listen thread...")

@@ -9,7 +9,6 @@ import threading
 import logging
 import traceback
 import os
-from src.events import bus, Event
 
 if __name__ != "__main__":
     exit()
@@ -58,23 +57,16 @@ try:
     if server_running:
         palworld_controller.start_server_info_update_thread()
 
-    if not server_running and settings.autoStart:
+    if settings.autoStart:
         auto_start_manager = AutoStartManager(palworld_controller)
 
-        palworld_controller.set_on_server_started_callback(
-            auto_start_manager.stop_listen_thread
-        )
-        palworld_controller.set_on_server_stopped_callback(
-            auto_start_manager.listen_palworld_access
-        )
-
-        auto_start_manager.listen_palworld_access()
-
+        if not server_running:
+            auto_start_manager.listen_palworld_access()
     if settings.useWebServer:
         web_server = WebServer(palworld_controller)
         web_server.run()
 
-    # Keep the main thread alive to allow daemon threads to করিয় run
+    # Keep the main thread alive to allow daemon threads to run
     logging.info("Application started. Press CTRL+C to exit.")
     try:
         while True:
