@@ -14,13 +14,16 @@ if __name__ != "__main__":
     exit()
 
 try:
+    log_level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
+    log_level = getattr(logging, log_level_name, logging.INFO)
+
     # Configure logging to write messages to the console and a file
     logging.basicConfig(
-        level=logging.INFO,
+        level=log_level,
         format="%(asctime)s - %(levelname)s - %(message)s",
         handlers=[
             logging.StreamHandler(),  # Log to console
-            logging.FileHandler("app.log", mode="a"),
+            logging.FileHandler("app.log", mode="w"),
         ],
     )
 
