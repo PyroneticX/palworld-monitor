@@ -3,20 +3,27 @@
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
+# in the Software without permitted use without complying with the terms
+# of the License. You may obtain a copy of the License at
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, to deal in the Software
+# without restriction. See the License for the specific language governing
+# permissions and limitations under the License.
 
 from typing import List, Dict, Any, Optional
 from settings import settings
 import json
 import os
 import time
+import threading
+import logging
+from src.events import bus, Event
 
+logger = logging.getLogger(__name__)
 
 class PlayerManager:
     """Manages player data including online and offline players with timestamps."""
@@ -25,6 +32,7 @@ class PlayerManager:
         self.players = {}  # Single dict: {steam_id: player_data}
         self.data_file = os.path.join("data", "players.json")
         self.version = 1
+        self._lock = threading.RLock()
         self._load_player_data()
 
     def _load_player_data(self):
@@ -40,7 +48,7 @@ class PlayerManager:
             else:
                 self.players = data.get("players", {})
         except Exception as e:
-            print(f"Error loading player data: {e}")
+            logger.error(f"Error loading player data: {e}")
             self.players = {}
 
     def _load_raw_player_data(self) -> Optional[dict]:
@@ -72,13 +80,16 @@ class PlayerManager:
             os.makedirs(os.path.dirname(self.data_file), exist_ok=True)
             with open(self.data_file, "w", encoding="utf-8") as f:
                 json.dump(
-                    {"version": self.version, "players": self.players},
+                    {"version": self._get_version(), "players": self.players},
                     f,
                     indent=2,
                     ensure_ascii=False,
                 )
         except Exception as e:
-            print(f"Error saving player data: {e}")
+            logger.error(f"Error saving player data: {e}")
+
+    def _get_version(self):
+        return self.version
 
     def _extract_player_info(self, player_info: List[str]) -> Optional[Dict[str, str]]:
         """Extract player information from server data."""
@@ -94,55 +105,70 @@ class PlayerManager:
     def update_players_from_server(self, current_players: List[List[str]]):
         """Update player data from server information - tracks online/offline status."""
         if not settings.enablePlayerTracking:
-            self.players = {}
-            self._save_player_data()
+            with self._lock:
+                self.players = {}
+                self._save_player_data()
             return
+
         current_time = time.time()
         current_player_steam_ids = set()
-        # Update current online players
-        for player_info in current_players:
-            extracted_info = self._extract_player_info(player_info)
-            if extracted_info and extracted_info["steam_id"] != "Unknown":
-                steam_id = extracted_info["steam_id"]
-                current_player_steam_ids.add(steam_id)
-                # Update or add player as online
-                self.players[steam_id] = {
-                    **extracted_info,
-                    "currently_online": True,
-                    "last_online": current_time,
-                }
-        # Mark players as offline if they're not in current list
-        for steam_id, player_data in self.players.items():
-            if steam_id not in current_player_steam_ids:
-                player_data["currently_online"] = False
-        self._save_player_data()
+
+        with self._lock:
+            # Update current online players
+            for player_info in current_players:
+                extracted_info = self._extract_player_info(player_info)
+                if extracted_info and extracted_info["steam_id"] != "Unknown":
+                    steam_id = extracted_info["steam_id"]
+                    current_player_steam_ids.add(steam_id)
+                    # Update or add player as online
+                    if steam_id not in self.players:
+                        bus.publish(Event.PLAYER_JOINED, {"steam_id": steam_id, **extracted_info})
+                    self.players[steam_id] = {
+                        **extracted_info,
+                        "currently_online": True,
+                        "last_online": current_time,
+                    }
+
+            # Mark players as offline if they's not in current list
+            for steam_id, player_data in self.players.items():
+                if steam_id not in current_player_steam_ids:
+                    if player_data.get("currently_online"):
+                        bus.publish(Event.PLAYER_LEFT, {"steam_id": steam_id})
+                    player_data["currently_online"] = False
+            
+            self._save_player_data()
 
     def get_all_players(self) -> List[Dict[str, Any]]:
         """Get all players (online and offline) with their status."""
-        return [dict(player_data) for player_data in self.players.values()]
+        with self._lock:
+            return [dict(player_data) for player_data in self.players.values()]
 
     def get_online_players(self) -> List[Dict[str, Any]]:
         """Get currently online players."""
-        return [
-            dict(player_data)
-            for player_data in self.players.values()
-            if player_data.get("currently_online", False)
-        ]
+        with self._lock:
+            return [
+                dict(player_data)
+                for player_data in self.players.values()
+                if player_data.get("currently_online", False)
+            ]
 
     def get_offline_players(self) -> List[Dict[str, Any]]:
         """Get currently offline players with last online timestamps."""
-        return [
-            dict(player_data)
-            for player_data in self.players.values()
-            if not player_data.get("currently_online", False)
-        ]
+        with self._lock:
+            return [
+                dict(player_data)
+                for player_data in self.players.values()
+                if not player_data.get("currently_online", False)
+            ]
 
     def get_player_count(self) -> int:
         """Get count of online players."""
-        return len(
-            [p for p in self.players.values() if p.get("currently_online", False)]
-        )
+        with self._lock:
+            return len(
+                [p for p in self.players.values() if p.get("currently_online", False)]
+            )
 
     def get_total_player_count(self) -> int:
         """Get total count of all players (online + offline)."""
-        return len(self.players)
+        with self._lock:
+            return len(self.players)
