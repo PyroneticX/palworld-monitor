@@ -95,22 +95,11 @@ See `src/settings.yaml.example` for all available settings.
 
 ### Step 3: Run the app
 
-In the app's directory run:
+Install [uv](https://docs.astral.sh/uv/), then in the app's directory:
 
 ```bash
-# Install dependencies with pip
-pip install -r requirements.txt
-# Launch the app
-python -m src.main
-```
-
-Or if you prefer using a venv:
-```bash
-python -m venv venv
-# Install dependencies into your venv
-venv\Scripts\pip install -r requirements.txt
-# Launch the app
-venv\Scripts\python -m src.main
+uv sync
+uv run poe run
 ```
 
 That's it! Your monitor should be running at http://localhost:8213.

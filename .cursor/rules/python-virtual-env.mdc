@@ -1,4 +1,4 @@
 ---
 alwaysApply: true
 ---
-Always use the python inside the venv dir.
+Always use `uv run` for Python commands (e.g. `uv run poe test`).

@@ -1,15 +1,15 @@
 # Palworld monitor
 
-Uses the venv's Python, not a system install.
+Uses `uv` for dependencies and commands.
 
 ## Commands
 
-- `make run` — start the app (`src/main.py`)
-- `make test` — run all tests
-- `make setup` — create venv + `pip install -r requirements.txt`
-- `.venv\Scripts\python.exe -m pytest test/test_file.py -v` — single file
-- `.venv\Scripts\ruff.exe check src/ test/` — lint
-- `.venv\Scripts\ruff.exe format src/ test/` — format
+- `uv sync` — create `.venv` and install deps
+- `uv run poe run` — start the app (`src/main.py`)
+- `uv run poe test` — run all tests
+- `uv run poe test test/test_file.py` — single file
+- `uv run poe lint` — ruff check
+- `uv run poe format` — ruff format
 
 ## Configuration
 
@@ -28,11 +28,11 @@ Uses the venv's Python, not a system install.
 
 ## Testing
 
-- pytest config in `pytest.ini`: `-v`, `--tb=short`, `--capture=no`
+- pytest config in `pyproject.toml`: `-v`, `--tb=short`, `--capture=no`
 - Linux tests (`@pytest.mark.linux`) skipped on Windows and vice versa.
 - Test factories in `test/support/`, fixtures in `test/conftest.py`.
 
 ## Constraints
 
 - Must run on the same host as the Palworld server (needs process spawn/kill access).
-- Only `pytest` for CI (`pip install -r requirements.txt`). No linter/typecheck step.
+- Only `pytest` for CI (`uv sync`). No linter/typecheck step.

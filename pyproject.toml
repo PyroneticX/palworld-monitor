@@ -1,0 +1,56 @@
+[project]
+name = "palworld-monitor"
+version = "0.1.0"
+description = "PalWorld dedicated server monitor with auto start/stop and web admin"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "blinker>=1.9.0",
+    "certifi>=2025.6.15",
+    "charset-normalizer>=3.4.2",
+    "click>=8.2.1",
+    "colorama>=0.4.6",
+    "flask>=3.1.1",
+    "flask-limiter>=3.5.0",
+    "flask-login>=0.6.3",
+    "flask-wtf>=1.2.1",
+    "idna>=3.10",
+    "itsdangerous>=2.2.0",
+    "jinja2>=3.1.6",
+    "markupsafe>=3.0.2",
+    "psutil>=7.0.0",
+    "pyyaml>=6.0.2",
+    "rcon @ git+https://github.com/ttk1/py-rcon.git@034dcae666c864a666e9e1d62e4f22c585970904",
+    "requests>=2.32.4",
+    "schedule>=1.2.2",
+    "urllib3>=2.5.0",
+    "watchdog>=6.0.0",
+    "werkzeug>=3.1.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "ruff>=0.15.16",
+    "poethepoet>=0.39",
+]
+
+[tool.uv]
+package = false
+
+[tool.poe.tasks]
+run = "python -m src.main"
+test = "pytest"
+lint = "ruff check src/ test/"
+format = "ruff format src/ test/"
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = ["-v", "--tb=short", "--strict-markers", "--capture=no"]
+markers = [
+    "windows: Windows-specific tests",
+    "linux: Linux-specific tests",
+]
