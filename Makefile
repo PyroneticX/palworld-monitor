@@ -1,7 +1,7 @@
 .PHONY: run test setup
 
 run:
-	.venv\Scripts\python.exe src\main.py
+	.venv\\Scripts\\python.exe -m src.main
 
 test:
 	.venv\Scripts\python.exe -m pytest

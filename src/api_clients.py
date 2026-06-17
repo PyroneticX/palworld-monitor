@@ -16,7 +16,7 @@ import logging
 import traceback
 from abc import ABC
 from requests.auth import HTTPBasicAuth
-from settings import settings
+from src.settings import settings
 from rcon import Console
 
 

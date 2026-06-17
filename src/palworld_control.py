@@ -1,535 +1,233 @@
-# Copyright (c) 2024 Nomomo
+# Copyright (c 2024 Nomomo
 # Copyright (c) 2024 Kevin Perez - Modified work
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
 
-import subprocess
 import logging
 import time
 import threading
-from settings import settings
-import traceback
-from player_manager import PlayerManager
-from banlist_manager import BanlistManager
+from src.settings import settings
+from src.player_manager import PlayerManager
+from src.banlist_manager import BanlistManager
+from src.events import bus, Event
 import os
 import platform
 
-
 class PalWorldController:
-    def __init__(
-        self, client, process_manager=None, player_manager=None, banlist_manager=None
-    ):
+    def __init__(self, client, process_manager=None, player_manager=None, banlist_manager=None):
         self.client = client
-        self.on_server_started_callback = None
-        self.on_server_stopped_callback = None
+        self.player_manager = player_manager if player_manager is not None else PlayerManager()
+        self.banlist_manager = banlist_manager if banlist_manager is not None else BanlistManager()
+        
+        if process_manager is not None:
+            self.process_manager = process_manager
+        else:
+            self.process_manager = self._create_process_manager()
 
-        # Use dependency injection with sensible defaults
-        self.player_manager = (
-            player_manager if player_manager is not None else PlayerManager()
-        )
-        self.banlist_manager = (
-            banlist_manager if banlist_manager is not None else BanlistManager()
-        )
-        self.process_manager = (
-            process_manager
-            if process_manager is not None
-            else self._create_process_manager()
-        )
-
-        # Server state information
         self.current_server_info = {"running": False, "playerCount": 0, "players": []}
-
-        # Server control flags and timestamps
         self.is_palworld_server_starting = False
-        self.server_starting_cooldown = 5  # seconds
+        self.server_starting_cooldown = 5
         self.last_server_started_time = 0
-        self.server_stopping_cooldown = 5  # seconds
+        self.server_stopping_cooldown = 5
         self.last_server_stopped_time = 0
-        self.server_startup_auto_stop_delay = (
-            settings.autoStopDelay
-        )  # Use the same delay as auto-stop
 
-        # Stop event tracking
-        self.triggered_time_check_stopped_event = -1
-        self.is_triggered_check_stopped_event = False
-
-        # Auto-stop delay tracking
-        self.auto_stop_delay_thread = None
-        self.auto_stop_delay_cancelled = False
-
-        # Background update thread management
+        self._auto_mode_cancelled = False
         self.update_thread = None
         self.update_thread_stop_event = threading.Event()
+        self.auto_stop_delay_thread = None
 
-        # If no PID was loaded, try to detect an already running Palworld server
+        self._setup_subscriptions()
         self._detect_existing_server_process()
 
     def _create_process_manager(self):
-        """Factory method to create the appropriate process manager based on OS."""
         detected_os = platform.system()
         if detected_os.lower() == "linux":
-            from process_manager import LinuxProcessManager
-
+            from src.process_manager import LinuxProcessManager
             return LinuxProcessManager()
         else:
-            from process_manager import WindowsProcessManager
-
+            from src.process_manager import WindowsProcessManager
             return WindowsProcessManager()
 
+    def _setup_subscriptions(self):
+        bus.subscribe(Event.SERVER_STARTED, self._on_server_started)
+        bus.subscribe(Event.SERVER_STOPPED, self._on_server_stopped)
+        bus.subscribe(Event.SERVER_STATUS, self._on_server_status)
+    def _on_server_started(self, data):
+        self.last_server_started_time = time.time()
+        self.is_palworld_server_starting = False
+        logging.info(f"Controller: Server started event received (PID: {data.get('pid')})")
+        self.start_server_info_update_thread()
+
+    def _on_server_stopped(self, data):
+        self.last_server_stopped_time = time.time()
+        logging.info("Controller: Server stopped event received")
+        self.stop_server_info_update_thread()
+
+    def _on_server_status(self, data):
+        self.current_server_info["running"] = data.get("running", False)
+        self.current_server_info["playerCount"] = data.get("playerCount", 0)
+        self.current_server_info["players"] = data.get("players", [])
+        if settings.autoStop and data.get("playerCount", 0) == 0:
+            self._handle_auto_stop_condition()
+        else:
+            self._cancel_auto_stop_delay()
     def is_palworld_process_running(self):
-        """Check if the PalWorld server process is currently running."""
         return self.process_manager.is_process_running()
 
     def start_server(self):
-        """Start the PalWorld server with various safety checks."""
-        logging.info("Palworld server is commanded to start")
-        palworld_exe_path = settings.palworldServerExePath
+        logging.info("Palworld server start command received")
         current_time = time.time()
-
         if self._should_block_start(current_time):
             return False
-
-        return_val = True
         try:
-            self._launch_process(palworld_exe_path)
-            if self.is_palworld_process_running():
-                self._handle_server_started(source="launch")
-            else:
-                logging.error(
-                    "Palworld server failed to launch (process not running after start)."
-                )
-        except subprocess.CalledProcessError as e:
-            logging.error(
-                f"Error occurred while executing the Palworld executable file : {e}"
-            )
-            return_val = False
-        finally:
-            self.is_palworld_server_starting = False
-            self.last_server_started_time = time.time()
-
-        return return_val
+            bus.publish(Event.CMD_START_SERVER, {
+                'exe_path': settings.palworldServerExePath,
+                'exe_args': settings.palworldExeArguments
+            })
+            self.is_palworld_server_starting = True
+            return True
+        except Exception as e:
+            logging.error(f"Error issuing start command: {e}")
+            return False
 
     def _should_block_start(self, current_time):
         if self.is_palworld_process_running():
-            logging.warning(
-                "The attempt to start the Palworld server was made, but it is already running."
-            )
+            logging.warning("The attempt to start the Palworld server was made, but it is already running.")
             return True
         if self.is_palworld_server_starting:
             logging.warning("Palworld Server is already starting.")
             return True
         if current_time - self.last_server_started_time < self.server_starting_cooldown:
-            logging.warning(
-                "Tried to start the server too quickly multiple times. This attempt will be ignored."
-            )
+            logging.warning("Tried to start the server too quickly multiple times.")
             return True
         if current_time - self.last_server_stopped_time < self.server_stopping_cooldown:
-            logging.warning(
-                "You attempted to restart the server too quickly shortly after trying to stop it. This attempt will be ignored."
-            )
-            return True
-        if self.is_stop_event_running():
-            logging.warning("Stop event is running. starting server is ignored")
+            logging.warning("You attempted to restart the server too quickly after trying to stop it.")
             return True
         return False
 
-    def _launch_process(self, palworld_exe_path):
-        self.is_palworld_server_starting = True
-        self.process_manager.launch_process(
-            palworld_exe_path, settings.palworldExeArguments
-        )
-
     def _detect_existing_server_process(self):
-        """Detect a running Palworld server and register its PID in the process manager."""
         try:
-            # If PID is already known (from PID file), skip
-            if self.process_manager.launched_pid is not None:
-                return
-
-            # Only try if no PID file exists yet
-            if os.path.exists(self.process_manager.pid_file_name()):
-                return
-
-            pid = self.process_manager.find_process_pid("palserver")
-            if pid is not None:
-                self.process_manager.set_known_pid(pid)
-                logging.info(
-                    f"Detected existing Palworld server (PID {pid}). Attaching controller."
-                )
-                self._handle_server_started(source="attach")
+            if not self.process_manager.launched_pid and not os.path.exists(self.process_manager.pid_file_name()):
+                pid = self.process_manager.find_process_pid("palserver")
+                if pid:
+                    self.process_manager.set_known_pid(pid)
         except Exception:
-            # best-effort only
             pass
 
-    def _handle_server_started(self, source: str = "launch"):
-        """Common behavior after the server is considered started.
-
-        Starts background updates, invokes the started callback, and timestamps the event.
-        """
-        # Start the update thread after successful start/attach
-        self.start_server_info_update_thread()
-
-        # Call the server started callback
-        if self.on_server_started_callback:
-            self.on_server_started_callback()
-
-        # Update last started timestamp
-        self.last_server_started_time = time.time()
-
-        if source == "launch":
-            logging.info("Palworld server launched successfully.")
-        elif source == "attach":
-            logging.info("Attached to running Palworld server successfully.")
-        else:
-            logging.info("Server started.")
-
-    def check_is_stopped_palworld_process_core(self, timeout=60):
-        """Check if the PalWorld process has been terminated."""
-        self.triggered_time_check_stopped_event = time.time()
-        while True:
-            if not self.is_palworld_process_running():
-                break
-
-            current_time = time.time()
-            if current_time - self.triggered_time_check_stopped_event > timeout:
-                break
-
-            time.sleep(1)
-        self.is_triggered_check_stopped_event = False
-        if self.on_server_stopped_callback:
-            self.on_server_stopped_callback()
-
-    def is_stop_event_running(self):
-        """Check if a stop event is currently running."""
-        return self.is_triggered_check_stopped_event
-
-    def stop_server(self):
-        """Stop the PalWorld server with optional force termination."""
-        logging.info("Palworld server is commanded to shutdown")
-
-        # Cancel any auto-stop delay
+    def stop_server(self,):
+        logging.info("Palworld server stop command received")
+        if self._should_block_stop():
+            return False
         self._cancel_auto_stop_delay()
-
-        # Update server status to reflect it's stopping
-        self.current_server_info["running"] = False
-        self.current_server_info["playerCount"] = 0
-        self.current_server_info["players"] = []
-        if settings.enablePlayerTracking:
-            self.player_manager.update_players_from_server([])
-
-        # Stop the server info update thread
-        self.stop_server_info_update_thread()
-
-        if not self.is_triggered_check_stopped_event:
-            self.is_triggered_check_stopped_event = True
-            thread = threading.Thread(
-                target=self.check_is_stopped_palworld_process_core
-            )
-            thread.start()
-
-        terminated = self.process_manager.terminate_process()
-        if not terminated:
-            pid = self.process_manager.find_process_pid("palserver")
-            if pid is not None:
-                self.process_manager.set_known_pid(pid)
-                terminated = self.process_manager.terminate_process()
-
-        if terminated:
-            logging.info("Palworld server stopped successfully.")
-        else:
-            logging.warning(
-                "Failed to stop Palworld server; process may not be running."
-            )
+        try:
+            bus.publish(Event.CMD_STOP_SERVER, {})
+            return True
+        except Exception as e:
+            logging.error(f"Error issuing stop command: {e}")
+            return False
 
     def _should_block_stop(self):
         if not self.is_palworld_process_running():
-            logging.error(
-                "An attempt to stop the Palworld server was made, but it was not running."
-            )
+            logging.error("An attempt to stop the Palworld server was made, but it was not running.")
             return True
         current_time = time.time()
         if current_time - self.last_server_stopped_time < self.server_stopping_cooldown:
-            logging.warning(
-                "You attempted to restart the server too quickly shortly after trying to stop it. This attempt will be ignored."
-            )
+            logging.warning("You attempted to restart the server too Quickly after trying to stop it.")
             return True
         return False
 
-    def _sanitize_delay(self, delay_seconds):
-        return max(delay_seconds, 1.0)
-
-    def update_current_server_info(self):
-        """Update and return current server information including player count and player names."""
-        try:
-            self._update_server_info_with_players()
-
-            if settings.autoStop and self.player_manager.get_player_count() == 0:
-                self._handle_auto_stop_condition()
-            else:
-                self._cancel_auto_stop_delay()
-
-            return self.current_server_info
-        except Exception as e:
-            logging.error(f"Error from update_current_server_info, {e}")
-            logging.error(traceback.format_exc())
-            return None
+    def _update_server_status(self):
+        """Poll server and emit SERVER_STATUS event."""
+        self._update_server_info_with_players()
+        bus.publish(Event.SERVER_STATUS, {
+            "running": self.current_server_info["running"],
+            "playerCount": self.current_server_info["playerCount"],
+            "players": list(self.current_server_info["players"]),
+            "banned_players": list(self.banlist_manager.get_banned_players()),
+        })
 
     def _update_server_info_with_players(self):
         self.current_server_info["running"] = self.is_palworld_process_running()
-
-        current_players = self.get_player_names()
-        self.current_server_info["playerCount"] = len(current_players)
-        self.current_server_info["players"] = current_players
-
+        players = self.get_player_names()
+        self.current_server_info["playerCount"] = len(players)
+        self.current_server_info["players"] = players
         if settings.enablePlayerTracking:
-            self.player_manager.update_players_from_server(current_players)
+            self.player_manager.update_players_from_server(players)
 
     def _handle_auto_stop_condition(self):
-        """Handle the auto-stop condition with delay."""
-        # If auto-stop delay is already triggered, don't trigger again
         if self.auto_stop_delay_thread and self.auto_stop_delay_thread.is_alive():
             return
-
-        # Check if enough time has passed since server startup
-        current_time = time.time()
-        time_since_startup = current_time - self.last_server_started_time
-
-        if time_since_startup < self.server_startup_auto_stop_delay:
-            remaining_time = self.server_startup_auto_stop_delay - time_since_startup
-            logging.info(
-                f"Auto-stop blocked: Server started {time_since_startup:.0f}s ago. Auto-stop will be available in {remaining_time:.0f}s."
-            )
+        if time.time() - self.last_server_started_time < 30:
+            remaining = 30 - (time.time() - self.last_server_started_time)
+            logging.info(f"Auto-stop startup guard active, {remaining:.0f}s remaining")
             return
-
-        # Reset cancellation flag
-        self.auto_stop_delay_cancelled = False
-        logging.info(
-            f"Auto-stop condition met. Server will stop in {settings.autoStopDelay} seconds."
-        )
-
-        # Start delay thread
-        self.auto_stop_delay_thread = threading.Thread(
-            target=self._auto_stop_delay_worker, daemon=True
-        )
+        logging.info("Auto-stop condition met, starting delay thread")
+        self._auto_mode_cancelled = False
+        self.auto_stop_delay_thread = threading.Thread(target=self._auto_stop_delay_worker, daemon=True)
         self.auto_stop_delay_thread.start()
 
     def _cancel_auto_stop_delay(self):
-        """Cancel the auto-stop delay if players are back online."""
         if self.auto_stop_delay_thread and self.auto_stop_delay_thread.is_alive():
-            self.auto_stop_delay_cancelled = True
-            logging.info("Auto-stop delay cancelled - players are back online.")
+            logging.info("Auto-stop cancelled (players detected)")
+            self._auto_mode_cancelled = True
 
     def _auto_stop_delay_worker(self):
-        """Worker thread that waits for the auto-stop delay and then stops the server."""
-        try:
-            time.sleep(settings.autoStopDelay)
-
-            # Check if the delay was cancelled
-            if not self.auto_stop_delay_cancelled:
-                logging.info("Auto-stop delay completed. Stopping server.")
-                self.stop_server()
-        except Exception as e:
-            logging.error(f"Error in auto-stop delay worker: {e}")
-            logging.error(traceback.format_exc())
-
-    def get_player_count(self):
-        """Get the current player count from the server."""
-        return self.client.get_player_count()
-
-    def get_player_names(self):
-        """Get the current player names from the server."""
-        return self.client.get_player_names()
-
-    def get_server_status(self):
-        """Get the current server status."""
-        if not self.is_palworld_process_running():
-            return False
-        return True
-
-    def set_on_server_stopped_callback(self, callback):
-        """Set the callback function to be called when the server is stopped."""
-        self.on_server_stopped_callback = callback
-
-    def set_on_server_started_callback(self, callback):
-        """Set the callback function to be called when the server is started."""
-        self.on_server_started_callback = callback
-
-    def get_player_manager(self):
-        """Get the player manager instance."""
-        return self.player_manager
-
-    def start_server_info_update_thread(self):
-        """Start a background thread that continuously updates server info."""
-        if self.update_thread and self.update_thread.is_alive():
-            logging.info("Server info update thread is already running.")
+        logging.info(f"Auto-stop delay started, stopping in {settings.autoStopDelay}s")
+        time.sleep(settings.autoStopDelay)
+        if self._auto_mode_cancelled:
+            logging.info("Auto-stop cancelled during sleep")
             return
+        logging.info("Auto-stop delay elapsed, stopping server")
+        self.stop_server()
 
-        self.update_thread_stop_event.clear()
-        self.update_thread = threading.Thread(
-            target=self._server_info_update_loop, daemon=True
-        )
-        self.update_thread.start()
-        logging.info("Server info update thread started.")
-
-    def stop_server_info_update_thread(self):
-        """Stop the background server info update thread."""
-        if not self.update_thread or not self.update_thread.is_alive():
-            return
-
-        self.update_thread_stop_event.set()
-        self.update_thread.join(timeout=5)
-        logging.info("Server info update thread stopped.")
-
-    def _server_info_update_loop(self):
-        """Background loop that continuously updates server info."""
-        while not self.update_thread_stop_event.is_set():
-            try:
-                self.update_current_server_info()
-            except Exception as e:
-                logging.error(f"Error in server info update loop: {e}")
-                logging.error(traceback.format_exc())
-
-            # Wait for the specified interval or until stop event is set
-            if self.update_thread_stop_event.wait(settings.updateInterval):
-                break
-
-    def get_current_server_info(self):
-        """Get the current server info without triggering an update."""
-        return self.current_server_info
+    def get_player_count(self): return self.client.get_player_count()
+    def get_player_names(self): return self.client.get_player_names()
+    def get_players_for_web(self): return self.player_manager.get_all_players()
 
     def kick_player(self, steam_id):
-        """Kick a player by their Steam ID.
-
-        Args:
-            steam_id: The Steam ID of the player to kick
-
-        Returns:
-            bool: True if kick was successful, False otherwise
-        """
         try:
-            player = self.player_manager.players.get(steam_id)
-            if not player:
-                logging.error(f"Player with Steam ID {steam_id} not found")
-                return False
-
-            result = self.client.kick_player(player)
-            if result:
-                # Trigger an immediate update to refresh player list
-                self.update_current_server_info()
-            return result
+            bus.publish(Event.CMD_KICK_PLAYER, {"steam_id": steam_id})
+            return True
         except Exception as e:
-            logging.error(f"Error kicking player {steam_id}: {e}")
-            logging.error(traceback.format_exc())
+            logging.error(f"Error kicking {steam_id}: {e}")
             return False
 
     def ban_player(self, steam_id):
-        """Ban a player by their Steam ID.
-
-        Args:
-            steam_id: The Steam ID of the player to ban
-
-        Returns:
-            bool: True if ban was successful, False otherwise
-        """
         try:
-            player = self.player_manager.players.get(steam_id)
-            if not player:
-                logging.error(f"Player with Steam ID {steam_id} not found")
-                return False
-
-            # First, kick the player if they're online
-            self.client.kick_player(player)
-
-            # Then ban via RCON command (this adds to server's banlist)
-            ban_success = self.client.ban_player(player)
-
-            # Also add to banlist file for persistence
-            file_success = self.banlist_manager.add_ban(steam_id)
-
-            # Consider ban successful if either method worked
-            result = ban_success or file_success
-
-            if result:
-                # Trigger an immediate update to refresh player list
-                self.update_current_server_info()
-            else:
-                logging.warning(
-                    "Ban command may have failed, but banlist file was updated"
-                )
-            return result
+            bus.publish(Event.CMD_BAN_PLAYER, {"steam_id": steam_id})
+            return True
         except Exception as e:
-            logging.error(f"Error banning player {steam_id}: {e}")
-            logging.error(traceback.format_exc())
+            logging.error(f"Error banning {steam_id}: {e}")
             return False
 
     def unban_player(self, steam_id):
-        """Unban a player by their Steam ID.
-
-        Args:
-            steam_id: The Steam ID of the player to unban
-
-        Returns:
-            bool: True if unban was successful, False otherwise
-        """
         try:
-            # First, try to unban via the game server API/RCON
-            player = self.player_manager.players.get(steam_id)
-            if player:
-                client_result = self.client.unban_player(player)
-            else:
-                logging.error(f"Player with Steam ID {steam_id} not found")
-                return False
-
-            # Also remove from banlist file for persistence
-            file_result = self.banlist_manager.remove_ban(steam_id)
-
-            # Consider unban successful if either method worked
-            result = client_result or file_result
-
-            if result:
-                player_name = player.get("name", "Unknown")
-                logging.info(
-                    f"Player {player_name} (Steam ID: {steam_id}) was unbanned successfully"
-                )
-            return result
+            bus.publish(Event.CMD_UNBAN_PLAYER, {"steam_id": steam_id})
+            return True
         except Exception as e:
-            logging.error(f"Error unbanning player {steam_id}: {e}")
-            logging.error(traceback.format_exc())
+            logging.error(f"Error unbanning {steam_id}: {e}")
             return False
 
-    def get_banned_players(self):
-        """Get list of banned Steam IDs.
+    def get_banned_players(self): return self.banlist_manager.get_banned_players()
+    def is_player_banned(self, steam_id): return self.banlist_manager.is_banned(steam_id)
 
-        Returns:
-            List[str]: List of banned Steam IDs
-        """
-        try:
-            return self.banlist_manager.get_banned_players()
-        except Exception as e:
-            logging.error(f"Error getting banned players: {e}")
-            logging.error(traceback.format_exc())
-            return []
+    def start_server_info_update_thread(self):
+        if not (self.update_thread and self.update_thread.is_alive()):
+            self.update_thread_stop_event.clear()
+            self.update_thread = threading.Thread(target=self._server_info_update_loop, daemon=True)
+            self.update_thread.start()
 
-    def is_player_banned(self, steam_id):
-        """Check if a player is banned.
+    def stop_server_info_update_thread(self):
+        if self.update_thread and self.update_thread.is_alive():
+            self.update_thread_stop_event.set()
+            self.update_thread.join(timeout=5)
 
-        Args:
-            steam_id: The Steam ID to check
+    def _server_info_update_loop(self):
+        while not self.update_thread_stop_event.is_set():
+            try:
+                self._update_server_status()
+            except Exception as e:
+                logging.error(f"Update loop error: {e}")
+            if self.update_thread_stop_event.wait(settings.updateInterval):
+                break
 
-        Returns:
-            bool: True if banned, False otherwise
-        """
-        try:
-            return self.banlist_manager.is_banned(steam_id)
-        except Exception as e:
-            logging.error(f"Error checking ban status for {steam_id}: {e}")
-            logging.error(traceback.format_exc())
-            return False
+    def get_current_server_for_web(self):
+        return self.current_server_info

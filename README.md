@@ -101,7 +101,7 @@ In the app's directory run:
 # Install dependencies with pip
 pip install -r requirements.txt
 # Launch the app
-python src/main.py
+python -m src.main
 ```
 
 Or if you prefer using a venv:
@@ -110,7 +110,7 @@ python -m venv venv
 # Install dependencies into your venv
 venv\Scripts\pip install -r requirements.txt
 # Launch the app
-venv\Scripts\python src/main.py
+venv\Scripts\python -m src.main
 ```
 
 That's it! Your monitor should be running at http://localhost:8213.

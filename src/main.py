@@ -1,20 +1,10 @@
 # Copyright (c) 2024 Nomomo
 # Copyright (c) 2024 Kevin Perez - Modified work
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
 
-from palworld_control import PalWorldController
-from settings import settings
-from web_server import WebServer
-from auto_start import AutoStartManager
+from src.palworld_control import PalWorldController
+from src.settings import settings
+from src.web_server import WebServer
+from src.auto_start import AutoStartManager
 import threading
 import logging
 import traceback
@@ -43,7 +33,7 @@ try:
         settings.validate_settings()
     except ValueError as e:
         logging.error(e)
-        logging.error("Please fix the settings and try again.")
+        logging.error("Please fix the settings and try with valid configuration.")
         exit(1)
 
     # Create instances of managers
@@ -51,12 +41,10 @@ try:
 
     # Choose the client based on the protocol setting
     if settings.protocol.upper() == "REST":
-        from api_clients import RestClient
-
+        from src.api_clients import RestClient
         client = RestClient()
     elif settings.protocol.upper() == "RCON":
-        from api_clients import RconClient
-
+        from src.api_clients import RconClient
         client = RconClient()
     else:
         logging.error(f"Invalid protocol specified in settings: {settings.protocol}")
@@ -69,24 +57,16 @@ try:
     if server_running:
         palworld_controller.start_server_info_update_thread()
 
-    if not server_running and settings.autoStart:
+    if settings.autoStart:
         auto_start_manager = AutoStartManager(palworld_controller)
 
-        palworld_controller.set_on_server_started_callback(
-            auto_start_manager.stop_listen_thread
-        )
-        palworld_controller.set_on_server_stopped_callback(
-            auto_start_manager.listen_palworld_access
-        )
-
-        auto_start_manager.listen_palworld_access()
-
+        if not server_running:
+            auto_start_manager.listen_palworld_access()
     if settings.useWebServer:
         web_server = WebServer(palworld_controller)
         web_server.run()
 
     # Keep the main thread alive to allow daemon threads to run
-    # This will exit gracefully when CTRL+C is pressed
     logging.info("Application started. Press CTRL+C to exit.")
     try:
         while True:
@@ -102,5 +82,8 @@ try:
 except KeyboardInterrupt:
     logging.info("CTRL+C received during startup. Shutting down...")
 except Exception as e:
-    logging.error(f"Error from main routine: {e}")
+    logging.error(f"Error from src.main routine: {e}")
     logging.error(traceback.format_exc())
+
+if __name__ != "__main__":
+    exit()
