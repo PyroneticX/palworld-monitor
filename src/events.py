@@ -16,17 +16,17 @@ class EventBus:
                 self._subscribers[event_type] = []
             self._subscribers[event_type].append(callback)
             callback_name = getattr(callback, '__qualname__', str(callback))
-            logger.info(f"Subscribed to event type: {event_type} with callback: {callback_name}")
+            logger.debug(f"Subscribed to event type: {event_type} with callback: {callback_name}")
 
     def publish(self, event_type: str, data: Dict[str, Any]):
         with self._lock:
             subscribers = self._subscribers.get(event_type, []).copy()
-        
+
         if not subscribers:
             logger.debug(f"No subscribers for {event_type}")
             return
 
-        logger.info(f"Emitting event: {event_type} with data: {data}")
+        logger.debug(f"Emitting event: {event_type} with data: {data}")
 
         for callback in subscribers:
             try:
