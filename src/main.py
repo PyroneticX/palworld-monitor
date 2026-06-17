@@ -1,15 +1,5 @@
 # Copyright (c) 2024 Nomomo
 # Copyright (c) 2024 Kevin Perez - Modified work
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
 
 from palworld_control import PalWorldController
 from settings import settings
@@ -19,6 +9,7 @@ import threading
 import logging
 import traceback
 import os
+from src.events import bus, Event
 
 if __name__ != "__main__":
     exit()
@@ -43,7 +34,7 @@ try:
         settings.validate_settings()
     except ValueError as e:
         logging.error(e)
-        logging.error("Please fix the settings and try again.")
+        logging.error("Please fix the settings and try with valid configuration.")
         exit(1)
 
     # Create instances of managers
@@ -52,11 +43,9 @@ try:
     # Choose the client based on the protocol setting
     if settings.protocol.upper() == "REST":
         from api_clients import RestClient
-
         client = RestClient()
     elif settings.protocol.upper() == "RCON":
         from api_clients import RconClient
-
         client = RconClient()
     else:
         logging.error(f"Invalid protocol specified in settings: {settings.protocol}")
@@ -85,8 +74,7 @@ try:
         web_server = WebServer(palworld_controller)
         web_server.run()
 
-    # Keep the main thread alive to allow daemon threads to run
-    # This will exit gracefully when CTRL+C is pressed
+    # Keep the main thread alive to allow daemon threads to করিয় run
     logging.info("Application started. Press CTRL+C to exit.")
     try:
         while True:
@@ -104,3 +92,6 @@ except KeyboardInterrupt:
 except Exception as e:
     logging.error(f"Error from main routine: {e}")
     logging.error(traceback.format_exc())
+
+if __name__ != "__main__":
+    exit()
