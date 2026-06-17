@@ -15,7 +15,7 @@
 # permissions and limitations under the License.
 
 from typing import List, Dict, Any, Optional
-from settings import settings
+from src.settings import settings
 import json
 import os
 import time

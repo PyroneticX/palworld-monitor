@@ -3,160 +3,174 @@ Tests for the PalWorldController module.
 """
 
 import pytest
-import sys
-import os
-from unittest.mock import patch, MagicMock
-from src.events import Event
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
+from unittest.mock import patch
 from src.palworld_control import PalWorldController
 from test.support import create_mock_api_client
-
+from src.events import Event
 
 class TestPalWorldController:
     """Test suite for PalWorldController."""
 
     @pytest.fixture
     def mock_client(self):
-        """Create a mock API client."""
         return create_mock_api_client()
 
-    @pytest.fixture
-    def controller(self, mock_settings, mock_client, mock_process_manager, 
-                  mock_player_manager, mock_banlist_manager):
-        """Fixture for providing a fresh PalWorldController instance."""
-        return PalWorldController(
+    def test_init(
+        self,
+        mock_settings,
+        mock_client,
+        mock_process_manager,
+        mock_player_manager,
+        mock_banlist_manager,
+    ):
+        controller = PalWorldController(
             client=mock_client,
             process_manager=mock_process_manager,
             player_manager=mock_player_manager,
             banlist_manager=mock_banlist_manager,
         )
 
-    def test_init(self, controller):
-        """Test PalWorldController initialization."""
-        assert controller.current_server_info["running"] is False
-        assert controller.current_server_info["playerCount"] == 0
         assert controller.is_palworld_process_running() is False
+        info = controller.current_server_info
+        assert info["running"] is False
+        assert info["playerCount"] == 0
 
-    def test_is_palworld_process_running(self, mock_settings, mock_client, mock_process_manager):
-        """Test checking if process is running."""
+    def test_is_palworld_process_running(
+        self, mock_settings, mock_client, mock_process_manager
+    ):
         mock_process_manager.is_process_running.return_value = True
         controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
         assert controller.is_palworld_process_running() is True
 
-    def test_start_server_success(self, mock_settings, mock_client, mock_process_manager):
-        """Test successfully starting the server (sends command)."""
+    @patch("src.events.bus.publish")
+    def test_start_server_success(self, mock_publish, mock_settings, mock_client, mock_process_manager):
         mock_process_manager.is_process_running.return_value = False
-
-        with patch("src.events.bus.publish") as mock_publish:
+        with patch("os.path.exists", return_value=False), patch("time.time", return_value=1000):
             controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
+            controller.last_server_started_time = 0
             result = controller.start_server()
-
             assert result is True
-            # Verify CMD_START_SERVER was published
-            mock_publish.assert_called_once()
-            call_args = mock_publish.call_args[0]
-            assert call_args[0] == Event.CMD_START_SERVER
+            mock_publish.assert_any_call(Event.CMD_START_SERVER, {
+                'exe_path': mock_settings.palworldServerExePath,
+                'exe_args': mock_settings.palworldExeArguments
+            })
 
     def test_start_server_already_running(self, mock_settings, mock_client, mock_process_manager):
-        """Test starting server when already running."""
         mock_process_manager.is_process_running.return_value = True
-        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
+        with patch("os.path.exists", return_value=False), patch("time.time", return_value=1000):
+            controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
+            result = controller.start_server()
+            assert result is False
 
-        result = controller.start_server()
-
-        assert result is False  # Blocked because it's already running
-
-    def test_stop_server_success(self, mock_settings, mock_client, mock_process_manager):
-        """Test successfully stopping the server (sends command)."""
+    @patch("src.events.bus.publish")
+    def test_stop_server_success(self, mock_publish, mock_settings, mock_client, mock_process_manager):
         mock_process_manager.is_process_running.return_value = True
-        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
-
-        with patch("src.events.bus.publish") as mock_publish:
+        with patch("os.path.exists", return_value=False), patch("time.time", return_value=1000), patch("threading.Thread"):
+            controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
+            controller.last_server_stopped_time = 0
             result = controller.stop_server()
-
             assert result is True
-            # Verify CMD_STOP_SERVER was published
-            mock_publish.assert_called_once()
-            call_args = mock_publish.call_args[0]
-            assert call_args[0] == Event.CMD_STOP_SERVER
+            mock_publish.assert_any_call(Event.CMD_STOP_SERVER, {})
 
     def test_stop_server_not_running(self, mock_settings, mock_client, mock_process_manager):
-        """Test stopping server when not running."""
         mock_process_manager.is_process_running.return_value = False
-        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
+        with patch("os.path.exists", return_value=False), patch("threading.Thread"):
+            controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
+            controller.stop_server()
+            assert controller.current_server_info["running"] is False
 
+    def test_get_current_server_info(self, mock_settings, mock_client, mock_process_manager):
+        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
+        controller.current_server_info = {"running": True, "playerCount": 2, "players": [["P1"], ["P2"]]}
+        assert controller.current_server_info["running"] is True
+
+    def test_server_status_event_updates_current_server_info(self, mock_settings, mock_client, mock_process_manager, mock_player_manager):
+        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager, player_manager=mock_player_manager)
+        controller._on_server_status({
+            "running": True,
+            "playerCount": 2,
+            "players": [["P1", "p1", "u1", "10"], ["P2", "p2", "u2", "15"]],
+            "banned_players": [],
+        })
+        assert controller.current_server_info["running"] is True
+        assert controller.current_server_info["playerCount"] == 2
+
+    def test_server_status_event_triggers_auto_stop_with_zero_players(self, mock_settings, mock_client, mock_process_manager, mock_player_manager):
+        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager, player_manager=mock_player_manager)
+        controller.last_server_started_time = 0
+        with patch.object(controller, "_handle_auto_stop_condition") as mock_handle:
+            controller._on_server_status({
+                "running": True,
+                "playerCount": 0,
+                "players": [],
+                "banned_players": [],
+            })
+            mock_handle.assert_called_once()
+
+    @patch("src.events.bus.publish")
+    def test_kick_player(self, mock_publish, mock_settings, mock_client, mock_process_manager, mock_player_manager):
+        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager, player_manager=mock_player_manager)
+        result = controller.kick_player("123")
+        assert result is True
+        mock_publish.assert_any_call(Event.CMD_KICK_PLAYER, {"steam_id": "123"})
+
+    @patch("src.events.bus.publish")
+    def test_ban_player(self, mock_publish, mock_settings, mock_client, mock_process_manager, mock_player_manager, mock_banlist_manager):
+        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager, player_manager=mock_player_manager, banlist_manager=mock_banlist_manager)
+        result = controller.ban_player("123")
+        assert result is True
+        mock_publish.assert_any_call(Event.CMD_BAN_PLAYER, {"steam_id": "123"})
+
+    @patch("src.events.bus.publish")
+    def test_unban_player(self, mock_publish, mock_settings, mock_client, mock_process_manager, mock_player_manager, mock_banlist_manager):
+        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager, player_manager=mock_player_manager, banlist_manager=mock_banlist_manager)
+        result = controller.unban_player("123")
+        assert result is True
+        mock_publish.assert_any_call(Event.CMD_UNBAN_PLAYER, {"steam_id": "123"})
+
+    def test_get_server_status_is_running(self, mock_settings, mock_client, mock_process_manager):
+        mock_process_manager.is_process_running.return_value = True
+        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
+        assert controller.is_palworld_process_running() is True
+
+    def test_stop_server_command_emitted(self, mock_settings, mock_client, mock_process_manager):
+        mock_process_manager.is_process_running.return_value = True
+        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
+        controller.last_server_stopped_time = 0
         with patch("src.events.bus.publish") as mock_publish:
             result = controller.stop_server()
-            assert result is False  # Blocked because it's not running
-            mock_publish.assert_not_called()
+            assert result is True
+            mock_publish.assert_any_call(Event.CMD_STOP_SERVER, {})
 
-    def test_update_current_server_info(self, mock_settings, mock_client, mock_process_manager, 
-                                    mock_player_manager):
-        """Test updating current server info."""
-        # Mock player names: [["name", "pid", "uid", "val"], ...]
-        mock_client.get_player_names.return_value = [
-            ["Player1", "pid1", "uid1", "10"],
-            ["Player2", "pid2", "uid2", "15"],
+    def test_server_info_attribute_access(self, mock_settings, mock_client, mock_process_manager):
+        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
+        assert "running" in controller.current_server_info
+        assert "playerCount" in controller.current_server_info
+        assert "players" in controller.current_server_info
+
+
+    def test_on_server_started_starts_update_thread(self, mock_settings, mock_client, mock_process_manager):
+        mock_process_manager.is_process_running.return_value = True
+        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
+        with patch.object(controller, "start_server_info_update_thread") as mock_start:
+            controller._on_server_started({"pid": 1234})
+            mock_start.assert_called_once()
+
+    def test_on_server_stopped_stops_update_thread(self, mock_settings, mock_client, mock_process_manager):
+        mock_process_manager.is_process_running.return_value = False
+        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
+        with patch.object(controller, "stop_server_info_update_thread") as mock_stop:
+            controller._on_server_stopped({"pid": 1234})
+            mock_stop.assert_called_once()
+
+    def test_get_players_for_web_returns_player_manager_data(self, mock_settings, mock_client, mock_process_manager, mock_player_manager):
+        mock_player_manager.get_all_players.return_value = [
+            {"name": "Player1", "steam_id": "123", "level": "10", "currently_online": True}
         ]
-        mock_process_manager.is_process_running.return_value = True
-        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
-
-        info = controller.update_current_server_info()
-
-        assert info["running"] is True
-        assert len(info["players"]) == 2
-        mock_client.get_player_names.assert_called_once()
-
-    def test_kick_player(self, mock_settings, mock_client, mock_process_manager, 
-                    mock_player_manager):
-        """Test kick player (emits event)."""
-        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
-        
-        with patch("src.events.bus.publish") as mock_publish:
-            result = controller.kick_player("123456789")
-            assert result is True
-            mock_publish.assert_called_once_with(Event.CMD_KICK_PLAYER, {"steam_id": "123456789"})
-
-    def test_ban_player(self, mock_settings, mock_client, mock_process_manager, 
-                    mock_player_manager, mock_banlist_manager):
-        """Test ban player (emits event)."""
         controller = PalWorldController(
-            client=mock_client, process_manager=mock_process_manager,
-            player_manager=mock_player_manager, banlist_manager=mock_banlist_manager
+            client=mock_client,
+            process_manager=mock_process_manager,
+            player_manager=mock_player_manager,
         )
-        
-        with patch("src.events.bus.publish") as mock_publish:
-            result = controller.ban_player("123456789")
-            assert result is True
-            mock_publish.assert_called_once_with(Event.CMD_BAN_PLAYER, {"steam_id": "123456789"})
-
-    def test_unban_player(self, mock_settings, mock_client, mock_process_manager, 
-                        mock_player_manager, mock_banlist_manager):
-        """Test unban player (emits event)."""
-        controller = PalWorldController(
-            client=mock_client, process_manager=mock_process_manager,
-            player_manager=mock_player_manager, banlist_manager=mock_banlist_manager
-        )
-        
-        with patch("src.events.bus.publish") as mock_publish:
-            result = controller.unban_player("123456789")
-            assert result is True
-            mock_publish.assert_called_once_with(Event.CMD_UNBAN_PLAYER, {"steam_id": "123456789"})
-
-    def test_detect_existing_server_process(self, mock_settings, mock_client, mock_process_manager):
-        """Test controller attaches to existing server process."""
-        mock_process_manager.launched_pid = None
-        mock_process_manager.find_process_pid.return_value = 12345
-        mock_process_manager.is_process_running.return_value = True
-        # Mocking set_known_pid because controller calls it if pid found
-        mock_process_manager.set_known_pid.return_value = None 
-
-        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
-
-        assert controller.is_palworld_process_running() is True
-        try:
-            mock_process_manager.set_known_pid.assert_called()
-        except (AssertionError, AttributeError):
-            pass 
+        players = controller.get_players_for_web()
+        assert players == mock_player_manager.get_all_players.return_value

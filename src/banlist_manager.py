@@ -3,8 +3,8 @@ import os
 import logging
 import threading
 import traceback
+from src.settings import settings
 from src.events import bus, Event
-from settings import settings
 
 class BanlistManager:
     """Manages the Palworld server banlist.txt file."""

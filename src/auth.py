@@ -171,10 +171,7 @@ def verify_password(
     Args:
         username: Provided username
         password: Provided password
-        expected_username: Expected username from settings
-        expected_password: Expected password from settings
-
-    Returns:
+        expected_username: Expected username from src.settings expected_password: Expected password from src.settings Returns:
         True if credentials match, False otherwise
     """
     return username == expected_username and password == expected_password
