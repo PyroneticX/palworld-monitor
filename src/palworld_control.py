@@ -50,9 +50,6 @@ class PalWorldController:
         bus.subscribe(Event.SERVER_STARTED, self._on_server_started)
         bus.subscribe(Event.SERVER_STOPPED, self._on_server_stopped)
         bus.subscribe(Event.SERVER_STATUS, self._on_server_status)
-        bus.subscribe(Event.PLAYER_JOINED, self._on_player_update)
-        bus.subscribe(Event.PLAYER_LEFT, self._on_player_update)
-        bus.subscribe(Event.BAN_ADDED, self._on_ban_update)
     def _on_server_started(self, data):
         self.last_server_started_time = time.time()
         self.is_palworld_server_starting = False
@@ -72,13 +69,6 @@ class PalWorldController:
             self._handle_auto_stop_condition()
         else:
             self._cancel_auto_stop_delay()
-
-    def _on_player_update(self, data):
-        pass
-
-    def _on_ban_update(self, data):
-        pass
-
     def is_palworld_process_running(self):
         return self.process_manager.is_process_running()
 
@@ -144,23 +134,6 @@ class PalWorldController:
             return True
         return False
 
-    def update_current_server_info(self):
-        """Fetch latest server data and return current info.
-        
-        Deprecated in favor of _update_server_status + SERVER_STATUS event.
-        Kept for test compatibility.
-        """
-        try:
-            self._update_server_info_with_players()
-            if settings.autoStop and self.player_manager.get_player_count() == 0:
-                self._handle_auto_stop_condition()
-            else:
-                self._cancel_auto_stop_delay()
-            return self.current_server_info
-        except Exception as e:
-            logging.error(f"Error in update: {e}")
-            return None
-
     def _update_server_status(self):
         """Poll server and emit SERVER_STATUS event."""
         self._update_server_info_with_players()
@@ -168,6 +141,7 @@ class PalWorldController:
             "running": self.current_server_info["running"],
             "playerCount": self.current_server_info["playerCount"],
             "players": list(self.current_server_info["players"]),
+            "banned_players": list(self.banlist_manager.get_banned_players()),
         })
 
     def _update_server_info_with_players(self):

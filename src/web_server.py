@@ -95,10 +95,6 @@ class WebServer:
         bus.subscribe(Event.SERVER_STARTED, self._on_server_started)
         bus.subscribe(Event.SERVER_STOPPED, self._on_server_stopped)
         bus.subscribe(Event.SERVER_STATUS, self._on_server_status)
-        bus.subscribe(Event.PLAYER_JOINED, self._on_player_joined)
-        bus.subscribe(Event.PLAYER_LEFT, self._on_player_left)
-        bus.subscribe(Event.BAN_ADDED, self._on_ban_added)
-        bus.subscribe(Event.BAN_REMOVED, self._on_ban_removed)
 
         self._sync_running_state()
         self._sync_banned_players()
@@ -129,26 +125,7 @@ class WebServer:
             self.state_cache["running"] = data.get("running", False)
             self.state_cache["playerCount"] = data.get("playerCount", 0)
             self.state_cache["players"] = list(data.get("players", []))
-
-    def _on_player_joined(self, data):
-        with self._lock:
-            self.state_cache["players"] = self.palworld_controller.get_players_for_web()
-            self.state_cache["playerCount"] = len(self.palworld_controller.player_manager.get_online_players())
-
-    def _on_player_left(self, data):
-        with self._lock:
-            self.state_cache["players"] = self.palworld_controller.get_players_for_web()
-            self.state_cache["playerCount"] = len(self.palworld_controller.player_manager.get_online_players())
-
-    def _on_ban_added(self, data):
-        with self._lock:
-            if data["steam_id"] not in self.state_cache["banned_players"]:
-                self.state_cache["banned_players"].append(data["steam_id"])
-
-    def _on_ban_removed(self, data):
-        with self._lock:
-            if data["steam_id"] in self.state_cache["banned_players"]:
-                self.state_cache["banned_players"].remove(data["steam_id"])
+            self.state_cache["banned_players"] = list(data.get("banned_players", []))
 
     def _register_filters(self):
         """Register custom Jinja2 filters."""

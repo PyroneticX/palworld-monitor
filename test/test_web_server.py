@@ -47,14 +47,19 @@ class TestWebServer:
 
         assert web_server.state_cache["banned_players"] == ["SteamID1", "SteamID2"]
 
-    def test_ban_removed_event_updates_cache(self, web_server):
-        web_server.state_cache["banned_players"] = ["SteamID1", "SteamID2"]
+    def test_server_status_event_updates_cache(self, web_server):
+        web_server._on_server_status({
+            "running": True,
+            "playerCount": 2,
+            "players": ["P1", "P2"],
+            "banned_players": ["SteamID1"],
+        })
+        assert web_server.state_cache["running"] is True
+        assert web_server.state_cache["playerCount"] == 2
+        assert web_server.state_cache["players"] == ["P1", "P2"]
+        assert web_server.state_cache["banned_players"] == ["SteamID1"]
 
-        web_server._on_ban_removed({"steam_id": "SteamID1"})
-
-        assert web_server.state_cache["banned_players"] == ["SteamID2"]
-
-    def test_init_subscribes_to_ban_removed(self, mock_process_manager, mock_player_manager):
+    def test_init_subscribes_to_server_status(self, mock_process_manager, mock_player_manager):
         from src.events import Event
         controller = MagicMock()
         controller.process_manager = mock_process_manager
@@ -65,4 +70,4 @@ class TestWebServer:
         with patch("src.events.bus.subscribe") as mock_subscribe:
             WebServer(controller)
 
-        mock_subscribe.assert_any_call(Event.BAN_REMOVED, ANY)
+        mock_subscribe.assert_any_call(Event.SERVER_STATUS, ANY)

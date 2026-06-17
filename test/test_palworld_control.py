@@ -84,19 +84,28 @@ class TestPalWorldController:
         controller.current_server_info = {"running": True, "playerCount": 2, "players": [["P1"], ["P2"]]}
         assert controller.current_server_info["running"] is True
 
-    def test_update_current_server_info(self, mock_settings, mock_client, mock_process_manager, mock_player_manager):
-        mock_client.get_player_names.return_value = [["P1", "p1", "u1", "10"], ["P2", "p2", "u2", "15"]]
-        mock_process_manager.is_process_running.return_value = True
+    def test_server_status_event_updates_current_server_info(self, mock_settings, mock_client, mock_process_manager, mock_player_manager):
         controller = PalWorldController(client=mock_client, process_manager=mock_process_manager, player_manager=mock_player_manager)
-        info = controller.update_current_server_info()
-        assert info["running"] is True
-        assert info["playerCount"] == 2
+        controller._on_server_status({
+            "running": True,
+            "playerCount": 2,
+            "players": [["P1", "p1", "u1", "10"], ["P2", "p2", "u2", "15"]],
+            "banned_players": [],
+        })
+        assert controller.current_server_info["running"] is True
+        assert controller.current_server_info["playerCount"] == 2
 
-    def test_update_current_server_info_server_not_running(self, mock_settings, mock_client, mock_process_manager):
-        mock_process_manager.is_process_running.return_value = False
-        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager)
-        info = controller.update_current_server_info()
-        assert info["running"] is False
+    def test_server_status_event_triggers_auto_stop_with_zero_players(self, mock_settings, mock_client, mock_process_manager, mock_player_manager):
+        controller = PalWorldController(client=mock_client, process_manager=mock_process_manager, player_manager=mock_player_manager)
+        controller.last_server_started_time = 0
+        with patch.object(controller, "_handle_auto_stop_condition") as mock_handle:
+            controller._on_server_status({
+                "running": True,
+                "playerCount": 0,
+                "players": [],
+                "banned_players": [],
+            })
+            mock_handle.assert_called_once()
 
     @patch("src.events.bus.publish")
     def test_kick_player(self, mock_publish, mock_settings, mock_client, mock_process_manager, mock_player_manager):
