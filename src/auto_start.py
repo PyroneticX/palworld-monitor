@@ -50,6 +50,7 @@ class AutoStartManager:
             return True
         except OSError:
             return False
+
     def open_palworld_port_socket(self):
         """Open socket before listen. Thread-safe."""
         palworld_server_port = settings.palworldServerPort
@@ -75,13 +76,19 @@ class AutoStartManager:
                 return True
             except OSError as e:
                 if hasattr(e, "winerror") and e.winerror == 10048:
-                    logging.error(f"Palworld port {palworld_server_port} is still in use. Cannot bind to port.")
+                    logging.error(
+                        f"Palworld port {palworld_server_port} is still in use. Cannot bind to port."
+                    )
                 elif hasattr(e, "errno") and e.errno == 98:
-                    logging.error(f"Palworld port {palworld_server_port} is still in use. Cannot bind to port.")
+                    logging.error(
+                        f"Palworld port {palworld_server_port} is still in use. Cannot bind to port."
+                    )
                 else:
                     logging.error(f"OSError opening PalWorld port socket: {e}")
                 if attempt < max_retries - 1:
-                    logging.debug(f"Retrying in {retry_delay} seconds... (attempt {attempt + 1}/{max_retries})")
+                    logging.debug(
+                        f"Retrying in {retry_delay} seconds... (attempt {attempt + 1}/{max_retries})"
+                    )
                     time.sleep(retry_delay)
                 else:
                     logging.error(traceback.format_exc())
@@ -109,6 +116,7 @@ class AutoStartManager:
             logging.error(traceback.format_exc())
             return False
         return True
+
     def wait_for_port_available(self, port, timeout=30):
         """Wait up to `timeout` seconds for the port to become available. Returns True if available, False if timeout."""
         start_time = time.time()
@@ -134,7 +142,9 @@ class AutoStartManager:
             try:
                 data, _addr = sock.recvfrom(1024)
                 if self._is_player_connection_packet(data):
-                    logging.info("A player is attempting to connect. Starting Palworld Server...")
+                    logging.info(
+                        "A player is attempting to connect. Starting Palworld Server..."
+                    )
                     return True
             except OSError as e:
                 if hasattr(e, "winerror") and e.winerror == 10038:
@@ -149,7 +159,6 @@ class AutoStartManager:
                 logging.error(traceback.format_exc())
                 return self._handle_socket_error()
         return False
-
 
     def _is_player_connection_packet(self, data):
         """Check if the received data is a player connection packet."""

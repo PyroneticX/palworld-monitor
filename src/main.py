@@ -10,9 +10,6 @@ import logging
 import traceback
 import os
 
-if __name__ != "__main__":
-    exit()
-
 try:
     log_level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
     log_level = getattr(logging, log_level_name, logging.INFO)
@@ -28,8 +25,7 @@ try:
     )
 
     # read settings if settings.yaml exists
-    settings_path = os.path.join(os.path.dirname(__file__), "settings.yaml")
-    settings.readSettings(settings_path)
+    settings.readSettings(os.path.join(os.path.dirname(__file__), "settings.yaml"))
 
     # Validate settings at startup
     try:
@@ -45,9 +41,11 @@ try:
     # Choose the client based on the protocol setting
     if settings.protocol.upper() == "REST":
         from src.api_clients import RestClient
+
         client = RestClient()
     elif settings.protocol.upper() == "RCON":
         from src.api_clients import RconClient
+
         client = RconClient()
     else:
         logging.error(f"Invalid protocol specified in settings: {settings.protocol}")
@@ -87,6 +85,4 @@ except KeyboardInterrupt:
 except Exception as e:
     logging.error(f"Error from src.main routine: {e}")
     logging.error(traceback.format_exc())
-
-if __name__ != "__main__":
-    exit()
+    exit(1)

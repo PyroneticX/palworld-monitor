@@ -23,10 +23,16 @@ class TestAutoStartManager:
         with patch("src.auto_start.bus.subscribe") as mock_subscribe:
             manager = AutoStartManager(mock_controller)
 
-            mock_subscribe.assert_any_call(Event.SERVER_STARTED, manager.stop_listen_thread)
-            mock_subscribe.assert_any_call(Event.SERVER_STOPPED, manager.listen_palworld_access)
+            mock_subscribe.assert_any_call(
+                Event.SERVER_STARTED, manager.stop_listen_thread
+            )
+            mock_subscribe.assert_any_call(
+                Event.SERVER_STOPPED, manager.listen_palworld_access
+            )
 
-    def test_server_started_handler_is_stop_listen_thread(self, mock_controller, mock_settings):
+    def test_server_started_handler_is_stop_listen_thread(
+        self, mock_controller, mock_settings
+    ):
         handlers = {}
 
         def capture_subscribe(event_type, callback):
@@ -36,9 +42,14 @@ class TestAutoStartManager:
             manager = AutoStartManager(mock_controller)
 
         assert handlers[Event.SERVER_STARTED].__self__ is manager
-        assert handlers[Event.SERVER_STARTED].__func__ is AutoStartManager.stop_listen_thread
+        assert (
+            handlers[Event.SERVER_STARTED].__func__
+            is AutoStartManager.stop_listen_thread
+        )
 
-    def test_server_stopped_handler_is_listen_palworld_access(self, mock_controller, mock_settings):
+    def test_server_stopped_handler_is_listen_palworld_access(
+        self, mock_controller, mock_settings
+    ):
         handlers = {}
 
         def capture_subscribe(event_type, callback):
@@ -48,4 +59,7 @@ class TestAutoStartManager:
             manager = AutoStartManager(mock_controller)
 
         assert handlers[Event.SERVER_STOPPED].__self__ is manager
-        assert handlers[Event.SERVER_STOPPED].__func__ is AutoStartManager.listen_palworld_access
+        assert (
+            handlers[Event.SERVER_STOPPED].__func__
+            is AutoStartManager.listen_palworld_access
+        )

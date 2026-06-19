@@ -5,6 +5,7 @@ import logging
 # Configure logging for the event bus
 logger = logging.getLogger(__name__)
 
+
 class EventBus:
     def __init__(self):
         self._subscribers: Dict[str, list[Callable]] = {}
@@ -15,8 +16,10 @@ class EventBus:
             if event_type not in self._subscribers:
                 self._subscribers[event_type] = []
             self._subscribers[event_type].append(callback)
-            callback_name = getattr(callback, '__qualname__', str(callback))
-            logger.debug(f"Subscribed to event type: {event_type} with callback: {callback_name}")
+            callback_name = getattr(callback, "__qualname__", str(callback))
+            logger.debug(
+                f"Subscribed to event type: {event_type} with callback: {callback_name}"
+            )
 
     def publish(self, event_type: str, data: Dict[str, Any]):
         with self._lock:
@@ -32,11 +35,15 @@ class EventBus:
             try:
                 callback(data)
             except Exception as e:
-                cb_name = getattr(callback, '__qualname__', str(callback))
-                logger.error(f"Error in subscriber {cb_name} for event {event_type}: {e}")
+                cb_name = getattr(callback, "__qualname__", str(callback))
+                logger.error(
+                    f"Error in subscriber {cb_name} for event {event_type}: {e}"
+                )
+
 
 # Singleton instance
 bus = EventBus()
+
 
 class Event:
     SERVER_STARTED = "SERVER_STARTED"
@@ -55,4 +62,3 @@ class Event:
     CMD_KICK_PLAYER = "CMD_KICK_PLAYER"
     CMD_BAN_PLAYER = "CMD_BAN_PLAYER"
     CMD_UNBAN_PLAYER = "CMD_UNBAN_PLAYER"
-

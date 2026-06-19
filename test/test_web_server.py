@@ -41,26 +41,34 @@ class TestWebServer:
         assert web_server.state_cache["running"] is False
 
     def test_sync_banned_players_loads_existing_bans(self, web_server):
-        web_server.palworld_controller.get_banned_players.return_value = ["SteamID1", "SteamID2"]
+        web_server.palworld_controller.get_banned_players.return_value = [
+            "SteamID1",
+            "SteamID2",
+        ]
 
         web_server._sync_banned_players()
 
         assert web_server.state_cache["banned_players"] == ["SteamID1", "SteamID2"]
 
     def test_server_status_event_updates_cache(self, web_server):
-        web_server._on_server_status({
-            "running": True,
-            "playerCount": 2,
-            "players": ["P1", "P2"],
-            "banned_players": ["SteamID1"],
-        })
+        web_server._on_server_status(
+            {
+                "running": True,
+                "playerCount": 2,
+                "players": ["P1", "P2"],
+                "banned_players": ["SteamID1"],
+            }
+        )
         assert web_server.state_cache["running"] is True
         assert web_server.state_cache["playerCount"] == 2
         assert web_server.state_cache["players"] == ["P1", "P2"]
         assert web_server.state_cache["banned_players"] == ["SteamID1"]
 
-    def test_init_subscribes_to_server_status(self, mock_process_manager, mock_player_manager):
+    def test_init_subscribes_to_server_status(
+        self, mock_process_manager, mock_player_manager
+    ):
         from src.events import Event
+
         controller = MagicMock()
         controller.process_manager = mock_process_manager
         controller.player_manager = mock_player_manager

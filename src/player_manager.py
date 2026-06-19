@@ -25,6 +25,7 @@ from src.events import bus, Event
 
 logger = logging.getLogger(__name__)
 
+
 class PlayerManager:
     """Manages player data including online and offline players with timestamps."""
 
@@ -122,7 +123,10 @@ class PlayerManager:
                     current_player_steam_ids.add(steam_id)
                     # Update or add player as online
                     if steam_id not in self.players:
-                        bus.publish(Event.PLAYER_JOINED, {"steam_id": steam_id, **extracted_info})
+                        bus.publish(
+                            Event.PLAYER_JOINED,
+                            {"steam_id": steam_id, **extracted_info},
+                        )
                     self.players[steam_id] = {
                         **extracted_info,
                         "currently_online": True,
@@ -135,7 +139,7 @@ class PlayerManager:
                     if player_data.get("currently_online"):
                         bus.publish(Event.PLAYER_LEFT, {"steam_id": steam_id})
                     player_data["currently_online"] = False
-            
+
             self._save_player_data()
 
     def get_all_players(self) -> List[Dict[str, Any]]:

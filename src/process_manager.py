@@ -18,7 +18,10 @@ class OSProcessManager:
         self._lock = threading.Lock()
         self.launched_pid = None
         self._load_pid_from_file()
-        bus.subscribe(Event.CMD_START_SERVER, lambda data: self.launch_process(data['exe_path'], data['exe_args']))
+        bus.subscribe(
+            Event.CMD_START_SERVER,
+            lambda data: self.launch_process(data["exe_path"], data["exe_args"]),
+        )
         bus.subscribe(Event.CMD_STOP_SERVER, lambda data: self.terminate_process())
 
     def pid_file_name(self):
@@ -119,7 +122,11 @@ class OSProcessManager:
                     combined = " ".join([exe, pname, " ".join(cmdline_list)]).lower()
                     if target and target in combined:
                         return info["pid"]
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                except (
+                    psutil.NoSuchProcess,
+                    psutil.AccessDenied,
+                    psutil.ZombieProcess,
+                ):
                     continue
         except Exception:
             pass

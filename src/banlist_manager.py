@@ -6,6 +6,7 @@ import traceback
 from src.settings import settings
 from src.events import bus, Event
 
+
 class BanlistManager:
     """Manages the Palworld server banlist.txt file."""
 
@@ -19,8 +20,10 @@ class BanlistManager:
         self.banlist_path = banlist_path or self._detect_banlist_path()
         self._lock = threading.RLock()
         # Subscribe to ban/unlan commands
-        bus.subscribe(Event.CMD_BAN_PLAYER, lambda data: self.add_ban(data['steam_id']))
-        bus.subscribe(Event.CMD_UNBAN_PLAYER, lambda data: self.remove_ban(data['steam_id']))
+        bus.subscribe(Event.CMD_BAN_PLAYER, lambda data: self.add_ban(data["steam_id"]))
+        bus.subscribe(
+            Event.CMD_UNBAN_PLAYER, lambda data: self.remove_ban(data["steam_id"])
+        )
 
     def _detect_banlist_path(self):
         """Try to detect the banlist.txt file path based on server executable path."""
@@ -138,7 +141,9 @@ class BanlistManager:
 
                 # Ensure directory exists
                 banlist_dir = os.path.dirname(self.banlist_path)
-                if banlist_dir:  # Only create directory if path has a directory component
+                if (
+                    banlist_dir
+                ):  # Only create directory if path has a directory component
                     os.makedirs(banlist_dir, exist_ok=True)
 
                 # Write banlist back to file

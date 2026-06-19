@@ -25,6 +25,7 @@ from src.auth import User, LoginAttemptTracker, verify_password
 import logging
 import threading
 
+
 class WebServer:
     def __init__(self, palworld_controller: PalWorldController):
         """
@@ -42,7 +43,7 @@ class WebServer:
             "running": False,
             "playerCount": 0,
             "players": [],
-            "banned_players": []
+            "banned_players": [],
         }
         self._lock = threading.Lock()
 
@@ -92,6 +93,7 @@ class WebServer:
 
         # Subscribe to events to update state cache
         from src.events import bus, Event
+
         bus.subscribe(Event.SERVER_STARTED, self._on_server_started)
         bus.subscribe(Event.SERVER_STOPPED, self._on_server_stopped)
         bus.subscribe(Event.SERVER_STATUS, self._on_server_status)
@@ -102,12 +104,16 @@ class WebServer:
     def _sync_running_state(self):
         """Sync the cached running flag with the actual process state."""
         with self._lock:
-            self.state_cache["running"] = self.palworld_controller.is_palworld_process_running()
+            self.state_cache["running"] = (
+                self.palworld_controller.is_palworld_process_running()
+            )
 
     def _sync_banned_players(self):
         """Sync the cached banned list with the actual banlist file."""
         with self._lock:
-            self.state_cache["banned_players"] = list(self.palworld_controller.get_banned_players())
+            self.state_cache["banned_players"] = list(
+                self.palworld_controller.get_banned_players()
+            )
 
     def _on_server_started(self, data):
         with self._lock:
@@ -136,7 +142,10 @@ class WebServer:
             try:
                 if isinstance(timestamp, (int, float)):
                     from datetime import datetime
-                    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
+                    return datetime.fromtimestamp(timestamp).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
                 else:
                     return str(timestamp)
             except Exception:
@@ -252,7 +261,9 @@ class WebServer:
         """Handle the main page route."""
         self._sync_running_state()
         players = self.palworld_controller.get_players_for_web()
-        total_player_count = len(self.palworld_controller.player_manager.get_online_players())
+        total_player_count = len(
+            self.palworld_controller.player_manager.get_online_players()
+        )
 
         with self._lock:
             current_server_info = self.state_cache.copy()
@@ -296,7 +307,9 @@ class WebServer:
         self._sync_running_state()
 
         players = self.palworld_controller.get_players_for_web()
-        total_player_count = len(self.palworld_controller.player_manager.get_online_players())
+        total_player_count = len(
+            self.palworld_controller.player_manager.get_online_players()
+        )
 
         with self._lock:
             return jsonify(
@@ -322,7 +335,9 @@ class WebServer:
         self._sync_running_state()
 
         players = self.palworld_controller.get_players_for_web()
-        total_player_count = len(self.palworld_controller.player_manager.get_online_players())
+        total_player_count = len(
+            self.palworld_controller.player_manager.get_online_players()
+        )
 
         with self._lock:
             return jsonify(
@@ -348,7 +363,9 @@ class WebServer:
         self._sync_running_state()
 
         players = self.palworld_controller.get_players_for_web()
-        total_player_count = len(self.palworld_controller.player_manager.get_online_players())
+        total_player_count = len(
+            self.palworld_controller.player_manager.get_online_players()
+        )
 
         with self._lock:
             return jsonify(
@@ -375,7 +392,9 @@ class WebServer:
         self._sync_running_state()
 
         players = self.palworld_controller.get_players_for_web()
-        total_player_count = len(self.palworld_controller.player_manager.get_online_players())
+        total_player_count = len(
+            self.palworld_controller.player_manager.get_online_players()
+        )
 
         with self._lock:
             return jsonify(
@@ -391,7 +410,9 @@ class WebServer:
         """Handle request to get list of banned players."""
         self._sync_banned_players()
         with self._lock:
-            return jsonify(success=True, banned_players=list(self.state_cache["banned_players"]))
+            return jsonify(
+                success=True, banned_players=list(self.state_cache["banned_players"])
+            )
 
     def run(self):
         """Start the web server in a separate thread."""
@@ -401,6 +422,7 @@ class WebServer:
 
         def start_flask():
             import logging as flask_logging
+
             flask_logging.getLogger("werkzeug").setLevel(flask_logging.ERROR)
 
             try:
