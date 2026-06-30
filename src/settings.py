@@ -239,6 +239,20 @@ class Settings:
         ):
             errors.append("webPassword is required when useWebServer is enabled")
 
+        # Validate port ranges (1-65535) for all configured ports
+        for name, value in [
+            ("palworldServerPort", self.palworldServerPort),
+            ("palworldRESTPort", self.palworldRESTPort),
+            ("palworldRCONPort", self.palworldRCONPort),
+            ("webServerPort", self.webServerPort),
+        ]:
+            try:
+                port = int(value) if isinstance(value, str) else value
+                if not 1 <= port <= 65535:
+                    errors.append(f"{name} must be between 1 and 65535 (got {port})")
+            except Exception:
+                errors.append(f"{name} is not a valid integer: {value}")
+
         # Check that server executable exists
         server_exe_path = self.settings.get("palworldServerExePath")
         if server_exe_path:
