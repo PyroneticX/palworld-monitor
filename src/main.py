@@ -36,7 +36,6 @@ try:
         exit(1)
 
     # Create instances of managers
-    auto_start_manager = None
 
     # Choose the client based on the protocol setting
     if settings.protocol.upper() == "REST":

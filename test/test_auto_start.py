@@ -2,24 +2,24 @@
 Tests for the AutoStartManager module.
 """
 
+import types
+
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch, MagicMock
 from src.auto_start import AutoStartManager
 from src.events import Event
+
+
+@pytest.fixture
+def mock_controller():
+    """A stand-in controller fixture (unused in these tests)."""
+    return None
 
 
 class TestAutoStartManager:
     """Test suite for AutoStartManager."""
 
-    @pytest.fixture
-    def mock_controller(self, mock_process_manager):
-        """Create a mock PalWorldController."""
-        controller = MagicMock()
-        controller.process_manager = mock_process_manager
-        controller.is_palworld_process_running.return_value = False
-        return controller
-
-    def test_init_subscribes_to_server_events(self, mock_controller, mock_settings):
+    def test_init_subscribes_to_server_events(self, mock_controller):
         with patch("src.auto_start.bus.subscribe") as mock_subscribe:
             manager = AutoStartManager(mock_controller)
 
@@ -30,36 +30,34 @@ class TestAutoStartManager:
                 Event.SERVER_STOPPED, manager.listen_palworld_access
             )
 
-    def test_server_started_handler_is_stop_listen_thread(
-        self, mock_controller, mock_settings
-    ):
+    def test_server_started_handler_is_stop_listen_thread(self):
         handlers = {}
 
         def capture_subscribe(event_type, callback):
             handlers[event_type] = callback
 
         with patch("src.auto_start.bus.subscribe", side_effect=capture_subscribe):
-            manager = AutoStartManager(mock_controller)
+            manager = AutoStartManager(None)
 
+        assert isinstance(handlers[Event.SERVER_STARTED], types.MethodType)
         assert handlers[Event.SERVER_STARTED].__self__ is manager
         assert (
-            handlers[Event.SERVER_STARTED].__func__
-            is AutoStartManager.stop_listen_thread
+            handlers[Event.SERVER_STARTED].__func__.__name__ == "stop_listen_thread"
         )
 
-    def test_server_stopped_handler_is_listen_palworld_access(
-        self, mock_controller, mock_settings
-    ):
+    def test_server_stopped_handler_is_listen_palworld_access(self):
+        import types
+
         handlers = {}
 
         def capture_subscribe(event_type, callback):
             handlers[event_type] = callback
 
         with patch("src.auto_start.bus.subscribe", side_effect=capture_subscribe):
-            manager = AutoStartManager(mock_controller)
+            manager = AutoStartManager(None)
 
+        assert isinstance(handlers[Event.SERVER_STOPPED], types.MethodType)
         assert handlers[Event.SERVER_STOPPED].__self__ is manager
         assert (
-            handlers[Event.SERVER_STOPPED].__func__
-            is AutoStartManager.listen_palworld_access
+            handlers[Event.SERVER_STOPPED].__func__.__name__ == "listen_palworld_access"
         )

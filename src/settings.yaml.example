@@ -9,8 +9,8 @@ palserver:
   # Port for the Palworld server. The monitor will listen on this port for players
   # attempting to connect.
   port: 8211
-  # Admin password for the Palworld server (required)
-  adminPassword: null
+  # Admin password for the Palworld server (required) — change this on first use
+  adminPassword: "changeme"
   # Protocol used for server communication (REST or RCON)
   protocol: "REST"
   # Port for the REST API
@@ -28,8 +28,8 @@ web:
   port: 8213
   # Web interface username
   username: "admin"
-  # Web interface password (required)
-  password: null
+  # Web interface password (required) — change this on first use
+  password: "changeme"
   # Enable server control through web interface (combines all button controls)
   controlServer: true
   # Show server IP address in UI

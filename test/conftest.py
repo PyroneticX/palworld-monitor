@@ -1,5 +1,5 @@
 """
-Pytest configuration and shared fixtures for process manager tests.
+Pytest configuration and shared fixtures for the entire test suite.
 """
 
 import sys
@@ -8,7 +8,7 @@ import pytest
 import tempfile
 import shutil
 
-# Add project root and src directory to path
+# Add project root and src directory to path (once, at module level)
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, project_root)
 sys.path.insert(0, os.path.join(project_root, "src"))
@@ -38,7 +38,6 @@ def temp_dir():
 def cleanup_pid_files():
     """Automatically clean up PID files after each test."""
     yield
-    # Clean up PID files that might have been created
     pid_files = ["palworld_server.win.pid", "palworld_server.linux.pid"]
     for pid_file in pid_files:
         if os.path.exists(pid_file):
@@ -49,13 +48,11 @@ def cleanup_pid_files():
 
 
 @pytest.fixture
-def mock_settings(monkeypatch):
-    """Mock settings module with all required attributes."""
+def mock_settings():
+    """Shared settings fixture with all required attributes."""
     from unittest.mock import MagicMock
 
     mock = MagicMock()
-
-    # Server configuration
     mock.palworldServerHost = "localhost"
     mock.palworldServerPort = 8211
     mock.palworldRESTPort = 8212
@@ -64,39 +61,29 @@ def mock_settings(monkeypatch):
     mock.palworldServerExePath = "/path/to/PalServer.exe"
     mock.palworldMainProcessName = "PalServer-Win64-Shipping-Cmd.exe"
     mock.palworldExeArguments = "-test-args"
-
-    # Web server configuration
     mock.useWebServer = True
     mock.webServerPort = 8213
     mock.webUsername = "test_admin"
     mock.webPassword = "test_web_password"
-    mock.sessionSecretKey = "test_secret_key_123456789012345678901234567890"
+    mock.sessionSecretKey = (
+        "test_secret_key_123456789012345678901234567890"
+    )
     mock.sessionTimeout = 3600
     mock.maxLoginAttempts = 5
     mock.lockoutDuration = 300
     mock.rateLimitEnabled = True
     mock.rateLimitRequests = 100
     mock.rateLimitWindow = 60
-
-    # Auto-start/stop configuration
     mock.autoStart = True
     mock.autoStop = True
     mock.autoStopDelay = 120
     mock.updateInterval = 30
-
-    # Feature flags
     mock.enablePlayerTracking = True
     mock.protocol = "REST"
     mock.controlServerThroughWeb = True
     mock.showServerIPAddress = False
     mock.firstPacketPattern = b"\x09\x08\x00"
 
-    # Patch settings import in all modules that use it
-    monkeypatch.setattr("src.api_clients.settings", mock)
-    monkeypatch.setattr("src.palworld_control.settings", mock)
-    monkeypatch.setattr("src.auto_start.settings", mock)
-    monkeypatch.setattr("src.player_manager.settings", mock)
-    monkeypatch.setattr("src.banlist_manager.settings", mock)
     return mock
 
 

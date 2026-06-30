@@ -2,28 +2,27 @@
 Tests for the API clients module (RestClient and RconClient).
 """
 
-import pytest
-import sys
-import os
 import json
+
+import pytest
 from unittest.mock import patch, MagicMock
 import requests
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 from src.api_clients import RestClient, RconClient
-from test.support import create_mock_http_response, create_mock_rcon_console
 
 
 @pytest.fixture
 def mock_http_response():
     """Create a mock HTTP response with default values."""
+    from test.support import create_mock_http_response
+
     return create_mock_http_response()
 
 
 @pytest.fixture
 def mock_rcon_console():
     """Create a mock RCON console with default values."""
+    from test.support import create_mock_rcon_console
+
     return create_mock_rcon_console()
 
 

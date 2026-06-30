@@ -53,7 +53,11 @@ class TestPalWorldController:
         with (
             patch("os.path.exists", return_value=False),
             patch("time.time", return_value=1000),
+            patch("src.palworld_control.settings") as mock_ctrl_settings,
         ):
+            mock_ctrl_settings.palworldServerExePath = mock_settings.palworldServerExePath
+            mock_ctrl_settings.palworldExeArguments = mock_settings.palworldExeArguments
+
             controller = PalWorldController(
                 client=mock_client, process_manager=mock_process_manager
             )
