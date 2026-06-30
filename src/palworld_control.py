@@ -130,6 +130,7 @@ class PalWorldController:
             ):
                 pid = self.process_manager.find_process_pid("palserver")
                 if pid:
+                    bus.publish(Event.SERVER_STARTED, {"pid": pid})
                     self.process_manager.set_known_pid(pid)
         except Exception:
             pass

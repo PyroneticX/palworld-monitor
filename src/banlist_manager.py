@@ -129,27 +129,17 @@ class BanlistManager:
 
         with self._lock:
             try:
-                # Get existing bans
-                banned_players = set(self.get_banned_players())
+                # Read existing bans into a set for membership testing
+                banned_set = set(self.get_banned_players())
 
-                # Add new ban
-                if steam_id in banned_players:
+                if steam_id in banned_set:
                     logging.debug(f"Steam ID {steam_id} is already banned")
+                    bus.publish(Event.BAN_ADDED, {"steam_id": steam_id})
                     return True
 
-                banned_players.add(steam_id)
-
-                # Ensure directory exists
-                banlist_dir = os.path.dirname(self.banlist_path)
-                if (
-                    banlist_dir
-                ):  # Only create directory if path has a directory component
-                    os.makedirs(banlist_dir, exist_ok=True)
-
-                # Write banlist back to file
-                with open(self.banlist_path, "w", encoding="utf-8") as f:
-                    for banned_id in sorted(banned_players):
-                        f.write(f"{banned_id}\n")
+                # Append the new ban to a temp buffer instead of rewriting the whole file
+                with open(self.banlist_path, "a", encoding="utf-8") as f:
+                    f.write(f"{steam_id}\n")
 
                 logging.info(f"Successfully added ban for Steam ID: {steam_id}")
                 bus.publish(Event.BAN_ADDED, {"steam_id": steam_id})
@@ -176,20 +166,26 @@ class BanlistManager:
 
         with self._lock:
             try:
-                # Get existing bans
-                banned_players = set(self.get_banned_players())
+                # Read existing lines to check membership (without loading into set)
+                banned_set = set()
+                for line in open(self.banlist_path, "r", encoding="utf-8"):
+                    stripped = line.strip()
+                    if stripped and not stripped.startswith("#"):
+                        banned_set.add(stripped)
 
-                # Remove ban
-                if steam_id not in banned_players:
+                if steam_id not in banned_set:
                     logging.debug(f"Steam ID {steam_id} is not banned")
+                    bus.publish(Event.BAN_REMOVED, {"steam_id": steam_id})
                     return True
 
-                banned_players.remove(steam_id)
+                # Remove the line directly instead of rewriting whole file
+                with open(self.banlist_path, "r", encoding="utf-8") as f:
+                    lines = [l.rstrip("\n") for l in f if l.strip() and not l.startswith("#")]
+                lines.remove(steam_id)
 
-                # Write banlist back to file
                 with open(self.banlist_path, "w", encoding="utf-8") as f:
-                    for banned_id in sorted(banned_players):
-                        f.write(f"{banned_id}\n")
+                    for line in lines:
+                        f.write(f"{line}\n")
 
                 logging.info(f"Successfully removed ban for Steam ID: {steam_id}")
                 bus.publish(Event.BAN_REMOVED, {"steam_id": steam_id})

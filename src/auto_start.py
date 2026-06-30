@@ -173,10 +173,7 @@ class AutoStartManager:
         if self.controller is None or self.controller.is_palworld_process_running():
             return
 
-        max_start_retries = 3
-        retry_delay = 10
-
-        for attempt in range(max_start_retries):
+        for attempt in range(3):
             if self.is_aborting:
                 return
 
@@ -191,11 +188,7 @@ class AutoStartManager:
                     time.sleep(2)
                     if self.controller.is_palworld_process_running():
                         return
-                    logging.warning(
-                        f"Server did not start successfully (attempt {attempt + 1}/{max_start_retries}). "
-                        f"Reconnecting socket in {retry_delay}s..."
-                    )
-                    time.sleep(retry_delay)
+                    logging.warning("Server did not start successfully, reconnecting...")
             else:
                 self.close_palworld_port_socket()
                 return
