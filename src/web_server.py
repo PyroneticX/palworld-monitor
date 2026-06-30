@@ -259,19 +259,19 @@ class WebServer:
 
     def _handle_index(self):
         """Handle the main page route."""
-        self._sync_running_state()
-        players = self.palworld_controller.get_players_for_web()
-        total_player_count = len(
-            self.palworld_controller.player_manager.get_online_players()
-        )
-
         with self._lock:
-            current_server_info = self.state_cache.copy()
+            self._sync_running_state()
+            players = list(self.palworld_controller.get_players_for_web())
+            total_player_count = len(
+                self.palworld_controller.player_manager.get_online_players()
+            )
 
-        if settings.showServerIPAddress:
-            current_server_info["IPAddress"] = self._get_server_ip()
-        else:
-            current_server_info["IPAddress"] = "Unknown"
+            current_server_info = dict(self.state_cache)
+
+            if settings.showServerIPAddress:
+                current_server_info["IPAddress"] = self._get_server_ip()
+            else:
+                current_server_info["IPAddress"] = "Unknown"
 
         theme = request.cookies.get("theme", "light")
         if theme not in ["light", "dark"]:
