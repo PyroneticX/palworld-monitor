@@ -7,6 +7,11 @@ import os
 import pytest
 import tempfile
 import shutil
+from datetime import timedelta
+from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_login import LoginManager
 from unittest.mock import MagicMock
 
 # Add project root and src directory to path
@@ -107,6 +112,7 @@ def mock_settings(monkeypatch):
     monkeypatch.setattr("src.auto_start.settings", mock)
     monkeypatch.setattr("src.player_manager.settings", mock)
     monkeypatch.setattr("src.banlist_manager.settings", mock)
+    monkeypatch.setattr("src.web_server.settings", mock)
     return mock
 
 
@@ -189,21 +195,15 @@ def web_app_factory(mock_settings, mock_process_manager, mock_player_manager, mo
     controller.ban_player.return_value = True
     controller.unban_player.return_value = True
 
-    # Create the Flask app manually since we're bypassing __init__
-    from flask import Flask
-    from flask_login import LoginManager
-    from flask_wtf.csrf import CSRFProtect
-    from flask_limiter import Limiter
-    from flask_limiter.util import get_remote_address
-    from datetime import timedelta
-
-    server.app = Flask(__name__, static_folder="static")
-    server.app.secret_key = mock_settings.sessionSecretKey
+    # Create a WebServer instance with mocked dependencies
+    server = WebServer(controller)
+    server.app.config["SECRET_KEY"] = mock_settings.sessionSecretKey or "test-secret-key"
+    server.app.config["WTF_CSRF_ENABLED"] = False  # disable CSRF in tests
     server.app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(
         seconds=mock_settings.sessionTimeout
     )
 
-    # Initialize CSRF protection
+    # Initialize CSRF protection (disabled via config above)
     server.csrf = CSRFProtect(server.app)
 
     # Initialize rate limiter

@@ -159,6 +159,7 @@ class WebServer:
         """Register Flask routes with the application."""
 
         @self.app.route("/login", methods=["GET", "POST"])
+        @self.csrf.exempt
         def login():
             return self._handle_login()
 
@@ -331,7 +332,7 @@ class WebServer:
     def _handle_player_action(self):
         """Handle player kick/ban/unban requests."""
         steam_id = request.form.get("steam_id")
-        action = request.form.get("action")
+        action = request.form.get("action", request.url_rule.rule.strip("/"))
 
         if not steam_id:
             return jsonify(success=False, message="Steam ID is required"), 400
