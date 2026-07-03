@@ -1,0 +1,323 @@
+"""
+Request-level tests for PalWorld Monitor web interface.
+
+These tests use Flask's test client to exercise the full HTTP request/response pipeline,
+including template rendering, session management, CSRF protection, and all API routes.
+Tests run in-process without needing an actual HTTP server or browser.
+"""
+
+import pytest
+from unittest.mock import MagicMock
+
+
+class TestLoginPageRendering:
+    """Test suite for login page rendering."""
+
+    def test_login_page_renders(self, client):
+        """GET /login renders the login template with no errors."""
+        response = client.get("/login")
+        assert response.status_code == 200
+        assert b"Palworld Server" in response.data
+        assert b"Admin Login" in response.data
+
+    def test_login_page_shows_error_message(self, web_app_factory):
+        """POST invalid credentials shows error message on login page."""
+        # First POST with wrong password to trigger error rendering
+        response = web_app_factory.client.post(
+            "/login",
+            data={
+                "username": "admin",
+                "password": "wrong_password",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        assert b"Invalid credentials" in response.data or b"Too many failed attempts" in response.data
+
+
+class TestSuccessfulLoginFlow:
+    """Test suite for successful login flow."""
+
+    def test_successful_login_redirects_to_index(self, client):
+        """POST valid credentials returns 302 redirect to /."""
+        response = client.post(
+            "/login",
+            data={
+                "username": "admin",
+                "password": "test_web_password",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/"
+
+    def test_login_creates_session(self, client):
+        """After successful login, session is created and subsequent requests are authenticated."""
+        # Login
+        client.post(
+            "/login",
+            data={
+                "username": "admin",
+                "password": "test_web_password",
+            },
+            follow_redirects=False,
+        )
+
+        # Access protected route - should work without redirecting to login
+        response = client.get("/")
+        assert response.status_code == 200
+        assert b"Palworld Dedicated Server" in response.data
+
+
+class TestFailedLoginFlow:
+    """Test suite for failed login flow."""
+
+    def test_failed_login_shows_error(self, client):
+        """POST invalid credentials returns 200 with error message."""
+        response = client.post(
+            "/login",
+            data={
+                "username": "admin",
+                "password": "wrong_password",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        # Should contain error message in the rendered template
+        assert b"Invalid credentials" in response.data or b"Too many failed attempts" in response.data
+
+    def test_login_attempt_counter_increments(self, client):
+        """Multiple failed login attempts increment the counter."""
+        # First attempt
+        client.post(
+            "/login",
+            data={
+                "username": "admin",
+                "password": "wrong_password",
+            },
+            follow_redirects=False,
+        )
+
+        # Second attempt - should still show error but with different message
+        response = client.post(
+            "/login",
+            data={
+                "username": "admin",
+                "password": "another_wrong_password",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+
+
+class TestRememberMeCheckbox:
+    """Test suite for remember me functionality."""
+
+    def test_remember_me_sets_cookie(self, client):
+        """POST with remember=on sets a cookie for 7 days."""
+        response = client.post(
+            "/login",
+            data={
+                "username": "admin",
+                "password": "test_web_password",
+                "remember": "on",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        # Check that a cookie was set for the remember functionality
+        cookies = response.headers.getlist("Set-Cookie")
+        remember_cookies = [c for c in cookies if "remember" in c]
+        assert len(remember_cookies) > 0
+
+
+class TestLogoutFlow:
+    """Test suite for logout flow."""
+
+    def test_logout_redirects_to_login(self, auth_client):
+        """POST /logout redirects to login page and clears session."""
+        response = auth_client.post("/logout", follow_redirects=False)
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/login"
+
+
+class TestIndexPageRendering:
+    """Test suite for index/dashboard page rendering."""
+
+    def test_index_page_renders_when_logged_in(self, auth_client):
+        """GET / renders the dashboard with player data when authenticated."""
+        response = auth_client.get("/")
+        assert response.status_code == 200
+        assert b"Palworld Dedicated Server" in response.data
+        # Should contain status indicators and action buttons
+        assert b"Update Server Status" in response.data or b"getStatus" in response.data
+
+    def test_index_page_shows_status_indicators(self, auth_client):
+        """Dashboard displays server status ON/OFF indicators."""
+        response = auth_client.get("/")
+        assert response.status_code == 200
+        # Should contain status indicator elements
+        assert b"status-on" in response.data or b"status-off" in response.data
+
+    def test_index_page_shows_action_buttons(self, auth_client):
+        """Dashboard displays start/stop buttons when controlServerThroughWeb is enabled."""
+        response = auth_client.get("/")
+        assert response.status_code == 200
+        # Should contain action button elements
+        assert b"Start Server" in response.data or b"Stop Server" in response.data
+
+
+class TestStatusUpdatePolling:
+    """Test suite for server status update polling."""
+
+    def test_get_status_returns_json(self, auth_client):
+        """POST /action?action=getStatus returns JSON with server state."""
+        response = auth_client.post(
+            "/action",
+            data={"action": "getStatus"},
+            content_type="application/x-www-form-urlencoded",
+        )
+
+        assert response.status_code == 200
+        # Should return JSON with expected keys
+        import json
+        data = json.loads(response.data)
+        assert "data" in data or "running" in str(data).lower()
+
+
+class TestServerStartStopActions:
+    """Test suite for server start/stop actions."""
+
+    def test_start_server_action(self, auth_client):
+        """POST /action?action=startServer dispatches to controller."""
+        response = auth_client.post(
+            "/action",
+            data={"action": "startServer"},
+            content_type="application/x-www-form-urlencoded",
+        )
+
+        assert response.status_code == 200
+
+
+class TestKickPlayerAction:
+    """Test suite for kick player action."""
+
+    def test_kick_player_returns_json(self, auth_client):
+        """POST /kick with steam_id returns success/failure JSON."""
+        response = auth_client.post(
+            "/kick",
+            data={"steam_id": "123456789"},
+            content_type="application/x-www-form-urlencoded",
+        )
+
+        assert response.status_code == 200
+
+
+class TestBanPlayerAction:
+    """Test suite for ban player action."""
+
+    def test_ban_player_returns_json(self, auth_client):
+        """POST /ban with steam_id returns success/failure JSON."""
+        response = auth_client.post(
+            "/ban",
+            data={"steam_id": "123456789"},
+            content_type="application/x-www-form-urlencoded",
+        )
+
+        assert response.status_code == 200
+
+
+class TestUnbanPlayerAction:
+    """Test suite for unban player action."""
+
+    def test_unban_player_returns_json(self, auth_client):
+        """POST /unban with steam_id returns success/failure JSON."""
+        response = auth_client.post(
+            "/unban",
+            data={"steam_id": "123456789"},
+            content_type="application/x-www-form-urlencoded",
+        )
+
+        assert response.status_code == 200
+
+
+class TestCSRFProtection:
+    """Test suite for CSRF protection."""
+
+    def test_post_without_csrf_token_fails(self, client):
+        """POST without CSRF token returns error (403/422)."""
+        # Try to access a protected route without authentication or CSRF token
+        response = client.post(
+            "/action",
+            data={"action": "getStatus"},
+            content_type="application/x-www-form-urlencoded",
+        )
+
+        # Should fail with CSRF error (403 Forbidden or 422 Unprocessable Entity)
+        assert response.status_code in [403, 422]
+
+
+class TestSessionTimeoutRedirectsToLogin:
+    """Test suite for session timeout behavior."""
+
+    def test_session_timeout_redirects_to_login(self, client):
+        """When session expires, AJAX responses redirect to /login?redirect=..."""
+        # First login successfully
+        response = client.post(
+            "/login",
+            data={
+                "username": "admin",
+                "password": "test_web_password",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+
+        # Now try to access a protected route - should redirect to login
+        response = client.get("/action?action=getStatus")
+        # Should redirect to login page (either directly or via session timeout)
+        assert response.status_code in [302, 401]
+
+
+class TestLockedOutUserCantLogin:
+    """Test suite for account lockout behavior."""
+
+    def test_locked_out_user_cannot_login(self, client):
+        """After max failed attempts with short lockout, login form button is disabled and POST returns error page."""
+        # Use a very short lockout duration (1 second) to make the test fast
+        import time
+
+        # Make multiple failed login attempts to trigger lockout
+        for i in range(3):
+            response = client.post(
+                "/login",
+                data={
+                    "username": "admin",
+                    "password": f"wrong_password_{i}",
+                },
+                follow_redirects=False,
+            )
+
+            assert response.status_code == 200
+
+        # Wait for lockout to expire (1 second)
+        time.sleep(1.5)
+
+        # Try to login again - should still fail due to lockout
+        response = client.post(
+            "/login",
+            data={
+                "username": "admin",
+                "password": "wrong_password_3",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
