@@ -15,6 +15,7 @@ import socket
 from src.events import bus, Event
 from src.settings import settings
 from src.palworld_control import PalWorldController
+from src.constants import FIRST_PACKET_PATTERN
 import logging
 import threading
 import traceback
@@ -141,7 +142,7 @@ class AutoStartManager:
 
     def _is_player_connection_packet(self, data):
         """Check if the received data is a player connection packet."""
-        return data.startswith(settings.firstPacketPattern)
+        return data.startswith(FIRST_PACKET_PATTERN)
 
     def _handle_socket_error(self):
         """Handle socket errors by returning False."""

@@ -5,6 +5,8 @@ Extended tests for AutoStartManager covering packet detection and socket handlin
 import pytest
 from unittest.mock import MagicMock, patch
 from src.auto_start import AutoStartManager
+from src.constants import FIRST_PACKET_PATTERN
+from src.settings import settings
 
 
 class TestAutoStartPacketDetection:
@@ -60,7 +62,7 @@ class TestAutoStartSocketHandling:
         manager = AutoStartManager(None)
         # Set up a mock socket that will receive data
         mock_sock = MagicMock()
-        mock_sock.recvfrom.return_value = (b"\x09\x08\x00", ("127.0.0.1", 8211))
+        mock_sock.recvfrom.return_value = (FIRST_PACKET_PATTERN, ("127.0.0.1", settings.palworldServerPort))
 
         with patch.object(manager, "_is_player_connection_packet", return_value=True):
             manager.sock = mock_sock

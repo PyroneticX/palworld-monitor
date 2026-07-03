@@ -12,7 +12,7 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.settings import Settings
-FIRST_PACKET_PATTERN = b"\x09\x08\x00"
+from src.constants import FIRST_PACKET_PATTERN
 from contextlib import contextmanager
 
 

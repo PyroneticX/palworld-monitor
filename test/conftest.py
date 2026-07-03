@@ -48,6 +48,15 @@ def cleanup_pid_files():
                 pass
 
 
+from src.constants import (
+    PALWORLD_SERVER_PORT,
+    PALWORLD_REST_PORT,
+    PALWORLD_RCON_PORT,
+    WEB_SERVER_PORT,
+    PALWORLD_MAIN_PROCESS_NAME,
+)
+
+
 @pytest.fixture
 def mock_settings(monkeypatch):
     """Mock settings module with all required attributes."""
@@ -57,17 +66,17 @@ def mock_settings(monkeypatch):
 
     # Server configuration
     mock.palworldServerHost = "localhost"
-    mock.palworldServerPort = 8211
-    mock.palworldRESTPort = 8212
-    mock.palworldRCONPort = 25575
+    mock.palworldServerPort = PALWORLD_SERVER_PORT
+    mock.palworldRESTPort = PALWORLD_REST_PORT
+    mock.palworldRCONPort = PALWORLD_RCON_PORT
     mock.palworldServerAdminPassword = "test_admin_password"
     mock.palworldServerExePath = "/path/to/PalServer.exe"
-    mock.palworldMainProcessName = "PalServer-Win64-Shipping-Cmd.exe"
+    mock.palworldMainProcessName = PALWORLD_MAIN_PROCESS_NAME
     mock.palworldExeArguments = "-test-args"
 
     # Web server configuration
     mock.useWebServer = True
-    mock.webServerPort = 8213
+    mock.webServerPort = WEB_SERVER_PORT
     mock.webUsername = "test_admin"
     mock.webPassword = "test_web_password"
     mock.sessionSecretKey = "test_secret_key_123456789012345678901234567890"

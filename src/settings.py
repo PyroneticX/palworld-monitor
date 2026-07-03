@@ -17,23 +17,37 @@ import traceback
 import os
 import subprocess
 import secrets
+from src.constants import (
+    PALWORLD_MAIN_PROCESS_NAME,
+    PALWORLD_EXE_ARGUMENTS,
+    PALWORLD_SERVER_PORT,
+    PALWORLD_REST_PORT,
+    PALWORLD_RCON_PORT,
+    WEB_SERVER_PORT,
+    FIRST_PACKET_PATTERN,
+    DEFAULT_SESSION_TIMEOUT,
+    DEFAULT_MAX_LOGIN_ATTEMPTS,
+    DEFAULT_LOCKOUT_DURATION,
+    DEFAULT_RATE_LIMIT_REQUESTS,
+    DEFAULT_RATE_LIMIT_WINDOW,
+)
 
 
 class Settings:
     def __init__(self):
         self.settings = {
             "palworldServerExePath": None,
-            "palworldMainProcessName": "PalServer-Win64-Shipping-Cmd.exe",
-            "palworldExeArguments": "-useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS -NumberOfWorkerThreadsServer=16 -restapi",
+            "palworldMainProcessName": PALWORLD_MAIN_PROCESS_NAME,
+            "palworldExeArguments": PALWORLD_EXE_ARGUMENTS,
             "palworldServerHost": "localhost",
-            "palworldServerPort": 8211,
-            "firstPacketPattern": b"\x09\x08\x00",
-            "palworldRESTPort": 8212,
-            "palworldRCONPort": 25575,
+            "palworldServerPort": PALWORLD_SERVER_PORT,
+            "firstPacketPattern": FIRST_PACKET_PATTERN,
+            "palworldRESTPort": PALWORLD_REST_PORT,
+            "palworldRCONPort": PALWORLD_RCON_PORT,
             "palworldServerAdminPassword": None,
             "protocol": "REST",
             "useWebServer": True,
-            "webServerPort": 8213,
+            "webServerPort": WEB_SERVER_PORT,
             "controlServerThroughWeb": True,
             "showServerIPAddress": False,
             "autoStart": True,
@@ -44,12 +58,13 @@ class Settings:
             "webUsername": "admin",
             "webPassword": None,
             "sessionSecretKey": None,
-            "sessionTimeout": 3600,
-            "maxLoginAttempts": 5,
-            "lockoutDuration": 300,
+            "sessionSecretKey": None,
+            "sessionTimeout": DEFAULT_SESSION_TIMEOUT,
+            "maxLoginAttempts": DEFAULT_MAX_LOGIN_ATTEMPTS,
+            "lockoutDuration": DEFAULT_LOCKOUT_DURATION,
             "rateLimitEnabled": True,
-            "rateLimitRequests": 100,
-            "rateLimitWindow": 60,
+            "rateLimitRequests": DEFAULT_RATE_LIMIT_REQUESTS,
+            "rateLimitWindow": DEFAULT_RATE_LIMIT_WINDOW,
         }
         for key, value in self.settings.items():
             setattr(self, key, value)
