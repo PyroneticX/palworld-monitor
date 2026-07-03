@@ -1,19 +1,3 @@
-# Copyright (c) 2024 Nomomo
-# Copyright (c) 2024 Kevin Perez - Modified work
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without permitted use without complying with the terms
-# of the License. You may obtain a copy of the License at
-#
-# https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, to deal in the Software
-# without restriction. See the License for the specific language governing
-# permissions and limitations under the License.
-
 from typing import List, Dict, Any, Optional
 from src.settings import settings
 import json
@@ -81,16 +65,13 @@ class PlayerManager:
             os.makedirs(os.path.dirname(self.data_file), exist_ok=True)
             with open(self.data_file, "w", encoding="utf-8") as f:
                 json.dump(
-                    {"version": self._get_version(), "players": self.players},
+                    {"version": self.version, "players": self.players},
                     f,
                     indent=2,
                     ensure_ascii=False,
                 )
         except Exception as e:
             logger.error(f"Error saving player data: {e}")
-
-    def _get_version(self):
-        return self.version
 
     def _extract_player_info(self, player_info: List[str]) -> Optional[Dict[str, str]]:
         """Extract player information from server data."""

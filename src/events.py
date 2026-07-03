@@ -2,9 +2,6 @@ from typing import Callable, Dict, Any
 import threading
 import logging
 
-# Configure logging for the event bus
-logger = logging.getLogger(__name__)
-
 
 class EventBus:
     def __init__(self):
@@ -17,6 +14,7 @@ class EventBus:
                 self._subscribers[event_type] = []
             self._subscribers[event_type].append(callback)
             callback_name = getattr(callback, "__qualname__", str(callback))
+            logger = logging.getLogger(__name__)
             logger.debug(
                 f"Subscribed to event type: {event_type} with callback: {callback_name}"
             )
@@ -26,9 +24,11 @@ class EventBus:
             subscribers = self._subscribers.get(event_type, []).copy()
 
         if not subscribers:
+            logger = logging.getLogger(__name__)
             logger.debug(f"No subscribers for {event_type}")
             return
 
+        logger = logging.getLogger(__name__)
         logger.debug(f"Emitting event: {event_type} with data: {data}")
 
         for callback in subscribers:
@@ -52,7 +52,6 @@ class Event:
     PLAYER_LEFT = "PLAYER_LEFT"
     BAN_ADDED = "BAN_ADDED"
     BAN_REMOVED = "BAN_REMOVED"
-    CONFIG_LOADED = "CONFIG_LOADED"
 
     # Status events
     SERVER_STATUS = "SERVER_STATUS"
