@@ -74,14 +74,10 @@ try:
             threading.Event().wait(1)  # Sleep for 1 second intervals
     except KeyboardInterrupt:
         logging.info("CTRL+C received. Shutting down...")
-        # Stop the background update thread
         palworld_controller.stop_server_info_update_thread()
-        # Clean up auto start manager if it exists
         if auto_start_manager:
             auto_start_manager.close_palworld_port_socket()
 
-except KeyboardInterrupt:
-    logging.info("CTRL+C received during startup. Shutting down...")
 except Exception as e:
     logging.error(f"Error from src.main routine: {e}")
     logging.error(traceback.format_exc())

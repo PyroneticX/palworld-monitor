@@ -1,10 +1,15 @@
 # Copyright (c) 2024 Nomomo
-# Copyright (c) 2024 Kevin Perez - Modified work
+# Copyright (c) 2026 Kevin Perez - Modified work
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated permission to deal in the Software
-# without restriction. Include in all copies or substantial portions of the
-# Software.
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
 
 import subprocess
 import psutil
@@ -132,25 +137,23 @@ class OSProcessManager:
             pass
         return None
 
-
 class WindowsProcessManager(OSProcessManager):
     def pid_file_name(self):
         return "palworld_server.win.pid"
 
     def launch_process(self, exe_path, exe_args):
-        creation_flags = (
-            subprocess.HIGH_PRIORITY_CLASS
-            | subprocess.DETACHED_PROCESS
-            | subprocess.CREATE_NEW_PROCESS_GROUP
-            | subprocess.CREATE_NO_WINDOW
-        )
         process = subprocess.Popen(
             [exe_path] + exe_args.split(),
-            creationflags=creation_flags,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             close_fds=True,
+            creationflags=(
+                subprocess.HIGH_PRIORITY_CLASS
+                | subprocess.DETACHED_PROCESS
+                | subprocess.CREATE_NEW_PROCESS_GROUP
+                | subprocess.CREATE_NO_WINDOW
+            ),
         )
         self._after_launch(process)
         bus.publish(Event.SERVER_STARTED, {"pid": self.launched_pid})
@@ -171,3 +174,6 @@ class LinuxProcessManager(OSProcessManager):
         )
         self._after_launch(process)
         bus.publish(Event.SERVER_STARTED, {"pid": self.launched_pid})
+
+
+

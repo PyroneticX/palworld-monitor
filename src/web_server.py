@@ -1,10 +1,15 @@
 # Copyright (c) 2024 Nomomo
-# Copyright (c) 2024 Kevin Perez - Modified work
+# Copyright (c) 2026 Kevin Perez - Modified work
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated permission to deal in the Software
-# without restriction. Include in all copies or substantial portions of the
-# Software.
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
 
 import socket
 from flask import Flask, render_template, request, jsonify, redirect, url_for
@@ -28,8 +33,7 @@ import threading
 
 class WebServer:
     def __init__(self, palworld_controller: PalWorldController):
-        """
-        Initialize the web server with a PalWorld controller instance.
+        """Initialize the web server with a PalWorld controller instance.
 
         Args:
             palworld_controller: Instance of PalWorldController to handle server operations
@@ -155,6 +159,7 @@ class WebServer:
         """Register Flask routes with the application."""
 
         @self.app.route("/login", methods=["GET", "POST"])
+        @self.csrf.exempt
         def login():
             return self._handle_login()
 
@@ -241,9 +246,7 @@ class WebServer:
                 elif remaining <= 2:
                     warning_msg = f"{remaining} attempts remaining before lockout"
 
-                return render_template(
-                    "login.html", error=error_msg, warning=warning_msg
-                )
+                return render_template("login.html", error=error_msg, warning=warning_msg)
 
         return render_template("login.html")
 
@@ -321,14 +324,14 @@ class WebServer:
             )
 
     def _handle_kick(self):
-        """Handle player kick requests."""
+        """Handle player kick request."""
         steam_id = request.form.get("steam_id")
 
         if not steam_id:
             return jsonify(success=False, message="Steam ID is required"), 400
 
         logging.info(
-            f"Kick player {steam_id} by {current_user.username} from {request.remote_addr}"
+            f"Kicked player {steam_id} by {current_user.username} from {request.remote_addr}"
         )
 
         success = self.palworld_controller.kick_player(steam_id)
@@ -346,21 +349,23 @@ class WebServer:
                 data=dict(self.state_cache),
                 players=list(players),
                 total_player_count=total_player_count,
+                banned_players=list(self.state_cache["banned_players"]),
             )
 
     def _handle_ban(self):
-        """Handle player ban requests."""
+        """Handle player ban request."""
         steam_id = request.form.get("steam_id")
 
         if not steam_id:
             return jsonify(success=False, message="Steam ID is required"), 400
 
         logging.info(
-            f"Ban player {steam_id} by {current_user.username} from {request.remote_addr}"
+            f"Banned player {steam_id} by {current_user.username} from {request.remote_addr}"
         )
 
         success = self.palworld_controller.ban_player(steam_id)
         self._sync_running_state()
+        self._sync_banned_players()
 
         players = self.palworld_controller.get_players_for_web()
         total_player_count = len(
@@ -378,18 +383,19 @@ class WebServer:
             )
 
     def _handle_unban(self):
-        """Handle player unban requests."""
+        """Handle player unban request."""
         steam_id = request.form.get("steam_id")
 
         if not steam_id:
             return jsonify(success=False, message="Steam ID is required"), 400
 
         logging.info(
-            f"Unban player {steam_id} by {current_user.username} from {request.remote_addr}"
+            f"Unbanned player {steam_id} by {current_user.username} from {request.remote_addr}"
         )
 
         success = self.palworld_controller.unban_player(steam_id)
         self._sync_running_state()
+        self._sync_banned_players()
 
         players = self.palworld_controller.get_players_for_web()
         total_player_count = len(

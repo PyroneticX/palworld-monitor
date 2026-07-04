@@ -2,10 +2,7 @@ from typing import Callable, Dict, Any
 import threading
 import logging
 
-# Configure logging for the event bus
 logger = logging.getLogger(__name__)
-
-
 class EventBus:
     def __init__(self):
         self._subscribers: Dict[str, list[Callable]] = {}
@@ -52,7 +49,6 @@ class Event:
     PLAYER_LEFT = "PLAYER_LEFT"
     BAN_ADDED = "BAN_ADDED"
     BAN_REMOVED = "BAN_REMOVED"
-    CONFIG_LOADED = "CONFIG_LOADED"
 
     # Status events
     SERVER_STATUS = "SERVER_STATUS"

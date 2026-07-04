@@ -7,6 +7,7 @@ import os
 import pytest
 import tempfile
 import shutil
+from unittest.mock import MagicMock
 
 # Add project root and src directory to path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -97,6 +98,7 @@ def mock_settings(monkeypatch):
     monkeypatch.setattr("src.auto_start.settings", mock)
     monkeypatch.setattr("src.player_manager.settings", mock)
     monkeypatch.setattr("src.banlist_manager.settings", mock)
+    monkeypatch.setattr("src.web_server.settings", mock)
     return mock
 
 
@@ -143,3 +145,111 @@ def mock_banlist_manager():
     bm.add_ban.return_value = True
     bm.remove_ban.return_value = True
     return bm
+
+
+@pytest.fixture
+def client(web_app_factory, mock_settings):
+    """Create an unauthenticated Flask test client with proper credentials configured."""
+    return web_app_factory.app.test_client()
+
+
+@pytest.fixture
+def web_app_factory():
+    from src.web_server import WebServer
+
+    controller = MagicMock()
+    controller.is_palworld_process_running.return_value = False
+    controller.get_players_for_web.return_value = []
+    controller.player_manager.get_online_players.return_value = []
+    controller.start_server.return_value = True
+    controller.stop_server.return_value = True
+    controller.kick_player.return_value = True
+    controller.ban_player.return_value = True
+    controller.unban_player.return_value = True
+
+    server = WebServer(controller)
+    # Ensure Flask app has a secret key for CSRF token generation in templates
+    server.app.secret_key = "test_secret_key_123456789012345678901234567890"
+    server.app.config["WTF_CSRF_ENABLED"] = False  # disable CSRF validation in tests
+
+    return server
+
+
+@pytest.fixture
+def auth_client(web_app_factory, mock_settings):
+    """Create a Flask test client pre-authenticated as the admin user.
+
+    This fixture logs in with valid credentials and returns a client that can access
+    protected routes without needing to POST login first.
+
+    Args:
+        web_app_factory: Real WebServer instance with Flask app
+        mock_settings: Test credentials (username=test_admin, password=test_web_password)
+
+    Yields:
+        Flask test client with active session
+    """
+    # Create a test client and login as admin user
+    auth_client = web_app_factory.app.test_client()
+    response = auth_client.post(
+        "/login",
+        data={
+            "username": mock_settings.webUsername,
+            "password": mock_settings.webPassword,
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302, (
+        f"Expected redirect after login, got {response.status_code}"
+    )
+
+    # Return the authenticated client
+    return auth_client
+
+
+@pytest.fixture
+def short_lockout_client(web_app_factory):
+    """Create a Flask test client with a very short lockout duration for testing.
+
+    This fixture creates a new WebServer instance with lockout_duration=1 second,
+    allowing lockout tests to complete quickly without waiting.
+
+    Yields:
+        Flask test client with active session and 1-second lockout
+    """
+    from src.web_server import WebServer
+
+    # Create a new app instance with short lockout
+    controller = MagicMock()
+    controller.is_palworld_process_running.return_value = False
+    controller.get_players_for_web.return_value = []
+    controller.player_manager.get_online_players.return_value = []
+    controller.start_server.return_value = True
+    controller.stop_server.return_value = True
+    controller.kick_player.return_value = True
+    controller.ban_player.return_value = True
+    controller.unban_player.return_value = True
+
+    server = WebServer.__new__(WebServer)
+    server.palworld_controller = controller
+    server.state_cache = {
+        "running": False,
+        "playerCount": 0,
+        "players": [],
+        "banned_players": [],
+    }
+    server._lock = MagicMock()
+
+    # Subscribe to events (required for proper state management)
+    from src.events import bus, Event
+
+    bus.subscribe(Event.SERVER_STARTED, server._on_server_started)
+    bus.subscribe(Event.SERVER_STOPPED, server._on_server_stopped)
+    bus.subscribe(Event.SERVER_STATUS, server._on_server_status)
+
+    # Sync initial state
+    server._sync_running_state()
+    server._sync_banned_players()
+
+    yield server.app.test_client()

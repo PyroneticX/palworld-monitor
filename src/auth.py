@@ -1,5 +1,5 @@
 # Copyright (c) 2024 Nomomo
-# Copyright (c) 2024 Kevin Perez - Modified work
+# Copyright (c) 2026 Kevin Perez - Modified work
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +26,7 @@ class User(UserMixin):
     """User class for Flask-Login authentication."""
 
     def __init__(self, username: str):
-        """
-        Initialize a user instance.
+        """Initialize a user instance.
 
         Args:
             username: The username for this user
@@ -41,14 +40,12 @@ class User(UserMixin):
 
 
 class LoginAttemptTracker:
-    """
-    Track failed login attempts and implement account lockout.
+    """Track failed login attempts and implement account lockout.
     Stores attempts in memory (resets on application restart).
     """
 
     def __init__(self, max_attempts: int = 5, lockout_duration: int = 300):
-        """
-        Initialize the login attempt tracker.
+        """Initialize the login attempt tracker.
 
         Args:
             max_attempts: Maximum failed attempts before lockout
@@ -60,48 +57,23 @@ class LoginAttemptTracker:
         self.lockouts: Dict[str, datetime] = {}  # IP -> lockout expiry time
 
     def is_locked_out(self, ip_address: str) -> bool:
-        """
-        Check if an IP address is currently locked out.
-
-        Args:
-            ip_address: The IP address to check
-
-        Returns:
-            True if locked out, False otherwise
-        """
+        """Check if an IP address is currently locked out."""
         if ip_address in self.lockouts:
             if datetime.now() < self.lockouts[ip_address]:
                 return True
             else:
-                # Lockout expired, clean up
                 del self.lockouts[ip_address]
-                if ip_address in self.attempts:
-                    del self.attempts[ip_address]
+                self.attempts.pop(ip_address, None)
         return False
 
     def record_failed_attempt(self, ip_address: str) -> None:
-        """
-        Record a failed login attempt.
-
-        Args:
-            ip_address: The IP address of the failed attempt
-        """
+        """Record a failed login attempt."""
         now = datetime.now()
-
-        # Initialize attempts list if needed
-        if ip_address not in self.attempts:
-            self.attempts[ip_address] = []
-
-        # Add this attempt
-        self.attempts[ip_address].append(now)
-
-        # Clean up old attempts (older than lockout duration)
-        cutoff = now - timedelta(seconds=self.lockout_duration)
+        self.attempts.setdefault(ip_address, []).append(now)
         self.attempts[ip_address] = [
-            attempt for attempt in self.attempts[ip_address] if attempt > cutoff
+            a for a in self.attempts[ip_address] if a > now - timedelta(seconds=self.lockout_duration)
         ]
 
-        # Check if we should lock out
         if len(self.attempts[ip_address]) >= self.max_attempts:
             self.lockouts[ip_address] = now + timedelta(seconds=self.lockout_duration)
             logging.warning(
@@ -109,45 +81,18 @@ class LoginAttemptTracker:
             )
 
     def record_successful_login(self, ip_address: str) -> None:
-        """
-        Record a successful login and clear failed attempts.
-
-        Args:
-            ip_address: The IP address of the successful login
-        """
-        if ip_address in self.attempts:
-            del self.attempts[ip_address]
-        if ip_address in self.lockouts:
-            del self.lockouts[ip_address]
+        """Record a successful login and clear failed attempts."""
+        self.attempts.pop(ip_address, None)
+        self.lockouts.pop(ip_address, None)
 
     def get_remaining_attempts(self, ip_address: str) -> int:
-        """
-        Get the number of remaining login attempts before lockout.
-
-        Args:
-            ip_address: The IP address to check
-
-        Returns:
-            Number of remaining attempts
-        """
+        """Get the number of remaining login attempts before lockout."""
         if self.is_locked_out(ip_address):
             return 0
-
-        if ip_address not in self.attempts:
-            return self.max_attempts
-
-        # Clean up old attempts
-        now = datetime.now()
-        cutoff = now - timedelta(seconds=self.lockout_duration)
-        self.attempts[ip_address] = [
-            attempt for attempt in self.attempts[ip_address] if attempt > cutoff
-        ]
-
-        return max(0, self.max_attempts - len(self.attempts[ip_address]))
+        return max(0, self.max_attempts - len(self.attempts.get(ip_address, [])))
 
     def get_lockout_time_remaining(self, ip_address: str) -> Optional[int]:
-        """
-        Get the remaining lockout time in seconds.
+        """Get the remaining lockout time in seconds.
 
         Args:
             ip_address: The IP address to check
@@ -165,13 +110,15 @@ class LoginAttemptTracker:
 def verify_password(
     username: str, password: str, expected_username: str, expected_password: str
 ) -> bool:
-    """
-    Verify username and password against expected credentials.
+    """Verify username and password against expected credentials.
 
     Args:
         username: Provided username
         password: Provided password
-        expected_username: Expected username from src.settings expected_password: Expected password from src.settings Returns:
+        expected_username: Expected username from src.settings
+        expected_password: Expected password from src.settings
+
+    Returns:
         True if credentials match, False otherwise
     """
     return username == expected_username and password == expected_password

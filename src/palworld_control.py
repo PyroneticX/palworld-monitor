@@ -1,5 +1,15 @@
-# Copyright (c 2024 Nomomo
-# Copyright (c) 2024 Kevin Perez - Modified work
+# Copyright (c) 2024 Nomomo
+# Copyright (c) 2026 Kevin Perez - Modified work
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
 
 import logging
 import time
@@ -106,9 +116,7 @@ class PalWorldController:
 
     def _should_block_start(self, current_time):
         if self.is_palworld_process_running():
-            logging.warning(
-                "The attempt to start the Palworld server was made, but it is already running."
-            )
+            logging.warning("The attempt to start the Palworld server was made, but it is already running.")
             return True
         if self.is_palworld_server_starting:
             logging.warning("Palworld Server is already starting.")
@@ -118,7 +126,7 @@ class PalWorldController:
             return True
         if current_time - self.last_server_stopped_time < self.server_stopping_cooldown:
             logging.warning(
-                "You attempted to restart the server too quickly after trying to stop it."
+                "You attempted to restart the server too Quickly after trying to stop it."
             )
             return True
         return False
@@ -134,9 +142,7 @@ class PalWorldController:
         except Exception:
             pass
 
-    def stop_server(
-        self,
-    ):
+    def stop_server(self):
         logging.info("Palworld server stop command received")
         if self._should_block_stop():
             return False
@@ -150,9 +156,7 @@ class PalWorldController:
 
     def _should_block_stop(self):
         if not self.is_palworld_process_running():
-            logging.warning(
-                "An attempt to stop the Palworld server was made, but it was not running."
-            )
+            logging.warning("An attempt to stop the Palworld server was made, but it was not running.")
             return True
         current_time = time.time()
         if current_time - self.last_server_stopped_time < self.server_stopping_cooldown:
