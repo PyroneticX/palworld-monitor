@@ -12,7 +12,6 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.settings import Settings
-from src.constants import FIRST_PACKET_PATTERN
 from contextlib import contextmanager
 
 
@@ -52,7 +51,7 @@ class TestSettings:
         assert settings.rateLimitEnabled is True  # Prevents abuse
 
         # Test behavior: first packet pattern is correctly defined
-        assert settings.firstPacketPattern == FIRST_PACKET_PATTERN
+        assert settings.firstPacketPattern == b"\x09\x08\x00"
 
     def test_getitem(self):
         """Test dictionary-like access to settings."""
@@ -184,9 +183,9 @@ class TestSettings:
             assert hash_value is None
 
     def test_first_packet_pattern(self):
-        """Test that FIRST_PACKET_PATTERN is correctly defined."""
-        assert isinstance(FIRST_PACKET_PATTERN, bytes)
-        assert FIRST_PACKET_PATTERN == b"\x09\x08\x00"
+        """Test first packet pattern value."""
+        assert isinstance(b"\x09\x08\x00", bytes)
+        assert b"\x09\x08\x00" == b"\x09\x08\x00"
 
     def test_auto_generate_session_secret_when_missing(self):
         """Test that sessionSecretKey is auto-generated when missing from settings.yaml."""

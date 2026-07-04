@@ -2,7 +2,7 @@ from typing import Callable, Dict, Any
 import threading
 import logging
 
-
+logger = logging.getLogger(__name__)
 class EventBus:
     def __init__(self):
         self._subscribers: Dict[str, list[Callable]] = {}
@@ -14,7 +14,6 @@ class EventBus:
                 self._subscribers[event_type] = []
             self._subscribers[event_type].append(callback)
             callback_name = getattr(callback, "__qualname__", str(callback))
-            logger = logging.getLogger(__name__)
             logger.debug(
                 f"Subscribed to event type: {event_type} with callback: {callback_name}"
             )
@@ -24,11 +23,9 @@ class EventBus:
             subscribers = self._subscribers.get(event_type, []).copy()
 
         if not subscribers:
-            logger = logging.getLogger(__name__)
             logger.debug(f"No subscribers for {event_type}")
             return
 
-        logger = logging.getLogger(__name__)
         logger.debug(f"Emitting event: {event_type} with data: {data}")
 
         for callback in subscribers:

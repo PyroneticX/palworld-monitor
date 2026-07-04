@@ -17,20 +17,22 @@ import traceback
 import os
 import subprocess
 import secrets
-from src.constants import (
-    PALWORLD_MAIN_PROCESS_NAME,
-    PALWORLD_EXE_ARGUMENTS,
-    PALWORLD_SERVER_PORT,
-    PALWORLD_REST_PORT,
-    PALWORLD_RCON_PORT,
-    WEB_SERVER_PORT,
-    FIRST_PACKET_PATTERN,
-    DEFAULT_SESSION_TIMEOUT,
-    DEFAULT_MAX_LOGIN_ATTEMPTS,
-    DEFAULT_LOCKOUT_DURATION,
-    DEFAULT_RATE_LIMIT_REQUESTS,
-    DEFAULT_RATE_LIMIT_WINDOW,
+
+FIRST_PACKET_PATTERN = b"\x09\x08\x00"
+PALWORLD_MAIN_PROCESS_NAME = "PalServer-Win64-Shipping-Cmd.exe"
+PALWORLD_EXE_ARGUMENTS = (
+    "-useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS "
+    "-NumberOfWorkerThreadsServer=16 -restapi"
 )
+PALWORLD_SERVER_PORT = 8211
+PALWORLD_REST_PORT = 8212
+PALWORLD_RCON_PORT = 25575
+WEB_SERVER_PORT = 8213
+DEFAULT_SESSION_TIMEOUT = 3600
+DEFAULT_MAX_LOGIN_ATTEMPTS = 5
+DEFAULT_LOCKOUT_DURATION = 300
+DEFAULT_RATE_LIMIT_REQUESTS = 100
+DEFAULT_RATE_LIMIT_WINDOW = 60
 
 
 class Settings:
@@ -57,7 +59,6 @@ class Settings:
             "enablePlayerTracking": True,
             "webUsername": "admin",
             "webPassword": None,
-            "sessionSecretKey": None,
             "sessionSecretKey": None,
             "sessionTimeout": DEFAULT_SESSION_TIMEOUT,
             "maxLoginAttempts": DEFAULT_MAX_LOGIN_ATTEMPTS,
@@ -150,9 +151,6 @@ class Settings:
             },
         }
 
-        # Merge both "palserver" and "server" top-level keys into one domain
-        merged_data = {**data.get("palserver", {}), **data.get("server", {})}
-
         flat_settings = {}
 
         for domain, domain_mapping in mapping.items():
@@ -161,13 +159,8 @@ class Settings:
                     if nested_key in data[domain]:
                         flat_settings[flat_key] = data[domain][nested_key]
 
-        # Fallback: check merged_data with top-level keys
-        for nested_key, flat_key in mapping.items():
-            if isinstance(merged_data.get(nested_key), (str, int, bool)):
-                flat_settings[flat_key] = merged_data[nested_key]
-
         for key, value in data.items():
-            if key not in mapping and key not in ["palserver", "server"] and isinstance(value, (str, int, bool, type(None))):
+            if key not in mapping and isinstance(value, (str, int, bool, type(None))):
                 flat_settings[key] = value
 
         return flat_settings

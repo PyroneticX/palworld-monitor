@@ -7,11 +7,6 @@ import os
 import pytest
 import tempfile
 import shutil
-from datetime import timedelta
-from flask_wtf.csrf import CSRFProtect
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from flask_login import LoginManager
 from unittest.mock import MagicMock
 
 # Add project root and src directory to path
@@ -54,15 +49,6 @@ def cleanup_pid_files():
                 pass
 
 
-from src.constants import (
-    PALWORLD_SERVER_PORT,
-    PALWORLD_REST_PORT,
-    PALWORLD_RCON_PORT,
-    WEB_SERVER_PORT,
-    PALWORLD_MAIN_PROCESS_NAME,
-)
-
-
 @pytest.fixture
 def mock_settings(monkeypatch):
     """Mock settings module with all required attributes."""
@@ -72,17 +58,17 @@ def mock_settings(monkeypatch):
 
     # Server configuration
     mock.palworldServerHost = "localhost"
-    mock.palworldServerPort = PALWORLD_SERVER_PORT
-    mock.palworldRESTPort = PALWORLD_REST_PORT
-    mock.palworldRCONPort = PALWORLD_RCON_PORT
+    mock.palworldServerPort = 8211
+    mock.palworldRESTPort = 8212
+    mock.palworldRCONPort = 25575
     mock.palworldServerAdminPassword = "test_admin_password"
     mock.palworldServerExePath = "/path/to/PalServer.exe"
-    mock.palworldMainProcessName = PALWORLD_MAIN_PROCESS_NAME
+    mock.palworldMainProcessName = "PalServer-Win64-Shipping-Cmd.exe"
     mock.palworldExeArguments = "-test-args"
 
     # Web server configuration
     mock.useWebServer = True
-    mock.webServerPort = WEB_SERVER_PORT
+    mock.webServerPort = 8213
     mock.webUsername = "test_admin"
     mock.webPassword = "test_web_password"
     mock.sessionSecretKey = "test_secret_key_123456789012345678901234567890"
@@ -162,28 +148,14 @@ def mock_banlist_manager():
 
 
 @pytest.fixture
-def web_app_factory(mock_settings, mock_process_manager, mock_player_manager, mock_banlist_manager):
-    """Create a real Flask app with mocked controller dependencies for request tests.
+def client(web_app_factory, mock_settings):
+    """Create an unauthenticated Flask test client with proper credentials configured."""
+    return web_app_factory.app.test_client()
 
-    This fixture creates a WebServer instance using the real Flask app (not __new__),
-    so that templates render, sessions are managed, CSRF validates, and routes dispatch
-    through the full HTTP pipeline — all without needing an actual HTTP server or browser.
 
-    Args:
-        mock_settings: Patches settings module with test credentials
-        mock_process_manager: Mock process manager (returns False for running)
-        mock_player_manager: Mock player manager (empty players list)
-        mock_banlist_manager: Mock banlist manager (no bans)
-
-    Yields:
-        WebServer instance with a fully functional Flask app
-    """
+@pytest.fixture
+def web_app_factory():
     from src.web_server import WebServer
-
-    # Generate a session secret key if not already set by mock_settings
-    if not mock_settings.sessionSecretKey:
-        import secrets as _secrets
-        mock_settings.sessionSecretKey = _secrets.token_hex(32)
 
     controller = MagicMock()
     controller.is_palworld_process_running.return_value = False
@@ -195,68 +167,12 @@ def web_app_factory(mock_settings, mock_process_manager, mock_player_manager, mo
     controller.ban_player.return_value = True
     controller.unban_player.return_value = True
 
-    # Create a WebServer instance with mocked dependencies
     server = WebServer(controller)
-    server.app.config["SECRET_KEY"] = mock_settings.sessionSecretKey or "test-secret-key"
-    server.app.config["WTF_CSRF_ENABLED"] = False  # disable CSRF in tests
-    server.app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(
-        seconds=mock_settings.sessionTimeout
-    )
+    # Ensure Flask app has a secret key for CSRF token generation in templates
+    server.app.secret_key = "test_secret_key_123456789012345678901234567890"
+    server.app.config["WTF_CSRF_ENABLED"] = False  # disable CSRF validation in tests
 
-    # Initialize CSRF protection (disabled via config above)
-    server.csrf = CSRFProtect(server.app)
-
-    # Initialize rate limiter
-    if mock_settings.rateLimitEnabled:
-        server.limiter = Limiter(
-            app=server.app,
-            key_func=get_remote_address,
-            default_limits=[
-                f"{mock_settings.rateLimitRequests} per {mock_settings.rateLimitWindow} seconds"
-            ],
-        )
-
-    # Initialize Flask-login
-    server.login_manager = LoginManager()
-    server.login_manager.init_app(server.app)
-    server.login_manager.login_view = "login"
-    server.login_manager.login_message = "Please log in to access this page."
-
-    # Register user loader
-    @server.login_manager.user_loader
-    def load_user(user_id):
-        if user_id == mock_settings.webUsername:
-            from src.auth import User
-            return User(user_id)
-        return None
-
-    server.palworld_controller = controller
-    server.state_cache = {
-        "running": False,
-        "playerCount": 0,
-        "players": [],
-        "banned_players": [],
-    }
-    server._lock = MagicMock()
-
-    # Subscribe to events (required for proper state management)
-    from src.events import bus, Event
-
-    bus.subscribe(Event.SERVER_STARTED, server._on_server_started)
-    bus.subscribe(Event.SERVER_STOPPED, server._on_server_stopped)
-    bus.subscribe(Event.SERVER_STATUS, server._on_server_status)
-
-    # Sync initial state
-    server._sync_running_state()
-    server._sync_banned_players()
-
-    yield server
-
-
-@pytest.fixture
-def client(web_app_factory):
-    """Create a Flask test client for unauthenticated requests."""
-    return web_app_factory.app.test_client()
+    return server
 
 
 @pytest.fixture
@@ -273,8 +189,6 @@ def auth_client(web_app_factory, mock_settings):
     Yields:
         Flask test client with active session
     """
-    from src.auth import User, verify_password
-
     # Create a test client and login as admin user
     auth_client = web_app_factory.app.test_client()
     response = auth_client.post(
@@ -304,7 +218,7 @@ def short_lockout_client(web_app_factory):
     Yields:
         Flask test client with active session and 1-second lockout
     """
-    from src.auth import LoginAttemptTracker
+    from src.web_server import WebServer
 
     # Create a new app instance with short lockout
     controller = MagicMock()

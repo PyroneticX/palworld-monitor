@@ -6,8 +6,6 @@ including template rendering, session management, CSRF protection, and all API r
 Tests run in-process without needing an actual HTTP server or browser.
 """
 
-import pytest
-from unittest.mock import MagicMock
 
 
 class TestLoginPageRendering:

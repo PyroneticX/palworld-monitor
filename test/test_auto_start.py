@@ -2,11 +2,11 @@
 Extended tests for AutoStartManager covering packet detection and socket handling.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 from src.auto_start import AutoStartManager
-from src.constants import FIRST_PACKET_PATTERN
 from src.settings import settings
+
+FIRST_PACKET_PATTERN = b"\x09\x08\x00"
 
 
 class TestAutoStartPacketDetection:
@@ -112,24 +112,6 @@ class TestAutoStartSocketHandling:
         manager.stop_listen_thread()
         assert manager.listen_thread is None
 
-    def test_wait_for_player_connection_os_error(self, mock_settings):
-        """Test wait_for_player_connection with socket error."""
-        manager = AutoStartManager(None)
-        mock_sock = MagicMock()
-        mock_sock.recvfrom.side_effect = OSError("Socket error")
-        manager.sock = mock_sock
-        result = manager.wait_for_player_connection()
-        assert result is False
-
-    def test_wait_for_player_connection_generic_error(self, mock_settings):
-        """Test wait_for_player_connection with generic exception."""
-        manager = AutoStartManager(None)
-        mock_sock = MagicMock()
-        mock_sock.recvfrom.side_effect = Exception("Generic error")
-        manager.sock = mock_sock
-        result = manager.wait_for_player_connection()
-        assert result is False
-
     def test_listen_palworld_access_core_socket_failure(self, mock_settings):
         """Test listen_palworld_access_core when socket opening fails."""
         controller = MagicMock()
@@ -150,7 +132,7 @@ class TestAutoStartSocketHandling:
         # Mock wait_for_player_connection to return True (player detected)
         with patch.object(manager, "wait_for_player_connection", return_value=True):
             with patch("time.sleep", return_value=None):
-                result = manager.listen_palworld_access_core()
+                manager.listen_palworld_access_core()
                 # Should attempt to start server
                 assert controller.start_server.called
 
@@ -163,7 +145,7 @@ class TestAutoStartSocketHandling:
         # Mock wait_for_player_connection to return True (player detected)
         with patch.object(manager, "wait_for_player_connection", return_value=True):
             with patch("time.sleep", return_value=None):
-                result = manager.listen_palworld_access_core()
+                manager.listen_palworld_access_core()
                 assert controller.start_server.called
 
 

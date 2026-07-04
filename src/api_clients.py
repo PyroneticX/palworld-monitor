@@ -14,7 +14,6 @@
 import requests
 import logging
 import traceback
-from abc import ABC
 from requests.auth import HTTPBasicAuth
 from src.settings import settings
 from rcon import Console
@@ -204,7 +203,7 @@ class RconClient:
             response = console.command(command)
             console.close()
             return response
-        except Exception as e:
+        except Exception:
             logging.error(f"Error from send_rcon_command. command={command}")
             logging.error(traceback.format_exc())
             return None
@@ -265,7 +264,6 @@ class RconClient:
     def _rcon_action(self, command_prefix, steam_id, player_name=""):
         """Send an RCON action command and log the result."""
         try:
-            command = f"{command_prefix} {steam_id}"
             result, error_details = self._send_show_players()
             if result is not None:
                 logging.info(f"Successfully {command_prefix.lower()} player {player_name} (Steam ID: {steam_id})")

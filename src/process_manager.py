@@ -137,28 +137,17 @@ class OSProcessManager:
             pass
         return None
 
-    def _launch_common(self, exe_path, exe_args, **kwargs):
-        """Launch the Palworld process with common options."""
+class WindowsProcessManager(OSProcessManager):
+    def pid_file_name(self):
+        return "palworld_server.win.pid"
+
+    def launch_process(self, exe_path, exe_args):
         process = subprocess.Popen(
             [exe_path] + exe_args.split(),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             close_fds=True,
-            **kwargs,
-        )
-        self._after_launch(process)
-        bus.publish(Event.SERVER_STARTED, {"pid": self.launched_pid})
-
-
-class WindowsProcessManager(OSProcessManager):
-    def pid_file_name(self):
-        return "palworld_server.win.pid"
-
-    def launch_process(self, exe_path, exe_args):
-        self._launch_common(
-            exe_path,
-            exe_args,
             creationflags=(
                 subprocess.HIGH_PRIORITY_CLASS
                 | subprocess.DETACHED_PROCESS
@@ -166,6 +155,8 @@ class WindowsProcessManager(OSProcessManager):
                 | subprocess.CREATE_NO_WINDOW
             ),
         )
+        self._after_launch(process)
+        bus.publish(Event.SERVER_STARTED, {"pid": self.launched_pid})
 
 
 class LinuxProcessManager(OSProcessManager):
@@ -173,4 +164,16 @@ class LinuxProcessManager(OSProcessManager):
         return "palworld_server.linux.pid"
 
     def launch_process(self, exe_path, exe_args):
-        self._launch_common(exe_path, exe_args, start_new_session=True)
+        process = subprocess.Popen(
+            [exe_path] + exe_args.split(),
+            start_new_session=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+        )
+        self._after_launch(process)
+        bus.publish(Event.SERVER_STARTED, {"pid": self.launched_pid})
+
+
+

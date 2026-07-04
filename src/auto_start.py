@@ -11,11 +11,12 @@
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
 
+"""Auto-start manager: listens for Palworld client packets and launches the server."""
+
 import socket
 from src.events import bus, Event
 from src.settings import settings
 from src.palworld_control import PalWorldController
-from src.constants import FIRST_PACKET_PATTERN
 import logging
 import threading
 import traceback
@@ -74,17 +75,17 @@ class AutoStartManager:
                     self.sock = new_sock
                     self.is_aborting = False
                 return True
-            except OSError as e:
-                logging.error(f"Palworld port {palworld_server_port} is still in use. Cannot bind to port.")
+            except Exception as e:
                 if attempt < max_retries - 1:
+                    logging.error(
+                        f"Palworld port {palworld_server_port} is still in use. Cannot bind to port: {e}"
+                    )
                     time.sleep(retry_delay)
+                    continue
                 else:
+                    logging.error(f"Error opening PalWorld port socket: {e}")
                     logging.error(traceback.format_exc())
                     return False
-            except Exception as e:
-                logging.error(f"Error opening PalWorld port socket: {e}")
-                logging.error(traceback.format_exc())
-                return False
         return False
 
     def close_palworld_port_socket(self):
@@ -130,11 +131,7 @@ class AutoStartManager:
                 if self._is_player_connection_packet(data):
                     logging.info("A player is attempting to connect. Starting Palworld Server...")
                     return True
-            except OSError as e:
-                logging.error(f"OSError in wait_for_player_connection: {e}")
-                logging.error(traceback.format_exc())
-                return False
-            except Exception as e:
+            except (OSError, Exception) as e:
                 logging.error(f"Error in wait_for_player_connection: {e}")
                 logging.error(traceback.format_exc())
                 return False
@@ -142,11 +139,7 @@ class AutoStartManager:
 
     def _is_player_connection_packet(self, data):
         """Check if the received data is a player connection packet."""
-        return data.startswith(FIRST_PACKET_PATTERN)
-
-    def _handle_socket_error(self):
-        """Handle socket errors by returning False."""
-        return False
+        return data.startswith(b"\x09\x08\x00")
 
     def listen_palworld_access_core(self):
         """Listen from PalWorld server port."""

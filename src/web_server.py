@@ -182,17 +182,17 @@ class WebServer:
         @self.app.route("/kick", methods=["POST"])
         @login_required
         def kick_player():
-            return self._handle_player_action()
+            return self._handle_kick()
 
         @self.app.route("/ban", methods=["POST"])
         @login_required
         def ban_player():
-            return self._handle_player_action()
+            return self._handle_ban()
 
         @self.app.route("/unban", methods=["POST"])
         @login_required
         def unban_player():
-            return self._handle_player_action()
+            return self._handle_unban()
 
         @self.app.route("/banned", methods=["GET"])
         @login_required
@@ -323,30 +323,18 @@ class WebServer:
                 banned_players=list(self.state_cache["banned_players"]),
             )
 
-    _ACTION_DISPATCH = {
-        "kick": ("kick", lambda s: f"Player {'kicked successfully' if s else 'kick failed'}"),
-        "ban": ("ban", lambda s: f"Player {'banned successfully' if s else 'ban failed'}"),
-        "unban": ("unban", lambda s: f"Player {'unbanned successfully' if s else 'unban failed'}"),
-    }
-
-    def _handle_player_action(self):
-        """Handle player kick/ban/unban requests."""
+    def _handle_kick(self):
+        """Handle player kick request."""
         steam_id = request.form.get("steam_id")
-        action = request.form.get("action", request.url_rule.rule.strip("/"))
 
         if not steam_id:
             return jsonify(success=False, message="Steam ID is required"), 400
 
-        dispatch = self._ACTION_DISPATCH.get(action)
-        if not dispatch:
-            return jsonify(success=False, message=f"Unknown action: {action}"), 400
-
-        method_name, msg_fn = dispatch
         logging.info(
-            f"{method_name.capitalize()} player {steam_id} by {current_user.username} from {request.remote_addr}"
+            f"Kicked player {steam_id} by {current_user.username} from {request.remote_addr}"
         )
 
-        success = getattr(self.palworld_controller, f"{action}_player")(steam_id)
+        success = self.palworld_controller.kick_player(steam_id)
         self._sync_running_state()
 
         players = self.palworld_controller.get_players_for_web()
@@ -357,7 +345,67 @@ class WebServer:
         with self._lock:
             return jsonify(
                 success=success,
-                message=msg_fn(success),
+                message=f"Player {'kicked successfully' if success else 'kick failed'}",
+                data=dict(self.state_cache),
+                players=list(players),
+                total_player_count=total_player_count,
+                banned_players=list(self.state_cache["banned_players"]),
+            )
+
+    def _handle_ban(self):
+        """Handle player ban request."""
+        steam_id = request.form.get("steam_id")
+
+        if not steam_id:
+            return jsonify(success=False, message="Steam ID is required"), 400
+
+        logging.info(
+            f"Banned player {steam_id} by {current_user.username} from {request.remote_addr}"
+        )
+
+        success = self.palworld_controller.ban_player(steam_id)
+        self._sync_running_state()
+        self._sync_banned_players()
+
+        players = self.palworld_controller.get_players_for_web()
+        total_player_count = len(
+            self.palworld_controller.player_manager.get_online_players()
+        )
+
+        with self._lock:
+            return jsonify(
+                success=success,
+                message=f"Player {'banned successfully' if success else 'ban failed'}",
+                data=dict(self.state_cache),
+                players=list(players),
+                total_player_count=total_player_count,
+                banned_players=list(self.state_cache["banned_players"]),
+            )
+
+    def _handle_unban(self):
+        """Handle player unban request."""
+        steam_id = request.form.get("steam_id")
+
+        if not steam_id:
+            return jsonify(success=False, message="Steam ID is required"), 400
+
+        logging.info(
+            f"Unbanned player {steam_id} by {current_user.username} from {request.remote_addr}"
+        )
+
+        success = self.palworld_controller.unban_player(steam_id)
+        self._sync_running_state()
+        self._sync_banned_players()
+
+        players = self.palworld_controller.get_players_for_web()
+        total_player_count = len(
+            self.palworld_controller.player_manager.get_online_players()
+        )
+
+        with self._lock:
+            return jsonify(
+                success=success,
+                message=f"Player {'unbanned successfully' if success else 'unban failed'}",
                 data=dict(self.state_cache),
                 players=list(players),
                 total_player_count=total_player_count,

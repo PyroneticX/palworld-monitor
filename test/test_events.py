@@ -2,7 +2,6 @@
 Tests for the EventBus and Event constants.
 """
 
-import pytest
 from src.events import bus, Event
 
 
@@ -31,10 +30,16 @@ class TestEventBus:
         # Should not raise any exception
         bus.publish("NONEXISTENT_EVENT", {})
 
+    def _make_callback(self, received):
+        """Helper to create a callback function that appends to received list."""
+        def callback(data):
+            received.append(data)
+        return callback
+
     def test_unsubscribe_via_removal(self):
         """Test that removing a subscriber stops delivery."""
         received = []
-        callback = lambda data: received.append(data)
+        callback = self._make_callback(received)
         bus.subscribe("REMOVE_TEST", callback)
         bus.publish("REMOVE_TEST", {"step": 1})
         assert len(received) == 1
