@@ -41,7 +41,8 @@ package = false
 
 [tool.poe.tasks]
 run = "python -m src.main"
-test = "pytest"
+test = "pytest -m 'not e2e'"
+smoke = "pytest -m e2e"
 lint = "ruff check src/ test/"
 format = "ruff format src/ test/"
 
@@ -54,4 +55,5 @@ addopts = ["-v", "--tb=short", "--strict-markers", "--capture=no"]
 markers = [
     "windows: Windows-specific tests",
     "linux: Linux-specific tests",
+    "e2e: End-to-end tests that require a running app",
 ]
