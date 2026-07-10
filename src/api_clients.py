@@ -147,38 +147,50 @@ class RestClient:
         """
         self._make_post_request("announce", {"message": message})
 
+    def _extract_steam_id(self, player):
+        """Extract a Steam ID from either a dict or a raw string."""
+        if isinstance(player, dict):
+            return player.get("steam_id")
+        return player
+
     def kick_player(self, player):
         """Kick a player by their Steam ID.
 
         Args:
-            player: Player dict with steam_id and name
+            player: Player dict with steam_id and name, or a Steam ID string
 
         Returns:
             bool: True if successful, False otherwise
         """
-        return self._make_post_request("kick", {"steam_id": player.get("steam_id"), "action_name": "kick"})
+        return self._make_post_request(
+            "kick", {"userid": self._extract_steam_id(player)}
+        )
 
     def ban_player(self, player):
         """Ban a player by their Steam ID.
 
         Args:
-            player: Player dict with steam_id and name
+            player: Player dict with steam_id and name, or a Steam ID string
 
         Returns:
             bool: True if successful, False otherwise
         """
-        return self._make_post_request("ban", {"steam_id": player.get("steam_id"), "action_name": "ban"})
+        return self._make_post_request(
+            "ban", {"userid": self._extract_steam_id(player)}
+        )
 
     def unban_player(self, player):
         """Unban a player by their Steam ID.
 
         Args:
-            player: Player dict with steam_id and name
+            player: Player dict with steam_id and name, or a Steam ID string
 
         Returns:
             bool: True if successful, False otherwise
         """
-        return self._make_post_request("unban", {"steam_id": player.get("steam_id"), "action_name": "unban"})
+        return self._make_post_request(
+            "unban", {"userid": self._extract_steam_id(player)}
+        )
 
 
 class RconClient:
@@ -220,7 +232,9 @@ class RconClient:
             console.close()
             return response.splitlines(), None
         except Exception as e:
-            logging.error(f"Error from send_rcon_command. command=ShowPlayers, error: {e}")
+            logging.error(
+                f"Error from send_rcon_command. command=ShowPlayers, error: {e}"
+            )
             logging.error(traceback.format_exc())
             return None, str(e)
 
@@ -266,22 +280,37 @@ class RconClient:
         try:
             result, error_details = self._send_show_players()
             if result is not None:
-                logging.info(f"Successfully {command_prefix.lower()} player {player_name} (Steam ID: {steam_id})")
+                logging.info(
+                    f"Successfully {command_prefix.lower()} player {player_name} (Steam ID: {steam_id})"
+                )
                 return True
             else:
                 error_info = f", error: {error_details}" if error_details else ""
-                logging.error(f"Failed to {command_prefix.lower()} player {player_name} (Steam ID: {steam_id}){error_info}")
+                logging.error(
+                    f"Failed to {command_prefix.lower()} player {player_name} (Steam ID: {steam_id}){error_info}"
+                )
                 return False
         except Exception as e:
-            logging.error(f"Error {command_prefix.lower()}ing player {player_name} (Steam ID: {steam_id}): {e}")
+            logging.error(
+                f"Error {command_prefix.lower()}ing player {player_name} (Steam ID: {steam_id}): {e}"
+            )
             logging.error(traceback.format_exc())
             return False
 
-    def kick_player(self, steam_id, player_name=""):
+    def _extract_steam_id(self, player):
+        """Extract a Steam ID from either a dict or a raw string."""
+        if isinstance(player, dict):
+            return player.get("steam_id")
+        return player
+
+    def kick_player(self, player, player_name=""):
+        steam_id = self._extract_steam_id(player)
         return self._rcon_action("KickPlayer", steam_id, player_name)
 
-    def ban_player(self, steam_id, player_name=""):
+    def ban_player(self, player, player_name=""):
+        steam_id = self._extract_steam_id(player)
         return self._rcon_action("BanPlayer", steam_id, player_name)
 
-    def unban_player(self, steam_id, player_name=""):
+    def unban_player(self, player, player_name=""):
+        steam_id = self._extract_steam_id(player)
         return self._rcon_action("UnbanPlayer", steam_id, player_name)

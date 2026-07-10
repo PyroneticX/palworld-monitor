@@ -10,7 +10,7 @@ A Python application for managing PalWorld dedicated servers on Windows and Linu
 - **Automatic server management**:
   - Auto-start when players attempt to connect
   - Auto-stop after configured delay when server is empty (default: 10 minutes)
-  - Supports both REST and RCON (legacy) APIs when talking to PalServer
+  - Supports both REST and RCON (legacy) APIs when talking to PalServer (RCON was removed in Palworld 1.0; use REST)
 - **Web-based admin interface**:
   - Real-time server monitoring
   - Server control capabilities
@@ -58,6 +58,8 @@ The REST API is the recommended way to talk to your PalWorld server. To enable i
 3. **Restart your PalWorld server**
 
 **RCON Protocol (Legacy)**
+
+> ⚠️ **Palworld 1.0 removed RCON support entirely.** Use the REST API instead. RCON configuration below only applies to older server versions.
 
 Only use RCON if for some reason the REST API is not available:
 

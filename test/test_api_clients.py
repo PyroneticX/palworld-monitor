@@ -213,12 +213,15 @@ class TestRestClient:
         mock_response = MagicMock()
         mock_response.status_code = status_code
 
-        with patch("requests.post", return_value=mock_response):
+        with patch("requests.post", return_value=mock_response) as mock_post:
             client = RestClient()
             player = {"steam_id": "123456789", "name": "TestPlayer"}
             result = client.kick_player(player)
 
             assert result == expected_result
+            mock_post.assert_called_once()
+            _, kwargs = mock_post.call_args
+            assert kwargs["json"] == {"userid": "123456789"}
 
     @pytest.mark.parametrize(
         "status_code,expected_result",
@@ -233,12 +236,15 @@ class TestRestClient:
         mock_response = MagicMock()
         mock_response.status_code = status_code
 
-        with patch("requests.post", return_value=mock_response):
+        with patch("requests.post", return_value=mock_response) as mock_post:
             client = RestClient()
             player = {"steam_id": "123456789", "name": "TestPlayer"}
             result = client.ban_player(player)
 
             assert result == expected_result
+            mock_post.assert_called_once()
+            _, kwargs = mock_post.call_args
+            assert kwargs["json"] == {"userid": "123456789"}
 
     @pytest.mark.parametrize(
         "status_code,expected_result",
@@ -253,12 +259,15 @@ class TestRestClient:
         mock_response = MagicMock()
         mock_response.status_code = status_code
 
-        with patch("requests.post", return_value=mock_response):
+        with patch("requests.post", return_value=mock_response) as mock_post:
             client = RestClient()
             player = {"steam_id": "123456789", "name": "TestPlayer"}
             result = client.unban_player(player)
 
             assert result == expected_result
+            mock_post.assert_called_once()
+            _, kwargs = mock_post.call_args
+            assert kwargs["json"] == {"userid": "123456789"}
 
 
 class TestRconClient:

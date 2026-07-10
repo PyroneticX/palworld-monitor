@@ -116,7 +116,9 @@ class PalWorldController:
 
     def _should_block_start(self, current_time):
         if self.is_palworld_process_running():
-            logging.warning("The attempt to start the Palworld server was made, but it is already running.")
+            logging.warning(
+                "The attempt to start the Palworld server was made, but it is already running."
+            )
             return True
         if self.is_palworld_server_starting:
             logging.warning("Palworld Server is already starting.")
@@ -157,7 +159,9 @@ class PalWorldController:
 
     def _should_block_stop(self):
         if not self.is_palworld_process_running():
-            logging.warning("An attempt to stop the Palworld server was made, but it was not running.")
+            logging.warning(
+                "An attempt to stop the Palworld server was made, but it was not running."
+            )
             return True
         current_time = time.time()
         if current_time - self.last_server_stopped_time < self.server_stopping_cooldown:
@@ -227,24 +231,30 @@ class PalWorldController:
 
     def kick_player(self, steam_id):
         try:
-            bus.publish(Event.CMD_KICK_PLAYER, {"steam_id": steam_id})
-            return True
+            success = self.client.kick_player({"steam_id": steam_id})
+            if success:
+                bus.publish(Event.CMD_KICK_PLAYER, {"steam_id": steam_id})
+            return success
         except Exception as e:
             logging.error(f"Error kicking {steam_id}: {e}")
             return False
 
     def ban_player(self, steam_id):
         try:
-            bus.publish(Event.CMD_BAN_PLAYER, {"steam_id": steam_id})
-            return True
+            success = self.client.ban_player({"steam_id": steam_id})
+            if success:
+                bus.publish(Event.CMD_BAN_PLAYER, {"steam_id": steam_id})
+            return success
         except Exception as e:
             logging.error(f"Error banning {steam_id}: {e}")
             return False
 
     def unban_player(self, steam_id):
         try:
-            bus.publish(Event.CMD_UNBAN_PLAYER, {"steam_id": steam_id})
-            return True
+            success = self.client.unban_player({"steam_id": steam_id})
+            if success:
+                bus.publish(Event.CMD_UNBAN_PLAYER, {"steam_id": steam_id})
+            return success
         except Exception as e:
             logging.error(f"Error unbanning {steam_id}: {e}")
             return False
