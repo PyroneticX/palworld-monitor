@@ -1,5 +1,5 @@
 # Copyright (c) 2024 Nomomo
-# Copyright (c) 2024 Kevin Perez - Modified work
+# Copyright (c) 2026 Kevin Perez - Modified work
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,68 +18,54 @@ import os
 import subprocess
 import secrets
 
-# This is what a Palworld client first sends to the server when it connects.
 FIRST_PACKET_PATTERN = b"\x09\x08\x00"
+PALWORLD_MAIN_PROCESS_NAME = "PalServer-Win64-Shipping-Cmd.exe"
+PALWORLD_EXE_ARGUMENTS = (
+    "-useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS "
+    "-NumberOfWorkerThreadsServer=16 -restapi"
+)
+PALWORLD_SERVER_PORT = 8211
+PALWORLD_REST_PORT = 8212
+PALWORLD_RCON_PORT = 25575
+WEB_SERVER_PORT = 8213
+DEFAULT_SESSION_TIMEOUT = 3600
+DEFAULT_MAX_LOGIN_ATTEMPTS = 5
+DEFAULT_LOCKOUT_DURATION = 300
+DEFAULT_RATE_LIMIT_REQUESTS = 100
+DEFAULT_RATE_LIMIT_WINDOW = 60
 
 
 class Settings:
     def __init__(self):
         self.settings = {
-            # Path to the Palworld server executable
             "palworldServerExePath": None,
-            "palworldMainProcessName": "PalServer-Win64-Shipping-Cmd.exe",
-            # Default arguments for the server executable
-            "palworldExeArguments": "-useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS -NumberOfWorkerThreadsServer=16 -restapi",
-            # IP address for the Palworld server
+            "palworldMainProcessName": PALWORLD_MAIN_PROCESS_NAME,
+            "palworldExeArguments": PALWORLD_EXE_ARGUMENTS,
             "palworldServerHost": "localhost",
-            # Port for the Palworld server
-            "palworldServerPort": 8211,
-            # Initial packet pattern sent by Palworld client
+            "palworldServerPort": PALWORLD_SERVER_PORT,
             "firstPacketPattern": FIRST_PACKET_PATTERN,
-            # Port for the REST API
-            "palworldRESTPort": 8212,
-            # Port for the RCON interface
-            "palworldRCONPort": 25575,
-            # Admin password for the Palworld server (used for REST/RCON communication)
+            "palworldRESTPort": PALWORLD_REST_PORT,
+            "palworldRCONPort": PALWORLD_RCON_PORT,
             "palworldServerAdminPassword": None,
-            # Protocol used for server communication
             "protocol": "REST",
-            # WhetherPto enable the web server
             "useWebServer": True,
-            # Port for the web server
-            "webServerPort": 8213,
-            # Enable server control through web interface (combines all button controls)
+            "webServerPort": WEB_SERVER_PORT,
             "controlServerThroughWeb": True,
-            # Show server IP address in UI
             "showServerIPAddress": False,
-            # Enable auto-start for the server
             "autoStart": True,
-            # Enable auto-stop for the server
             "autoStop": True,
-            # Seconds before auto-stopping the server
             "autoStopDelay": 120,
-            # Interval (seconds) to check for auto-stop condition
             "updateInterval": 30,
-            # Enable player tracking feature
             "enablePlayerTracking": True,
-            # Web interface username
             "webUsername": "admin",
-            # Web interface password (separate from Palworld server password)
             "webPassword": None,
-            # Secret key for session encryption (auto-generated if not provided)
             "sessionSecretKey": None,
-            # Session timeout in seconds (default: 1 hour)
-            "sessionTimeout": 3600,
-            # Maximum failed login attempts before lockout
-            "maxLoginAttempts": 5,
-            # Lockout duration in seconds after max failed attempts (default: 5 minutes)
-            "lockoutDuration": 300,
-            # Enable rate limiting for requests
+            "sessionTimeout": DEFAULT_SESSION_TIMEOUT,
+            "maxLoginAttempts": DEFAULT_MAX_LOGIN_ATTEMPTS,
+            "lockoutDuration": DEFAULT_LOCKOUT_DURATION,
             "rateLimitEnabled": True,
-            # Maximum requests per window
-            "rateLimitRequests": 100,
-            # Rate limit window in seconds
-            "rateLimitWindow": 60,
+            "rateLimitRequests": DEFAULT_RATE_LIMIT_REQUESTS,
+            "rateLimitWindow": DEFAULT_RATE_LIMIT_WINDOW,
         }
         for key, value in self.settings.items():
             setattr(self, key, value)
@@ -97,7 +83,6 @@ class Settings:
         Args:
             settings_file_path: Path to the settings file (used to locate session_secret.key)
         """
-        # First check if we have a saved session key file
         session_key_file = os.path.join(
             os.path.dirname(settings_file_path), "session_secret.key"
         )
@@ -107,37 +92,27 @@ class Settings:
                     saved_key = f.read().strip()
                     if saved_key and len(saved_key) == 64:
                         self.settings["sessionSecretKey"] = saved_key
-                        setattr(
-                            self, "sessionSecretKey", self.settings["sessionSecretKey"]
-                        )
+                        setattr(self, "sessionSecretKey", self.settings["sessionSecretKey"])
                         logging.debug("Loaded sessionSecretKey from session_secret.key")
                         return
             except Exception as e:
                 logging.warning(f"Could not read session_secret.key: {e}")
 
-        # Generate new key if missing or invalid
         if not self.settings.get("sessionSecretKey"):
             self.settings["sessionSecretKey"] = secrets.token_hex(32)
             setattr(self, "sessionSecretKey", self.settings["sessionSecretKey"])
-
-            # Save the generated key to a separate file (preserves settings.yaml comments)
             try:
                 with open(session_key_file, "w") as f:
                     f.write(self.settings["sessionSecretKey"])
-                logging.info(
-                    "Auto-generated sessionSecretKey and saved to session_secret.key"
-                )
+                logging.info("Auto-generated sessionSecretKey and saved to session_secret.key")
             except Exception as e:
-                logging.warning(
-                    f"Could not save auto-generated sessionSecretKey to file: {e}"
-                )
+                logging.warning(f"Could not save auto-generated sessionSecretKey to file: {e}")
 
     def _load_nested_settings(self, data):
         """Load settings from nested YAML structure.
 
         Maps nested keys to expected flat keys for internal use.
         """
-        # Mapping from nested structure to flat keys
         mapping = {
             "palserver": {
                 "exePath": "palworldServerExePath",
@@ -178,14 +153,12 @@ class Settings:
 
         flat_settings = {}
 
-        # Process nested structure
         for domain, domain_mapping in mapping.items():
             if domain in data and isinstance(data[domain], dict):
                 for nested_key, flat_key in domain_mapping.items():
                     if nested_key in data[domain]:
                         flat_settings[flat_key] = data[domain][nested_key]
 
-        # Include any top-level keys that might exist (like sessionSecretKey if moved)
         for key, value in data.items():
             if key not in mapping and isinstance(value, (str, int, bool, type(None))):
                 flat_settings[key] = value
@@ -199,10 +172,8 @@ class Settings:
                 if file_data is None:
                     file_data = {}
 
-                # Load settings from nested structure
                 flat_settings = self._load_nested_settings(file_data)
 
-                # Update settings with flattened values
                 for key, value in flat_settings.items():
                     self.settings[key] = value
                     setattr(self, key, value)
@@ -215,7 +186,6 @@ class Settings:
             logging.error(f"Error from readSettings: {e}")
             logging.error(traceback.format_exc())
 
-        # Load or generate session secret key
         self._ensure_session_secret_key(file_path)
 
     def validate_settings(self):
@@ -226,17 +196,13 @@ class Settings:
         """
         errors = []
 
-        # Check mandatory settings
         if not self.settings.get("palworldServerExePath"):
             errors.append("palworldServerExePath is required")
 
         if not self.settings.get("palworldServerAdminPassword"):
             errors.append("palworldServerAdminPassword is required")
 
-        # Check webPassword only if web server is enabled
-        if self.settings.get("useWebServer", True) and not self.settings.get(
-            "webPassword"
-        ):
+        if self.settings.get("useWebServer", True) and not self.settings.get("webPassword"):
             errors.append("webPassword is required when useWebServer is enabled")
 
         # Validate port ranges (1-65535) for all configured ports
@@ -257,9 +223,7 @@ class Settings:
         server_exe_path = self.settings.get("palworldServerExePath")
         if server_exe_path:
             if not os.path.exists(server_exe_path):
-                errors.append(
-                    f"Palworld server executable does not exist at: {server_exe_path}"
-                )
+                errors.append(f"Palworld server executable does not exist at: {server_exe_path}")
             elif not os.path.isfile(server_exe_path):
                 errors.append(f"Palworld server path is not a file: {server_exe_path}")
 

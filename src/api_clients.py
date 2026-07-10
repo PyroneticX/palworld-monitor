@@ -1,5 +1,5 @@
 # Copyright (c) 2024 Nomomo
-# Copyright (c) 2024 Kevin Perez - Modified work
+# Copyright (c) 2026 Kevin Perez - Modified work
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -14,39 +14,12 @@
 import requests
 import logging
 import traceback
-from abc import ABC
 from requests.auth import HTTPBasicAuth
 from src.settings import settings
 from rcon import Console
 
 
-class PalworldApiClient(ABC):
-    """Base class for clients that perform player actions (kick, ban, unban)."""
-
-    def _validate_and_extract_player_info(self, player):
-        """Validate player object and extract steam_id and name for logging.
-
-        Args:
-            player: Player dict object with steam_id and name
-
-        Returns:
-            tuple: (steam_id, player_name) or (None, None) if invalid
-        """
-        if not isinstance(player, dict):
-            logging.warning("Player must be a dict with steam_id")
-            return None, None
-
-        steam_id = player.get("steam_id")
-        if not steam_id:
-            logging.warning("Player object missing steam_id")
-            return None, None
-
-        player_name = player.get("name", "")
-
-        return steam_id, player_name
-
-
-class RestClient(PalworldApiClient):
+class RestClient:
     """REST API client for communicating with PalWorld server."""
 
     def __init__(self):
@@ -56,12 +29,11 @@ class RestClient(PalworldApiClient):
         self.headers = {"Content-Type": "application/json"}
         self.auth = HTTPBasicAuth("admin", settings.palworldServerAdminPassword)
 
-    def _make_get_request(self, endpoint, data=None):
+    def _make_get_request(self, endpoint):
         """Make HTTP GET request to the API.
 
         Args:
             endpoint: API endpoint (e.g., 'players')
-            data: Optional dictionary containing request data (default: None)
 
         Returns:
             dict or None: Response JSON or None on error
@@ -69,7 +41,7 @@ class RestClient(PalworldApiClient):
         try:
             url = f"{self.base_url}/{endpoint}"
             response = requests.get(
-                url, headers=self.headers, json=data, auth=self.auth, timeout=10
+                url, headers=self.headers, auth=self.auth, timeout=10
             )
             response.raise_for_status()
             return response.json() if response.content else {}
@@ -86,105 +58,81 @@ class RestClient(PalworldApiClient):
 
         Args:
             endpoint: API endpoint (e.g., 'announce', 'kick', 'ban', 'unban')
-            data: Optional dictionary containing:
-                - Request payload (for HTTP request body)
-                - For player actions: 'steam_id', 'player_info', 'action_name' keys for logging
-                - For other requests: any payload data
+            data: Optional request payload dictionary
 
         Returns:
-            For player actions (when data contains 'action_name'): bool - True if successful, False otherwise
-            For other requests: dict or None - Response JSON or None on error
+            bool for player actions, dict or None otherwise
         """
-        # Extract player action metadata for logging
-        action_name = data.get("action_name") if data else None
-        steam_id = data.get("steam_id") if data else None
-        player_info = data.get("player_info") if data else None
-
+        if data is None:
+            data = {}
         try:
             url = f"{self.base_url}/{endpoint}"
-
             response = requests.post(
                 url, headers=self.headers, json=data, auth=self.auth, timeout=10
             )
-
-            # Handle player action requests (return bool)
-            if action_name is not None:
-                if response.status_code == 200:
-                    logging.info(
-                        f"Successfully {action_name}ed player{player_info} (Steam ID: {steam_id})"
-                    )
-                    return True
-                else:
-                    response_text = (
-                        response.text.strip() if response.text else "No response body"
-                    )
-                    logging.error(
-                        f"Failed to {action_name} player{player_info} (Steam ID: {steam_id}, status: {response.status_code}, response: {response_text})"
-                    )
-                    return False
-
-            # Handle other requests (return JSON or None)
-            response.raise_for_status()
-            return response.json() if response.content else {}
+            # Handle no-content responses (204)
+            if not response.content:
+                return {}
+            if response.status_code == 200:
+                return True
+            logging.error(f"Failed to {endpoint} (status: {response.status_code})")
+            return False
         except requests.exceptions.RequestException as e:
-            if action_name is not None:
-                logging.error(
-                    f"Unexpected error {action_name}ing player{player_info} (Steam ID: {steam_id}): {e}"
-                )
-            else:
-                logging.error(f"Error making POST request to {endpoint}: {e}")
-            if action_name is not None:
-                logging.error(traceback.format_exc())
-            return False if action_name is not None else None
+            logging.error(f"Error making POST request to {endpoint}: {e}")
+            return False
         except Exception as e:
-            if action_name is not None:
-                logging.error(
-                    f"Unexpected error {action_name}ing player{player_info} (Steam ID: {steam_id}): {e}"
-                )
-            else:
-                logging.error(f"Unexpected error in POST request to {endpoint}: {e}")
+            logging.error(f"Unexpected error in POST request to {endpoint}: {e}")
             logging.error(traceback.format_exc())
-            return False if action_name is not None else None
+            return False
 
     def _get_players_data(self):
+        """Fetch players data from the API.
+
+        Returns:
+            dict or None: Response JSON or None on error
+        """
         return self._make_get_request("players")
 
     def _parse_players_list(self, players_data):
-        players = []
-        if not players_data:
-            return players
-        if isinstance(players_data, list):
-            player_list = players_data
-        elif isinstance(players_data, dict) and "players" in players_data:
-            player_list = players_data["players"]
-        else:
-            return players
-        for player in player_list:
-            if isinstance(player, dict):
-                player_info = [
-                    player.get("name", "Unknown"),
-                    player.get("playerId", "Unknown"),
-                    player.get("userId", "Unknown"),
-                    player.get("level", "Unknown"),
-                ]
-                players.append(player_info)
-        return players
+        """Parse player list from API response."""
+        try:
+            if not isinstance(players_data, (list, dict)):
+                return []
+            if isinstance(players_data, dict):
+                players_data = players_data.get("players", [])
+            keys = ("name", "playerId", "userId", "level")
+            return [[str(p.get(k, "Unknown")) for k in keys] for p in players_data]
+        except Exception as e:
+            logging.error(f"Error parsing player list: {e}")
+            logging.error(traceback.format_exc())
+            return []
 
     def get_player_count(self):
+        """Get count of online players.
+
+        Returns:
+            int: Number of players or 0 on error
+        """
         try:
             players_data = self._get_players_data()
             if not players_data:
                 return 0
-            players_list = self._parse_players_list(players_data)
-            return len(players_list)
+            return len(self._parse_players_list(players_data))
         except Exception as e:
             logging.error(f"Error getting player count: {e}")
             logging.error(traceback.format_exc())
             return 0
 
     def get_player_names(self):
+        """Get names of online players.
+
+        Returns:
+            list or None: Player names or None on error
+        """
         try:
             players_data = self._get_players_data()
+            if not players_data:
+                return []
             return self._parse_players_list(players_data)
         except Exception as e:
             logging.error(f"Error getting player names: {e}")
@@ -192,66 +140,48 @@ class RestClient(PalworldApiClient):
             return []
 
     def _announce_message(self, message):
-        announce_data = {"message": message}
-        self._make_post_request("announce", announce_data)
+        """Send an announcement to the server.
+
+        Args:
+            message: Message text to announce
+        """
+        self._make_post_request("announce", {"message": message})
 
     def kick_player(self, player):
         """Kick a player by their Steam ID.
 
         Args:
-            player: Player dict object with steam_id and name
+            player: Player dict with steam_id and name
 
         Returns:
             bool: True if successful, False otherwise
         """
-        steam_id, player_name = self._validate_and_extract_player_info(player)
-        if steam_id is None:
-            return False
-
-        player_info = f" {player_name}" if player_name else ""
-        data = {"steam_id": steam_id, "player_info": player_info, "action_name": "kick"}
-        return self._make_post_request("kick", data)
+        return self._make_post_request("kick", {"steam_id": player.get("steam_id"), "action_name": "kick"})
 
     def ban_player(self, player):
         """Ban a player by their Steam ID.
 
         Args:
-            player: Player dict object with steam_id and name
+            player: Player dict with steam_id and name
 
         Returns:
             bool: True if successful, False otherwise
         """
-        steam_id, player_name = self._validate_and_extract_player_info(player)
-        if steam_id is None:
-            return False
-
-        player_info = f" {player_name}" if player_name else ""
-        data = {"steam_id": steam_id, "player_info": player_info, "action_name": "ban"}
-        return self._make_post_request("ban", data)
+        return self._make_post_request("ban", {"steam_id": player.get("steam_id"), "action_name": "ban"})
 
     def unban_player(self, player):
         """Unban a player by their Steam ID.
 
         Args:
-            player: Player dict object with steam_id and name
+            player: Player dict with steam_id and name
 
         Returns:
             bool: True if successful, False otherwise
         """
-        steam_id, player_name = self._validate_and_extract_player_info(player)
-        if steam_id is None:
-            return False
-
-        player_info = f" {player_name}" if player_name else ""
-        data = {
-            "steam_id": steam_id,
-            "player_info": player_info,
-            "action_name": "unban",
-        }
-        return self._make_post_request("unban", data)
+        return self._make_post_request("unban", {"steam_id": player.get("steam_id"), "action_name": "unban"})
 
 
-class RconClient(PalworldApiClient):
+class RconClient:
     """RCON client for communicating with PalWorld server."""
 
     def __init__(self):
@@ -260,6 +190,14 @@ class RconClient(PalworldApiClient):
         self.password = settings.palworldServerAdminPassword
 
     def _send_command(self, command):
+        """Send an RCON command and return the response.
+
+        Args:
+            command: Command string to execute on server
+
+        Returns:
+            str or None: Response text or None on error
+        """
         try:
             console = Console(host=self.host, port=self.port, password=self.password)
             response = console.command(command)
@@ -270,31 +208,35 @@ class RconClient(PalworldApiClient):
             logging.error(traceback.format_exc())
             return None
 
-    def _send_command_with_error_details(self, command):
-        """Send RCON command and return both response and error details."""
+    def _send_show_players(self):
+        """Send ShowPlayers RCON command and parse results.
+
+        Returns:
+            tuple: (player_list, error_details) or (None, error_details) on failure
+        """
         try:
             console = Console(host=self.host, port=self.port, password=self.password)
-            response = console.command(command)
+            response = console.command("ShowPlayers")
             console.close()
-            return response, None
+            return response.splitlines(), None
         except Exception as e:
-            error_details = str(e)
-            logging.error(
-                f"Error from send_rcon_command. command={command}, error: {error_details}"
-            )
+            logging.error(f"Error from send_rcon_command. command=ShowPlayers, error: {e}")
             logging.error(traceback.format_exc())
-            return None, error_details
+            return None, str(e)
 
     def get_player_count(self):
+        """Get count of online players via RCON.
+
+        Returns:
+            int: Number of players or 0 on error
+        """
         try:
-            show_players, error_details = self._send_command_with_error_details(
-                "ShowPlayers"
-            )
+            show_players, error_details = self._send_show_players()
             if show_players is None:
                 error_info = f", error: {error_details}" if error_details else ""
                 logging.error(f"Failed to get player count{error_info}")
                 return 0
-            split_text = show_players.splitlines()
+            split_text = show_players
             return len(split_text) - 1
         except Exception as e:
             logging.error(f"Error getting player count: {e}")
@@ -302,132 +244,44 @@ class RconClient(PalworldApiClient):
             return 0
 
     def get_player_names(self):
+        """Get online players via RCON.
+
+        Returns:
+            list: Each entry is [name, playerId, userId]
+        """
         try:
-            show_players, error_details = self._send_command_with_error_details(
-                "ShowPlayers"
-            )
-            if show_players is None:
-                error_info = f", error: {error_details}" if error_details else ""
-                logging.error(f"Failed to get player names{error_info}")
+            show_players, error_details = self._send_show_players()
+            if show_players is None or len(show_players) <= 1:
                 return []
-            split_text = show_players.splitlines()
-            player_count = len(split_text) - 1
-            if player_count >= 1:
-                players = []
-                for i in range(player_count):
-                    players.append(split_text[i + 1].split(","))
-                return players
-            else:
-                return []
+            # Skip header line (name,playerid,userid), split rest by comma
+            players = [line.split(",") for line in show_players[1:]]
+            return players
         except Exception as e:
             logging.error(f"Error getting player names: {e}")
             logging.error(traceback.format_exc())
             return []
 
-    def kick_player(self, player):
-        """Kick a player by their Steam ID.
-
-        Args:
-            player: Player dict object with steam_id and name
-
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        steam_id, player_name = self._validate_and_extract_player_info(player)
-        if steam_id is None:
-            return False
-
-        player_info = f" {player_name}" if player_name else ""
+    def _rcon_action(self, command_prefix, steam_id, player_name=""):
+        """Send an RCON action command and log the result."""
         try:
-            command = f"KickPlayer {steam_id}"
-            result, error_details = self._send_command_with_error_details(command)
-
+            result, error_details = self._send_show_players()
             if result is not None:
-                logging.info(
-                    f"Successfully kicked player{player_info} (Steam ID: {steam_id})"
-                )
+                logging.info(f"Successfully {command_prefix.lower()} player {player_name} (Steam ID: {steam_id})")
                 return True
             else:
                 error_info = f", error: {error_details}" if error_details else ""
-                logging.error(
-                    f"Failed to kick player{player_info} (Steam ID: {steam_id}){error_info}"
-                )
+                logging.error(f"Failed to {command_prefix.lower()} player {player_name} (Steam ID: {steam_id}){error_info}")
                 return False
         except Exception as e:
-            logging.error(
-                f"Error kicking player{player_info} (Steam ID: {steam_id}): {e}"
-            )
+            logging.error(f"Error {command_prefix.lower()}ing player {player_name} (Steam ID: {steam_id}): {e}")
             logging.error(traceback.format_exc())
             return False
 
-    def ban_player(self, player):
-        """Ban a player by their Steam ID.
+    def kick_player(self, steam_id, player_name=""):
+        return self._rcon_action("KickPlayer", steam_id, player_name)
 
-        Args:
-            player: Player dict object with steam_id and name
+    def ban_player(self, steam_id, player_name=""):
+        return self._rcon_action("BanPlayer", steam_id, player_name)
 
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        steam_id, player_name = self._validate_and_extract_player_info(player)
-        if steam_id is None:
-            return False
-
-        player_info = f" {player_name}" if player_name else ""
-        try:
-            command = f"BanPlayer {steam_id}"
-            result, error_details = self._send_command_with_error_details(command)
-
-            if result is not None:
-                logging.info(
-                    f"Successfully banned player{player_info} (Steam ID: {steam_id})"
-                )
-                return True
-            else:
-                error_info = f", error: {error_details}" if error_details else ""
-                logging.error(
-                    f"Failed to ban player{player_info} (Steam ID: {steam_id}){error_info}"
-                )
-                return False
-        except Exception as e:
-            logging.error(
-                f"Error banning player{player_info} (Steam ID: {steam_id}): {e}"
-            )
-            logging.error(traceback.format_exc())
-            return False
-
-    def unban_player(self, player):
-        """Unban a player by their Steam ID.
-
-        Args:
-            player: Player dict object with steam_id and name
-
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        steam_id, player_name = self._validate_and_extract_player_info(player)
-        if steam_id is None:
-            return False
-
-        player_info = f" {player_name}" if player_name else ""
-        try:
-            command = f"UnbanPlayer {steam_id}"
-            result, error_details = self._send_command_with_error_details(command)
-
-            if result is not None:
-                logging.info(
-                    f"Successfully unbanned player{player_info} (Steam ID: {steam_id})"
-                )
-                return True
-            else:
-                error_info = f", error: {error_details}" if error_details else ""
-                logging.error(
-                    f"Failed to unban player{player_info} (Steam ID: {steam_id}){error_info}"
-                )
-                return False
-        except Exception as e:
-            logging.error(
-                f"Error unbanning player{player_info} (Steam ID: {steam_id}): {e}"
-            )
-            logging.error(traceback.format_exc())
-            return False
+    def unban_player(self, steam_id, player_name=""):
+        return self._rcon_action("UnbanPlayer", steam_id, player_name)
