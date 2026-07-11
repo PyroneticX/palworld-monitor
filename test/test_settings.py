@@ -182,11 +182,6 @@ class TestSettings:
             hash_value = settings.get_git_hash()
             assert hash_value is None
 
-    def test_first_packet_pattern(self):
-        """Test first packet pattern value."""
-        assert isinstance(b"\x09\x08\x00", bytes)
-        assert b"\x09\x08\x00" == b"\x09\x08\x00"
-
     def test_auto_generate_session_secret_when_missing(self):
         """Test that sessionSecretKey is auto-generated when missing from settings.yaml."""
         settings = Settings()
