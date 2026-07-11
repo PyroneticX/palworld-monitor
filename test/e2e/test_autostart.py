@@ -25,7 +25,7 @@ def test_autostart(app_process):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sock.sendto(
-            settings.firstPacketPattern,
+            b"\x09\x08\x00",
             (settings.palworldServerHost, settings.palworldServerPort),
         )
     finally:
