@@ -11,6 +11,8 @@
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
 
+import os
+import sys
 import socket
 import json
 import queue
@@ -28,7 +30,7 @@ from flask_limiter.util import get_remote_address
 from datetime import timedelta
 from src.settings import settings
 from src.palworld_control import PalWorldController
-from src.auth import User, LoginAttemptTracker, verify_password
+from src.auth import User, LoginAttemptTracker
 import logging
 import threading
 
@@ -41,7 +43,16 @@ class WebServer:
             palworld_controller: Instance of PalWorldController to handle server operations
         """
         self.palworld_controller = palworld_controller
-        self.app = Flask(__name__, static_folder="static")
+
+        if getattr(sys, "frozen", False):
+            base = sys._MEIPASS
+        else:
+            base = os.path.dirname(__file__)
+        self.app = Flask(
+            __name__,
+            template_folder=os.path.join(base, "templates"),
+            static_folder=os.path.join(base, "static"),
+        )
         self.ip = "Unknown"
 
         # Server state cache
@@ -290,9 +301,7 @@ class WebServer:
             password = request.form.get("password")
             remember = request.form.get("remember") == "on"
 
-            if verify_password(
-                username, password, settings.webUsername, settings.webPassword
-            ):
+            if username == settings.webUsername and password == settings.webPassword:
                 user = User(username)
                 login_user(
                     user,
@@ -333,17 +342,28 @@ class WebServer:
             logging.warning(f"Error while getting server IP: {e}")
             return "unknown"
 
+    def _json_state(self, **extra):
+        """Build a JSON response dict from the current server state."""
+        with self._lock:
+            return jsonify(
+                data=dict(self.state_cache),
+                players=list(self.palworld_controller.get_players_for_web()),
+                total_player_count=len(
+                    self.palworld_controller.player_manager.get_online_players()
+                ),
+                autoStopDelay=round(settings.autoStopDelay),
+                banned_players=list(self.state_cache["banned_players"]),
+                **extra,
+            )
+
     def _handle_index(self):
         """Handle the main page route."""
         with self._lock:
-            self._sync_running_state()
             players = list(self.palworld_controller.get_players_for_web())
             total_player_count = len(
                 self.palworld_controller.player_manager.get_online_players()
             )
-
             current_server_info = dict(self.state_cache)
-
             if settings.showServerIPAddress:
                 current_server_info["IPAddress"] = self._get_server_ip()
             else:
@@ -369,124 +389,59 @@ class WebServer:
     def _handle_action(self):
         """Handle server action requests."""
         action = request.form.get("action")
-
         logging.info(
             f"Server action '{action}' by {current_user.username} from {request.remote_addr}"
         )
-
         if action == "startServer":
             self.palworld_controller.start_server()
         elif action == "stopServer":
             self.palworld_controller.stop_server()
-
-        self._sync_running_state()
-
-        players = self.palworld_controller.get_players_for_web()
-        total_player_count = len(
-            self.palworld_controller.player_manager.get_online_players()
-        )
-
-        with self._lock:
-            return jsonify(
-                data=dict(self.state_cache),
-                players=list(players),
-                total_player_count=total_player_count,
-                autoStopDelay=round(settings.autoStopDelay),
-                banned_players=list(self.state_cache["banned_players"]),
-            )
+        return self._json_state()
 
     def _handle_kick(self):
         """Handle player kick request."""
         steam_id = request.form.get("steam_id")
-
         if not steam_id:
             return jsonify(success=False, message="Steam ID is required"), 400
-
         logging.info(
             f"Kicked player {steam_id} by {current_user.username} from {request.remote_addr}"
         )
-
         success = self.palworld_controller.kick_player(steam_id)
-        self._sync_running_state()
-
-        players = self.palworld_controller.get_players_for_web()
-        total_player_count = len(
-            self.palworld_controller.player_manager.get_online_players()
+        return self._json_state(
+            success=success,
+            message=f"Player {'kicked successfully' if success else 'kick failed'}",
         )
-
-        with self._lock:
-            return jsonify(
-                success=success,
-                message=f"Player {'kicked successfully' if success else 'kick failed'}",
-                data=dict(self.state_cache),
-                players=list(players),
-                total_player_count=total_player_count,
-                banned_players=list(self.state_cache["banned_players"]),
-            )
 
     def _handle_ban(self):
         """Handle player ban request."""
         steam_id = request.form.get("steam_id")
-
         if not steam_id:
             return jsonify(success=False, message="Steam ID is required"), 400
-
         logging.info(
             f"Banned player {steam_id} by {current_user.username} from {request.remote_addr}"
         )
-
         success = self.palworld_controller.ban_player(steam_id)
-        self._sync_running_state()
-        self._sync_banned_players()
-
-        players = self.palworld_controller.get_players_for_web()
-        total_player_count = len(
-            self.palworld_controller.player_manager.get_online_players()
+        return self._json_state(
+            success=success,
+            message=f"Player {'banned successfully' if success else 'ban failed'}",
         )
-
-        with self._lock:
-            return jsonify(
-                success=success,
-                message=f"Player {'banned successfully' if success else 'ban failed'}",
-                data=dict(self.state_cache),
-                players=list(players),
-                total_player_count=total_player_count,
-                banned_players=list(self.state_cache["banned_players"]),
-            )
 
     def _handle_unban(self):
         """Handle player unban request."""
         steam_id = request.form.get("steam_id")
-
         if not steam_id:
             return jsonify(success=False, message="Steam ID is required"), 400
-
         logging.info(
             f"Unbanned player {steam_id} by {current_user.username} from {request.remote_addr}"
         )
-
         success = self.palworld_controller.unban_player(steam_id)
-        self._sync_running_state()
-        self._sync_banned_players()
-
-        players = self.palworld_controller.get_players_for_web()
-        total_player_count = len(
-            self.palworld_controller.player_manager.get_online_players()
+        return self._json_state(
+            success=success,
+            message=f"Player {'unbanned successfully' if success else 'unban failed'}",
         )
-
-        with self._lock:
-            return jsonify(
-                success=success,
-                message=f"Player {'unbanned successfully' if success else 'unban failed'}",
-                data=dict(self.state_cache),
-                players=list(players),
-                total_player_count=total_player_count,
-                banned_players=list(self.state_cache["banned_players"]),
-            )
 
     def _handle_get_banned(self):
         """Handle request to get list of banned players."""
-        self._sync_banned_players()
         with self._lock:
             return jsonify(
                 success=True, banned_players=list(self.state_cache["banned_players"])

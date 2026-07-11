@@ -320,5 +320,3 @@ class PalWorldController:
             if self.update_thread_stop_event.wait(settings.pollingRate):
                 break
 
-    def get_current_server_for_web(self):
-        return self.current_server_info

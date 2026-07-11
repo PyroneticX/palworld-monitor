@@ -1,35 +1,65 @@
 # Copyright (c) 2024 Nomomo
 # Copyright (c) 2024 Kevin Perez - Modified work
 
+import logging
+import os
+import sys
+import traceback
+
+from src.cli import parse_args, apply_overrides
 from src.palworld_control import PalWorldController
 from src.settings import settings
+from src.setup_wizard import (
+    auto_detect_palserver,
+    interactive_setup,
+    print_web_link,
+)
 from src.web_server import WebServer
 from src.auto_start import AutoStartManager
-import logging
-import traceback
-import os
 
-try:
+
+def _determine_settings_path(args):
+    """Return the path to settings.yaml, accounting for frozen mode and CLI."""
+    if getattr(sys, "frozen", False):
+        default = os.path.join(os.path.dirname(sys.executable), "settings.yaml")
+    else:
+        default = os.path.join(os.path.dirname(__file__), "settings.yaml")
+    return args.settings or os.environ.get("PALWORLD_MONITOR_SETTINGS", default)
+
+
+def main():
+    args = parse_args()
+
     log_level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
     log_level = getattr(logging, log_level_name, logging.INFO)
 
-    # Configure logging to write messages to the console and a file
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s - %(levelname)s - %(message)s",
         handlers=[
-            logging.StreamHandler(),  # Log to console
+            logging.StreamHandler(),
             logging.FileHandler("app.log", mode="w"),
         ],
     )
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
-    # read settings if settings.yaml exists
-    settings_path = os.environ.get(
-        "PALWORLD_MONITOR_SETTINGS",
-        os.path.join(os.path.dirname(__file__), "settings.yaml"),
-    )
+
+    settings_path = _determine_settings_path(args)
+
+    # First run: no settings file → interactive setup
+    if not os.path.exists(settings_path):
+        try:
+            detected = auto_detect_palserver()
+            interactive_setup(settings_path, detected)
+        except EOFError:
+            print("error: no terminal available for interactive setup.")
+            print(f"copy src/settings.yaml.example -> {settings_path} and edit it, then restart.")
+            sys.exit(1)
+
     logging.info(f"Loading settings from {settings_path}")
     settings.readSettings(settings_path)
+
+    # Apply CLI flag overrides (after file, before validation)
+    apply_overrides(args)
 
     # Validate settings at startup
     try:
@@ -37,40 +67,41 @@ try:
     except ValueError as e:
         logging.error(e)
         logging.error("Please fix the settings and try with valid configuration.")
-        exit(1)
+        sys.exit(1)
 
-    # Create instances of managers
-
-    # Choose the client based on the protocol setting
+    # Client selection
     if settings.protocol.upper() == "REST":
         from src.api_clients import RestClient
-
         client = RestClient()
     elif settings.protocol.upper() == "RCON":
         from src.api_clients import RconClient
-
         client = RconClient()
     else:
         logging.error(f"Invalid protocol specified in settings: {settings.protocol}")
-        exit()
+        sys.exit(1)
 
     palworld_controller = PalWorldController(client)
 
-    # Start the background server info update thread only if server is running
+    # Start background update thread if server is running
     server_running = palworld_controller.is_palworld_process_running()
     if server_running:
         palworld_controller.start_server_info_update_thread()
 
     if settings.autoStart:
         auto_start_manager = AutoStartManager(palworld_controller)
-
         if not server_running:
             auto_start_manager.listen_palworld_access()
+
     if settings.useWebServer:
+        print_web_link(settings.webServerPort)
         web_server = WebServer(palworld_controller)
         web_server.run()
 
-except Exception as e:
-    logging.error(f"Error from src.main routine: {e}")
-    logging.error(traceback.format_exc())
-    exit(1)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        logging.error(f"Error from src.main routine: {e}")
+        logging.error(traceback.format_exc())
+        sys.exit(1)

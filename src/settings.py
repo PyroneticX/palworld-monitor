@@ -19,38 +19,25 @@ import shutil
 import subprocess
 import secrets
 
-FIRST_PACKET_PATTERN = b"\x09\x08\x00"
-PALWORLD_MAIN_PROCESS_NAME = "PalServer-Win64-Shipping-Cmd.exe"
 PALWORLD_EXE_ARGUMENTS = (
     "-useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS "
     "-NumberOfWorkerThreadsServer=16 -restapi"
 )
-PALWORLD_SERVER_PORT = 8211
-PALWORLD_REST_PORT = 8212
-PALWORLD_RCON_PORT = 25575
-WEB_SERVER_PORT = 8213
-DEFAULT_SESSION_TIMEOUT = 3600
-DEFAULT_MAX_LOGIN_ATTEMPTS = 5
-DEFAULT_LOCKOUT_DURATION = 300
-DEFAULT_RATE_LIMIT_REQUESTS = 100
-DEFAULT_RATE_LIMIT_WINDOW = 60
 
 
 class Settings:
     def __init__(self):
         self.settings = {
             "palworldServerExePath": None,
-            "palworldMainProcessName": PALWORLD_MAIN_PROCESS_NAME,
             "palworldExeArguments": PALWORLD_EXE_ARGUMENTS,
             "palworldServerHost": "localhost",
-            "palworldServerPort": PALWORLD_SERVER_PORT,
-            "firstPacketPattern": FIRST_PACKET_PATTERN,
-            "palworldRESTPort": PALWORLD_REST_PORT,
-            "palworldRCONPort": PALWORLD_RCON_PORT,
+            "palworldServerPort": 8211,
+            "palworldRESTPort": 8212,
+            "palworldRCONPort": 25575,
             "palworldServerAdminPassword": None,
             "protocol": "REST",
             "useWebServer": True,
-            "webServerPort": WEB_SERVER_PORT,
+            "webServerPort": 8213,
             "controlServerThroughWeb": True,
             "showServerIPAddress": False,
             "autoStart": True,
@@ -61,12 +48,12 @@ class Settings:
             "webUsername": "admin",
             "webPassword": None,
             "sessionSecretKey": None,
-            "sessionTimeout": DEFAULT_SESSION_TIMEOUT,
-            "maxLoginAttempts": DEFAULT_MAX_LOGIN_ATTEMPTS,
-            "lockoutDuration": DEFAULT_LOCKOUT_DURATION,
+            "sessionTimeout": 3600,
+            "maxLoginAttempts": 5,
+            "lockoutDuration": 300,
             "rateLimitEnabled": True,
-            "rateLimitRequests": DEFAULT_RATE_LIMIT_REQUESTS,
-            "rateLimitWindow": DEFAULT_RATE_LIMIT_WINDOW,
+            "rateLimitRequests": 100,
+            "rateLimitWindow": 60,
         }
         for key, value in self.settings.items():
             setattr(self, key, value)
@@ -79,35 +66,30 @@ class Settings:
         setattr(self, key, value)
 
     def _ensure_session_secret_key(self, settings_file_path):
-        """Ensure a session secret key exists, loading from file or generating new one.
+        """Load or generate a session secret key."""
+        key_file = os.path.join(os.path.dirname(settings_file_path), "session_secret.key")
+        try:
+            if os.path.exists(key_file):
+                with open(key_file, "r") as f:
+                    saved = f.read().strip()
+                if saved and len(saved) == 64:
+                    self.settings["sessionSecretKey"] = saved
+                    setattr(self, "sessionSecretKey", saved)
+                    return
+        except OSError:
+            pass
 
-        Args:
-            settings_file_path: Path to the settings file (used to locate session_secret.key)
-        """
-        session_key_file = os.path.join(
-            os.path.dirname(settings_file_path), "session_secret.key"
-        )
-        if os.path.exists(session_key_file):
-            try:
-                with open(session_key_file, "r") as f:
-                    saved_key = f.read().strip()
-                    if saved_key and len(saved_key) == 64:
-                        self.settings["sessionSecretKey"] = saved_key
-                        setattr(self, "sessionSecretKey", self.settings["sessionSecretKey"])
-                        logging.debug("Loaded sessionSecretKey from session_secret.key")
-                        return
-            except Exception as e:
-                logging.warning(f"Could not read session_secret.key: {e}")
+        if self.settings.get("sessionSecretKey"):
+            return
 
-        if not self.settings.get("sessionSecretKey"):
-            self.settings["sessionSecretKey"] = secrets.token_hex(32)
-            setattr(self, "sessionSecretKey", self.settings["sessionSecretKey"])
-            try:
-                with open(session_key_file, "w") as f:
-                    f.write(self.settings["sessionSecretKey"])
-                logging.info("Auto-generated sessionSecretKey and saved to session_secret.key")
-            except Exception as e:
-                logging.warning(f"Could not save auto-generated sessionSecretKey to file: {e}")
+        self.settings["sessionSecretKey"] = secrets.token_hex(32)
+        setattr(self, "sessionSecretKey", self.settings["sessionSecretKey"])
+        try:
+            with open(key_file, "w") as f:
+                f.write(self.settings["sessionSecretKey"])
+            logging.info("Auto-generated sessionSecretKey and saved to session_secret.key")
+        except OSError:
+            pass
 
     def _load_nested_settings(self, data):
         """Load settings from nested YAML structure.
