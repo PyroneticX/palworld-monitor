@@ -60,10 +60,12 @@ def free_port(port, timeout=10):
 
 def kill_existing_palworld():
     """Terminate any running Palworld server processes."""
-    for proc in psutil.process_iter(["name"]):
+    for proc in psutil.process_iter(["name", "cmdline"]):
         try:
-            name = (proc.info["name"] or "").lower()
-            if "palserver" in name:
+            info = proc.info
+            name = (info["name"] or "").lower()
+            cmdline = " ".join(info["cmdline"] or []).lower()
+            if "palserver" in name or "palserver" in cmdline:
                 proc.kill()
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
