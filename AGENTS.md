@@ -5,7 +5,7 @@ Uses `uv` for dependencies and commands.
 ## Commands
 
 - `uv sync` — create `.venv` and install deps
-- `uv run poe run` — start the app (`src/main.py`)
+- `uv run poe start` — start the app (`src/main.py`)
 - `uv run poe test` — run all tests
 - `uv run poe test test/test_file.py` — single file
 - `uv run poe smoke` — run smoke tests (e2e tests in `test/e2e/`)

@@ -102,7 +102,7 @@ Install [uv](https://docs.astral.sh/uv/), then in the app's directory:
 
 ```bash
 uv sync
-uv run poe run
+uv run poe start
 ```
 
 That's it! Your monitor should be running at http://localhost:8213.
