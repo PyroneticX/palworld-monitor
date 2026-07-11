@@ -32,29 +32,5 @@ jobs:
       - name: Install dependencies
         run: uv sync --python ${{ matrix.python-version }}
 
-      - name: Diagnostics
-        id: diagnostics
-        shell: bash
-        run: |
-          echo '### Diagnostics (${{ matrix.os }}, Python ${{ matrix.python-version }})' >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          uv run python --version >> "$GITHUB_STEP_SUMMARY"
-          uv run python -c "import pytest; print('pytest', pytest.__version__)" >> "$GITHUB_STEP_SUMMARY" 2>&1
-          uv run pytest -m 'not e2e' --ignore=test/e2e --collect-only -q >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-
       - name: Run tests
-        id: tests
-        shell: bash
-        run: |
-          set -o pipefail
-          uv run poe test 2>&1 | tee test-output.log
-
-      - name: Upload test output on failure
-        if: failure() && steps.tests.outcome == 'failure'
-        shell: bash
-        run: |
-          echo '### Test output (${{ matrix.os }}, Python ${{ matrix.python-version }})' >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          tail -n 200 test-output.log >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+        run: uv run poe test
