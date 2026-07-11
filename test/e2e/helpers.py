@@ -34,12 +34,14 @@ def _pids_listening_on_port(port):
 def kill_tree(pid):
     """Kill a process and its entire child tree."""
     try:
-        subprocess.run(
-            ["taskkill", "/F", "/T", "/PID", str(pid)],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=15,
-        )
+        parent = psutil.Process(pid)
+        children = parent.children(recursive=True)
+        for child in children:
+            child.kill()
+        parent.kill()
+        psutil.wait_procs(children + [parent], timeout=5)
+    except psutil.NoSuchProcess:
+        pass
     except Exception:
         pass
 
@@ -58,18 +60,13 @@ def free_port(port, timeout=10):
 
 def kill_existing_palworld():
     """Terminate any running Palworld server processes."""
-    subprocess.run(
-        ["taskkill", "/F", "/IM", "PalServer-Win64-Shipping.exe"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        timeout=15,
-    )
-    subprocess.run(
-        ["taskkill", "/F", "/IM", "PalServer-Win64-Shipping-Cmd.exe"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        timeout=15,
-    )
+    for proc in psutil.process_iter(["name"]):
+        try:
+            name = (proc.info["name"] or "").lower()
+            if "palserver" in name:
+                proc.kill()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
     time.sleep(1)
 
 
