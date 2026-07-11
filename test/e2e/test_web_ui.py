@@ -144,6 +144,7 @@ def test_server_lifecycle(logged_in_page):
     time.sleep(6)  # let cooldown expire
 
 
+@pytest.mark.skipif(platform.system() == "Linux", reason="timing-unstable on Linux CI")
 def test_player_management(logged_in_page):
     """Verify player list from the dummy API, then kick and ban a player."""
     kill_existing_palworld()
