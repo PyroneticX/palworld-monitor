@@ -11,3 +11,5 @@ test/e2e/settings.yaml
 session_secret.key
 *.pid
 banlist.txt
+build/
+dist/
