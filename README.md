@@ -10,7 +10,7 @@ A Python application for managing PalWorld dedicated servers on Windows and Linu
 - **Automatic server management**:
   - Auto-start when players attempt to connect
   - Auto-stop after configured delay when server is empty (default: 10 minutes)
-  - Supports both REST and RCON (legacy) APIs when talking to PalServer (RCON was removed in Palworld 1.0; use REST)
+  - Supports both REST and RCON (deprecated in Palworld 1.0) APIs when talking to PalServer
 - **Web-based admin interface**:
   - Real-time server monitoring
   - Server control capabilities
@@ -30,86 +30,96 @@ A Python application for managing PalWorld dedicated servers on Windows and Linu
 - **Development stage**: This tool is in active development and may contain bugs
 - **Same host requirement**: In order to be able to start/stop the Palworld Server this app must run on the same host as the PalWorld server (your own PC, same AWS EC2 instance, same Docker container, etc).
 
-## How to Use
+## Quick Start
 
-### Step 1: Configure your Palworld Server.
+1. Download from the latest [GitHub Release](https://github.com/kevinnio/palworld-monitor/releases):
+   - **Windows:** `palworld-monitor.exe`
+   - **Linux:** `palworld-monitor`
+2. Run it. On first launch it auto-detects your PalServer, enables the REST
+   API in your `PalWorldSettings.ini`, asks for a couple of passwords, and
+   starts.
+3. Open http://localhost:8213 in your browser and log in with the password you
+   chose.
 
-<details>
-<summary>Click here to see how to configure your Palworld Server.</summary>
+No config files to edit. The monitor auto-starts and auto-stops your PalServer
+as players come and go.
 
-**REST API Protocol (Recommended)**
-
-The REST API is the recommended way to talk to your PalWorld server. To enable it:
-
-1. **Locate `PalWorldSettings.ini`**
-   ```
-   {PalServerPath}\PalServer\Pal\Saved\Config\{Windows|Linux}Server\PalWorldSettings.ini
-   ```
-   If the file doesn't exist, copy from `DefaultPalWorldSettings.ini`.
-
-2. **Enable REST API**
-   Add these settings under `[ServerSettings]`:
-   ```ini
-   RESTEnabled=True
-   RESTPort=8212
-   AdminPassword=your_strong_admin_password
-   ```
-
-3. **Restart your PalWorld server**
-
-**RCON Protocol (Legacy)**
-
-> ⚠️ **Palworld 1.0 removed RCON support entirely.** Use the REST API instead. RCON configuration below only applies to older server versions.
-
-Only use RCON if for some reason the REST API is not available:
-
-1. **Configure RCON in `PalWorldSettings.ini`**.
-   Add these settings under `[ServerSettings]`:
-   ```ini
-   RCONEnabled=True
-   RCONPort=25575
-   AdminPassword=your_strong_admin_password
-   ```
-
-2. **Restart your PalWorld server**
-
-**Important Notes:**
-- Use a strong admin password for security
-- Ensure the configured ports are open in your firewall
-
-</details>
-
-### Step 2: Configure your monitor
-
-Copy `src/settings.yaml.example` into `src/settings.yaml` and change settings at will.
-
-#### Required Settings
-
-These settings are required and the app won't start without them:
-
-| Domain | Setting | Description |
-|--------|---------|-------------|
-| `palserver` | `exePath` | Full path to PalWorld server executable. Must be accessible and executable. |
-| `palserver` | `adminPassword` | Admin password for server API access. Must match the one in your server's `PalWorldSettings.ini`. |
-| `web` | `password` | Password for web admin interface. Ideally different from server admin password. |
-| `palserver` | `pollingRate` | How often to query the Palworld server for status and player data (seconds, default `5`). |
-
-See `src/settings.yaml.example` for all available settings.
-
-### Step 3: Run the app
-
-Install [uv](https://docs.astral.sh/uv/), then in the app's directory:
+### From source
 
 ```bash
-uv sync
-uv run poe start
+uv sync             # install deps
+uv run poe start    # same interactive first-run setup
 ```
 
-That's it! Your monitor should be running at http://localhost:8213.
+## Configuration
 
-Access the admin panel using:
-- **Username**: `admin` (You can change it in settings)
-- **Password**: Your configured web password
+After first run, a `settings.yaml` file is saved next to the app.  You can edit
+it to change ports, polling rate, auto-stop delay, etc.
+
+| Setting (YAML) | CLI flag | Description |
+|-----------------|----------|-------------|
+| — | `--settings PATH` | Path to an alternate `settings.yaml` |
+| `palserver.exePath` ⚑ | `--exe-path PATH` | Full path to PalServer executable |
+| `palserver.adminPassword` ⚑ | `--admin-password PASS` | Admin password from your server's `PalWorldSettings.ini` |
+| `palserver.pollingRate` ⚑ | `--polling-rate SEC` | Seconds between status polls (default `5`) |
+| `web.password` ⚑ | `--web-password PASS` | Password for the web admin interface |
+| `palserver.host` | `--host HOST` | Palworld server host |
+| `palserver.port` | `--server-port PORT` | Palworld game server port |
+| `palserver.protocol` | `--protocol REST\|RCON` | Server communication protocol |
+| `web.enabled` | `--no-web` | Disable the web admin UI |
+| `web.port` | `--web-port PORT` | Web admin UI port |
+| `web.username` | `--web-username USER` | Web admin username |
+| `features.autoStart` | `--no-auto-start` | Disable auto-start on UDP probe |
+| `features.autoStop` | `--no-auto-stop` | Disable auto-stop when server is empty |
+
+⚑ = required on first run.  Passwords are masked in logs.  Every setting can be
+overridden via CLI flag (run with `--help`).
+
+## Manual PalServer setup (optional)
+
+The app auto-configures your PalServer on first run.  This section is only
+needed if auto-setup fails, or if you want to configure things yourself.
+
+Your PalServer needs the REST API enabled in `PalWorldSettings.ini`:
+
+```ini
+RESTAPIEnabled=True
+RESTAPIPort=8212
+AdminPassword=your_strong_admin_password
+```
+
+<details>
+<summary>Where to find PalWorldSettings.ini</summary>
+
+Look inside your PalServer folder. The exact path depends on how you installed it:
+
+**Steam (most common):**
+
+```
+C:\Program Files (x86)\Steam\steamapps\common\PalServer\Pal\Saved\Config\WindowsServer\PalWorldSettings.ini
+```
+
+**SteamCMD (dedicated server tool):**
+
+```
+C:\Program Files\PalServer\Pal\Saved\Config\WindowsServer\PalWorldSettings.ini
+```
+
+If `PalWorldSettings.ini` doesn't exist, copy `DefaultPalWorldSettings.ini`
+from the same folder and rename it.
+</details>
+
+<details>
+<summary>Legacy RCON setup</summary>
+
+> RCON is **deprecated** in Palworld 1.0.  Prefer the REST API above.
+
+```ini
+RCONEnabled=True
+RCONPort=25575
+AdminPassword=your_strong_admin_password
+```
+</details>
 
 ## License
 
