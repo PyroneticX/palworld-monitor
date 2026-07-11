@@ -113,7 +113,6 @@ def test_login_and_dashboard_loads(logged_in_page):
     assert "Player" in text or "No players found" in text
 
 
-@pytest.mark.skipif(platform.system() == "Linux", reason="timing-unstable on Linux CI")
 def test_server_lifecycle(logged_in_page):
     """Start the Palworld server, read status, then stop it through the web UI."""
     kill_existing_palworld()
@@ -144,7 +143,6 @@ def test_server_lifecycle(logged_in_page):
     time.sleep(6)  # let cooldown expire
 
 
-@pytest.mark.skipif(platform.system() == "Linux", reason="timing-unstable on Linux CI")
 def test_player_management(logged_in_page):
     """Verify player list from the dummy API, then kick and ban a player."""
     kill_existing_palworld()

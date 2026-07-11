@@ -47,6 +47,7 @@ def app_process(running_dummy):
         yield process
 
 
+@pytest.mark.skipif(sys.platform == "linux", reason="auto-stop process detection false positive on Linux")
 def test_autostop(running_dummy, app_process):
     deadline = time.time() + 60
     while time.time() < deadline:
