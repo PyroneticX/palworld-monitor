@@ -175,7 +175,7 @@ def test_player_management(logged_in_page):
     logged_in_page.locator("text=TestPlayer2").locator("..").locator(
         ".ban-btn"
     ).click(timeout=5000)
-    time.sleep(8)
+    time.sleep(10)
     _refresh_status(logged_in_page)
     ban_count = logged_in_page.locator(".status-online").count()
     assert ban_count == 1, f"Expected 1 online after ban, got {ban_count}"

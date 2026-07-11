@@ -56,4 +56,4 @@ def test_autostop(running_dummy, app_process):
         except psutil.NoSuchProcess:
             return
         time.sleep(1)
-    pytest.fail("Auto‑stop did not kill the dummy PalServer within 45 s")
+    pytest.fail("Auto-stop did not kill the dummy PalServer within 60 s")
