@@ -1,0 +1,38 @@
+# ============================================================================
+# E2E test settings for Palworld Monitor
+# ============================================================================
+palserver:
+  exePath: "python"
+  exeArguments: "test/e2e/dummy/PalServer-Dummy.py"
+  host: "127.0.0.1"
+  port: 8211
+  adminPassword: "palworld123"
+  protocol: "REST"
+  restPort: 8212
+  rconPort: 25575
+  pollingRate: 5
+
+web:
+  enabled: true
+  port: 8213
+  username: "admin"
+  password: "admin"
+  controlServer: true
+  showServerIP: false
+
+features:
+  playerTracking: true
+  autoStart: true
+  autoStop: true
+
+autoStop:
+  stopDelay: 5
+
+security:
+  sessionSecretKey: null
+  sessionTimeout: 3600
+  maxLoginAttempts: 5
+  lockoutDuration: 300
+  rateLimitEnabled: true
+  rateLimitRequests: 100
+  rateLimitWindow: 60
