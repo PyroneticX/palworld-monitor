@@ -1,0 +1,37 @@
+# ============================================================================
+# E2E test settings for Palworld Monitor — copy to settings.yaml and adjust
+# ============================================================================
+palserver:
+  exePath: "/path/to/PalServer/Pal/Binaries/Win64/PalServer-Win64-Shipping.exe"
+  host: "127.0.0.1"
+  port: 8211
+  adminPassword: "palworld123"
+  protocol: "REST"
+  restPort: 8212
+  rconPort: 25575
+
+web:
+  enabled: true
+  port: 8213
+  username: "admin"
+  password: "admin"
+  controlServer: true
+  showServerIP: false
+
+features:
+  playerTracking: true
+  autoStart: false
+  autoStop: false
+
+autoStop:
+  stopDelay: 600
+  updateInterval: 5
+
+security:
+  sessionSecretKey: null
+  sessionTimeout: 3600
+  maxLoginAttempts: 5
+  lockoutDuration: 300
+  rateLimitEnabled: true
+  rateLimitRequests: 100
+  rateLimitWindow: 60
