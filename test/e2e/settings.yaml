@@ -9,7 +9,6 @@ palserver:
   adminPassword: "palworld123"
   protocol: "REST"
   restPort: 8212
-  rconPort: 25575
   pollingRate: 5
 
 web:

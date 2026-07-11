@@ -62,7 +62,6 @@ def mock_settings(monkeypatch):
     mock.palworldServerHost = "localhost"
     mock.palworldServerPort = 8211
     mock.palworldRESTPort = 8212
-    mock.palworldRCONPort = 25575
     mock.palworldServerAdminPassword = "test_admin_password"
     mock.palworldServerExePath = "/path/to/PalServer.exe"
     mock.palworldMainProcessName = "PalServer-Win64-Shipping-Cmd.exe"

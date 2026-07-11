@@ -27,25 +27,6 @@ def create_mock_http_response(
     return response
 
 
-def create_mock_rcon_console(command_response=None, close_return=None):
-    """Create a mock RCON console object.
-
-    Args:
-        command_response: Response to return from command() method
-                         (default: "name,playerid,userid\\nPlayer1,pid1,uid1")
-        close_return: Return value for close() method (default: None)
-
-    Returns:
-        MagicMock configured as an RCON console
-    """
-    console = MagicMock()
-    console.command.return_value = (
-        command_response or "name,playerid,userid\nPlayer1,pid1,uid1"
-    )
-    console.close.return_value = close_return
-    return console
-
-
 def create_mock_api_client():
     """Create a mock API client with default return values.
 

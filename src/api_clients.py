@@ -6,7 +6,6 @@ import traceback
 
 import requests
 from requests.auth import HTTPBasicAuth
-from rcon import Console
 
 from src.settings import settings
 
@@ -96,71 +95,3 @@ class RestClient:
 
     def unban_player(self, player):
         return self._make_post_request("unban", {"userid": _extract_steam_id(player)})
-
-
-class RconClient:
-    """RCON client for communicating with PalWorld server."""
-
-    def __init__(self):
-        self.host = settings.palworldServerHost
-        self.port = settings.palworldRCONPort
-        self.password = settings.palworldServerAdminPassword
-
-    def _send_command(self, command):
-        try:
-            console = Console(host=self.host, port=self.port, password=self.password)
-            response = console.command(command)
-            console.close()
-            return response
-        except Exception:
-            logging.error(f"Error from send_rcon_command. command={command}")
-            logging.error(traceback.format_exc())
-            return None
-
-    def _send_show_players(self):
-        try:
-            console = Console(host=self.host, port=self.port, password=self.password)
-            response = console.command("ShowPlayers")
-            console.close()
-            return response.splitlines(), None
-        except Exception as e:
-            logging.error(f"Error from send_rcon_command. command=ShowPlayers, error: {e}")
-            logging.error(traceback.format_exc())
-            return None, str(e)
-
-    def get_player_count(self):
-        try:
-            show_players, error_details = self._send_show_players()
-            if show_players is None:
-                error_info = f", error: {error_details}" if error_details else ""
-                logging.error(f"Failed to get player count{error_info}")
-                return 0
-            return len(show_players) - 1
-        except Exception as e:
-            logging.error(f"Error getting player count: {e}")
-            return 0
-
-    def get_player_names(self):
-        try:
-            show_players, _error_details = self._send_show_players()
-            if show_players is None or len(show_players) <= 1:
-                return []
-            return [line.split(",") for line in show_players[1:]]
-        except Exception as e:
-            logging.error(f"Error getting player names: {e}")
-            return []
-
-    def kick_player(self, player):
-        steam_id = _extract_steam_id(player)
-        result = self._send_command(f"KickPlayer {steam_id}")
-        return result is not None
-
-    def ban_player(self, player):
-        steam_id = _extract_steam_id(player)
-        result = self._send_command(f"BanPlayer {steam_id}")
-        return result is not None
-
-    def unban_player(self, player):
-        steam_id = _extract_steam_id(player)
-        result = self._send_command(f"UnbanPlayer {steam_id}")
-        return result is not None

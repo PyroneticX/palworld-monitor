@@ -7,7 +7,7 @@ import json
 import pytest
 from unittest.mock import patch, MagicMock
 import requests
-from src.api_clients import RestClient, RconClient
+from src.api_clients import RestClient
 
 
 @pytest.fixture
@@ -16,14 +16,6 @@ def mock_http_response():
     from test.support import create_mock_http_response
 
     return create_mock_http_response()
-
-
-@pytest.fixture
-def mock_rcon_console():
-    """Create a mock RCON console with default values."""
-    from test.support import create_mock_rcon_console
-
-    return create_mock_rcon_console()
 
 
 class TestRestClient:
@@ -211,136 +203,3 @@ class TestRestClient:
             mock_post.assert_called_once()
             _, kwargs = mock_post.call_args
             assert kwargs["json"] == {"userid": "123456789"}
-
-
-class TestRconClient:
-    """Test suite for RconClient."""
-
-    def test_init(self, mock_settings, mock_rcon_console):
-        """Test RconClient can be initialized and send commands."""
-        client = RconClient()
-        # Test behavior: client can successfully send commands
-        with patch("src.api_clients.Console", return_value=mock_rcon_console):
-            result = client._send_command("ShowPlayers")
-            assert result == "name,playerid,userid\nPlayer1,pid1,uid1"
-
-    def test_send_command_success(self, mock_settings, mock_rcon_console):
-        """Test successful RCON command returns expected response."""
-        with patch("src.api_clients.Console", return_value=mock_rcon_console):
-            client = RconClient()
-            result = client._send_command("ShowPlayers")
-
-            # Test behavior: command returns the expected response
-            assert result == "name,playerid,userid\nPlayer1,pid1,uid1"
-
-    def test_send_command_failure(self, mock_settings, mock_rcon_console):
-        """Test RCON command failure."""
-        mock_rcon_console.command.side_effect = Exception("Connection error")
-
-        with patch("src.api_clients.Console", return_value=mock_rcon_console):
-            client = RconClient()
-            result = client._send_command("ShowPlayers")
-
-            assert result is None
-
-    @pytest.mark.parametrize(
-        "command_response,expected_count",
-        [
-            ("name,playerid,userid\nPlayer1,pid1,uid1\nPlayer2,pid2,uid2", 2),
-            ("name,playerid,userid", 0),  # Header only
-            (None, 0),  # None response
-        ],
-    )
-    def test_get_player_count(
-        self, mock_settings, mock_rcon_console, command_response, expected_count
-    ):
-        """Test getting player count via RCON with various scenarios."""
-        mock_rcon_console.command.return_value = command_response
-
-        with patch("src.api_clients.Console", return_value=mock_rcon_console):
-            client = RconClient()
-            count = client.get_player_count()
-
-            assert count == expected_count
-
-    @pytest.mark.parametrize(
-        "command_response,expected_players",
-        [
-            (
-                "name,playerid,userid\nPlayer1,pid1,uid1\nPlayer2,pid2,uid2",
-                [["Player1", "pid1", "uid1"], ["Player2", "pid2", "uid2"]],
-            ),
-            ("name,playerid,userid", []),  # Header only
-        ],
-    )
-    def test_get_player_names(
-        self, mock_settings, mock_rcon_console, command_response, expected_players
-    ):
-        """Test getting player names via RCON with various scenarios."""
-        mock_rcon_console.command.return_value = command_response
-
-        with patch("src.api_clients.Console", return_value=mock_rcon_console):
-            client = RconClient()
-            players = client.get_player_names()
-
-            assert players == expected_players
-
-    @pytest.mark.parametrize(
-        "command_response,expected_result",
-        [
-            ("Player kicked successfully", True),
-            (None, False),
-        ],
-    )
-    def test_kick_player(
-        self, mock_settings, mock_rcon_console, command_response, expected_result
-    ):
-        """Test kicking a player via RCON with success and failure scenarios."""
-        mock_rcon_console.command.return_value = command_response
-
-        with patch("src.api_clients.Console", return_value=mock_rcon_console):
-            client = RconClient()
-            player = {"steam_id": "123456789", "name": "TestPlayer"}
-            result = client.kick_player(player)
-
-            assert result == expected_result
-
-    @pytest.mark.parametrize(
-        "command_response,expected_result",
-        [
-            ("Player banned successfully", True),
-            (None, False),
-        ],
-    )
-    def test_ban_player(
-        self, mock_settings, mock_rcon_console, command_response, expected_result
-    ):
-        """Test banning a player via RCON with success and failure scenarios."""
-        mock_rcon_console.command.return_value = command_response
-
-        with patch("src.api_clients.Console", return_value=mock_rcon_console):
-            client = RconClient()
-            player = {"steam_id": "123456789", "name": "TestPlayer"}
-            result = client.ban_player(player)
-
-            assert result == expected_result
-
-    @pytest.mark.parametrize(
-        "command_response,expected_result",
-        [
-            ("Player unbanned successfully", True),
-            (None, False),
-        ],
-    )
-    def test_unban_player(
-        self, mock_settings, mock_rcon_console, command_response, expected_result
-    ):
-        """Test unbanning a player via RCON with success and failure scenarios."""
-        mock_rcon_console.command.return_value = command_response
-
-        with patch("src.api_clients.Console", return_value=mock_rcon_console):
-            client = RconClient()
-            player = {"steam_id": "123456789", "name": "TestPlayer"}
-            result = client.unban_player(player)
-
-            assert result == expected_result

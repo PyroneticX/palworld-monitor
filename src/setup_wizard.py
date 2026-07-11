@@ -150,7 +150,6 @@ def _default_config(exe_path, admin_pass, web_pass):
             "adminPassword": admin_pass,
             "protocol": "REST",
             "restPort": 8212,
-            "rconPort": 25575,
             "pollingRate": 5,
         },
         "web": {

@@ -11,12 +11,10 @@ palserver:
   port: 8211
   # Admin password for the Palworld server (required) — change this on first use
   adminPassword: "changeme"
-  # Protocol used for server communication (REST or RCON)
+  # Protocol used for server communication
   protocol: "REST"
   # Port for the REST API
   restPort: 8212
-  # Port for the RCON interface
-  rconPort: 25575
   # How often to reach out to the Palworld server for status and player
   # data (seconds)
   pollingRate: 5

@@ -21,7 +21,7 @@ def build_parser():
     )
     parser.add_argument(
         "--admin-password", dest="palworldServerAdminPassword", metavar="PASS",
-        help="Palworld REST/RCON admin password",
+        help="Palworld REST admin password",
     )
     parser.add_argument(
         "--host", dest="palworldServerHost", metavar="HOST", help="Palworld server host"
@@ -31,7 +31,7 @@ def build_parser():
         help="Palworld game server port",
     )
     parser.add_argument(
-        "--protocol", choices=["REST", "RCON"], metavar="PROTO",
+        "--protocol", choices=["REST"], metavar="PROTO",
         help="Server communication protocol",
     )
     parser.add_argument(

@@ -33,7 +33,6 @@ class Settings:
             "palworldServerHost": "localhost",
             "palworldServerPort": 8211,
             "palworldRESTPort": 8212,
-            "palworldRCONPort": 25575,
             "palworldServerAdminPassword": None,
             "protocol": "REST",
             "useWebServer": True,
@@ -104,7 +103,6 @@ class Settings:
                 "adminPassword": "palworldServerAdminPassword",
                 "protocol": "protocol",
                 "restPort": "palworldRESTPort",
-                "rconPort": "palworldRCONPort",
                 "pollingRate": "pollingRate",
                 "exeArguments": "palworldExeArguments",
             },
@@ -193,7 +191,6 @@ class Settings:
         for name, value in [
             ("palworldServerPort", self.palworldServerPort),
             ("palworldRESTPort", self.palworldRESTPort),
-            ("palworldRCONPort", self.palworldRCONPort),
             ("webServerPort", self.webServerPort),
         ]:
             try:

@@ -14,7 +14,6 @@ a = Analysis(
         "flask_login",
         "flask_wtf",
         "psutil",
-        "rcon",
     ],
     hookspath=[],
     hooksconfig={},

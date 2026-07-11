@@ -10,7 +10,7 @@ A Python application for managing PalWorld dedicated servers on Windows and Linu
 - **Automatic server management**:
   - Auto-start when players attempt to connect
   - Auto-stop after configured delay when server is empty (default: 10 minutes)
-  - Supports both REST and RCON (deprecated in Palworld 1.0) APIs when talking to PalServer
+  - Supports REST API communication with PalServer
 - **Web-based admin interface**:
   - Real-time server monitoring
   - Server control capabilities
@@ -69,7 +69,7 @@ it to change ports, polling rate, auto-stop delay, etc.
 | `web.password` ⚑ | `--web-password PASS` | Password for the web admin interface |
 | `palserver.host` | `--host HOST` | Palworld server host |
 | `palserver.port` | `--server-port PORT` | Palworld game server port |
-| `palserver.protocol` | `--protocol REST\|RCON` | Server communication protocol |
+| `palserver.protocol` | `--protocol REST` | Server communication protocol |
 | `web.enabled` | `--no-web` | Disable the web admin UI |
 | `web.port` | `--web-port PORT` | Web admin UI port |
 | `web.username` | `--web-username USER` | Web admin username |
@@ -111,18 +111,6 @@ C:\Program Files\PalServer\Pal\Saved\Config\WindowsServer\PalWorldSettings.ini
 
 If `PalWorldSettings.ini` doesn't exist, copy `DefaultPalWorldSettings.ini`
 from the same folder and rename it.
-</details>
-
-<details>
-<summary>Legacy RCON setup</summary>
-
-> RCON is **deprecated** in Palworld 1.0.  Prefer the REST API above.
-
-```ini
-RCONEnabled=True
-RCONPort=25575
-AdminPassword=your_strong_admin_password
-```
 </details>
 
 ## License

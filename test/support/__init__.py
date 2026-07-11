@@ -4,7 +4,6 @@ Test support files and utilities.
 
 from .mock_factories import (
     create_mock_http_response,
-    create_mock_rcon_console,
     create_mock_api_client,
 )
 from .temp_file_helpers import (
@@ -18,7 +17,6 @@ from .process_launcher import get_python_executable
 
 __all__ = [
     "create_mock_http_response",
-    "create_mock_rcon_console",
     "create_mock_api_client",
     "create_temp_data_dir",
     "cleanup_temp_dir",

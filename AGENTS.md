@@ -33,7 +33,7 @@ Uses `uv` for dependencies and commands. See [README.md](README.md) for user-fac
 - Process control (`src/process_manager.py`): `WindowsProcessManager` / `LinuxProcessManager` via psutil.
   - `find_process_pid` checks process name, exe path, and `cmdline` for a match
 - `PalWorldController` runs a background detection loop (every `pollingRate` s) that discovers a PalServer process that started independently of the monitor
-- Server communication (`src/api_clients.py`): `RestClient` (default, recommended) or `RconClient` (legacy).
+- Server communication (`src/api_clients.py`): `RestClient` communicates with the PalServer REST API.
 - Flask runs in the main thread. Ctrl+C shuts down the server cleanly; daemon threads (AutoStartManager,
 detection loops) exit automatically with the interpreter.
 - **Live updates:** the dashboard uses Server-Sent Events (`/stream` endpoint) to push status changes in real time instead of polling
@@ -60,7 +60,6 @@ Before shipping, verify these against an actual running server:
 - [ ] **Kick** — from the web UI, kick a player. They should be disconnected.
 - [ ] **Ban** — ban a player via Steam ID. They should be unable to rejoin.
 - [ ] **Wrong admin password** — start the monitor with an incorrect `adminPassword` in `settings.yaml`. The dashboard should show the server as offline.
-- [ ] **RCON** (if supported) — set `protocol: "RCON"`, verify player count and kick/ban work.
 
 ## Constraints
 
@@ -71,7 +70,7 @@ Before shipping, verify these against an actual running server:
 
 - **Prebuilt binaries**: pushing a `v*` tag triggers `.github/workflows/release.yml`, which builds on `windows-latest` and `ubuntu-latest`, publishing both `palworld-monitor.exe` and `palworld-monitor` (Linux) to a GitHub Release.
 - **Local build**: `uv run poe build-exe` runs `build_exe.py` (PyInstaller via `palworld-monitor.spec`), then copies `src/settings.yaml.example` → `dist/settings.yaml` so the dist folder is runnable as-is.
-- **PyInstaller spec** (`palworld-monitor.spec`): bundles `src/templates`, `src/static`, and `src/settings.yaml.example` as data. Hidden imports: `flask_limiter`, `flask_login`, `flask_wtf`, `psutil`, `rcon`.
+- **PyInstaller spec** (`palworld-monitor.spec`): bundles `src/templates`, `src/static`, and `src/settings.yaml.example` as data. Hidden imports: `flask_limiter`, `flask_login`, `flask_wtf`, `psutil`.
 - **Frozen-mode paths**: when running the exe, `sys.frozen` is set. `src/main.py` `_determine_settings_path()` resolves `settings.yaml` next to the exe (`os.path.dirname(sys.executable)`); `src/web_server.py` resolves templates/static from `sys._MEIPASS`. When touching path resolution, account for both frozen and non-frozen modes.
 - **No `exit()`**: use `sys.exit()` — PyInstaller doesn't inject the `exit` builtin that CPython's interactive mode does.
 - **Web UI link**: `src/setup_wizard.py` `print_web_link()` prints `http://localhost:{port}` and the LAN IP to the console before the Flask server starts (it blocks).

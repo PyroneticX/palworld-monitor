@@ -73,9 +73,6 @@ def main():
     if settings.protocol.upper() == "REST":
         from src.api_clients import RestClient
         client = RestClient()
-    elif settings.protocol.upper() == "RCON":
-        from src.api_clients import RconClient
-        client = RconClient()
     else:
         logging.error(f"Invalid protocol specified in settings: {settings.protocol}")
         sys.exit(1)
