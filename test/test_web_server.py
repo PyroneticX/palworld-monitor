@@ -51,6 +51,8 @@ class TestWebServerEventHandlers:
             "banned_players": [],
         }
         server._lock = MagicMock()
+        server._sse_lock = MagicMock()
+        server._sse_clients = []
 
         server._on_server_status(
             {

@@ -83,13 +83,6 @@ function updateThemeButton(theme) {
     }
 }
 
-// Server action scheduling
-function scheduleStatusCheck() {
-    setTimeout(function () {
-        handleServerAction("getStatus");
-    }, 5000);
-}
-
 // UI update functions
 function updateServerStatusUI(data, response) {
     const runningElements = document.querySelectorAll(".status-indicator.running");
@@ -295,11 +288,6 @@ function confirmAndHandleServerAction(action) {
 // Main server action handler
 async function handleServerAction(action) {
     try {
-        // Schedule status check for server start/stop actions
-        if (action === "startServer" || action === "stopServer") {
-            scheduleStatusCheck();
-        }
-
         const response = await makeServerRequest(action);
         let data = response.data;
 
@@ -452,11 +440,19 @@ document.addEventListener('DOMContentLoaded', function () {
     initThemeButton();
     handleServerAction("getStatus");
 
-    // Get update interval from data attribute (default to 30 seconds if not set)
-    const updateInterval = parseInt(document.body.getAttribute('data-update-interval')) || 30;
-
-    // Set up automatic refresh using the configured update interval
-    setInterval(function () {
-        handleServerAction("getStatus");
-    }, 1000 * updateInterval); // Use configured update interval
+    // Live updates via Server-Sent Events
+    const eventSource = new EventSource('/stream');
+    eventSource.onmessage = function (event) {
+        try {
+            const response = JSON.parse(event.data);
+            updateServerStatusUI(response.data, response);
+            updatePlayerInfoUI(response.data, response);
+            updateLastUpdatedUI();
+        } catch (e) {
+            console.error('Error parsing SSE data:', e);
+        }
+    };
+    eventSource.onerror = function () {
+        console.warn('SSE connection lost, will auto-reconnect…');
+    };
 });

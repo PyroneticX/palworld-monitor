@@ -12,7 +12,9 @@
 # copies or substantial portions of the Software.
 
 import socket
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+import json
+import queue
+from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
 from flask_login import (
     LoginManager,
     login_user,
@@ -50,6 +52,10 @@ class WebServer:
             "banned_players": [],
         }
         self._lock = threading.RLock()
+
+        # SSE (Server-Sent Events) state
+        self._sse_lock = threading.Lock()
+        self._sse_clients: list = []
 
         # Configure session
         self.app.secret_key = settings.sessionSecretKey
@@ -102,6 +108,9 @@ class WebServer:
         bus.subscribe(Event.SERVER_STOPPED, self._on_server_stopped)
         bus.subscribe(Event.SERVER_STATUS, self._on_server_status)
 
+        self._sse_clients: list[queue.Queue] = []
+        self._sse_lock = threading.RLock()
+
         self._sync_running_state()
         self._sync_banned_players()
 
@@ -136,6 +145,15 @@ class WebServer:
             self.state_cache["playerCount"] = data.get("playerCount", 0)
             self.state_cache["players"] = list(data.get("players", []))
             self.state_cache["banned_players"] = list(data.get("banned_players", []))
+        # Broadcast to SSE clients
+        payload = {
+            "data": dict(self.state_cache),
+            "players": list(data.get("players", [])),
+            "banned_players": list(data.get("banned_players", [])),
+            "total_player_count": len(data.get("players", [])),
+            "autoStopDelay": round(settings.autoStopDelay),
+        }
+        self._broadcast_sse(payload)
 
     def _register_filters(self):
         """Register custom Jinja2 filters."""
@@ -198,6 +216,66 @@ class WebServer:
         @login_required
         def get_banned_players():
             return self._handle_get_banned()
+
+        @self.app.route("/stream")
+        def stream():
+            if not current_user.is_authenticated:
+                return jsonify(error="Unauthorized"), 401
+            return self._handle_stream()
+
+    # ------------------------------------------------------------------
+    # SSE helpers
+    # ------------------------------------------------------------------
+
+    def _broadcast_sse(self, payload):
+        """Push *payload* to every connected SSE client."""
+        text = f"data: {json.dumps(payload)}\n\n"
+        with self._sse_lock:
+            dead = []
+            for q in self._sse_clients:
+                try:
+                    q.put_nowait(text)
+                except queue.Full:
+                    dead.append(q)
+            for q in dead:
+                self._sse_clients.remove(q)
+
+    def _handle_stream(self):
+        """Return a streaming response that pushes server-status events."""
+        q: queue.Queue = queue.Queue(maxsize=32)
+        with self._sse_lock:
+            self._sse_clients.append(q)
+
+        def generate():
+            try:
+                # Send the current state immediately on connect
+                with self._lock:
+                    snapshot = {
+                        "data": dict(self.state_cache),
+                        "players": list(self.state_cache["players"]),
+                        "banned_players": list(self.state_cache["banned_players"]),
+                        "total_player_count": self.state_cache["playerCount"],
+                        "autoStopDelay": round(settings.autoStopDelay),
+                    }
+                    yield f"data: {json.dumps(snapshot)}\n\n"
+
+                while True:
+                    try:
+                        msg = q.get(timeout=30)
+                        yield msg
+                    except queue.Empty:
+                        # Send a keepalive comment so the connection isn't dropped
+                        yield ": keepalive\n\n"
+            except GeneratorExit:
+                pass
+            finally:
+                with self._sse_lock:
+                    try:
+                        self._sse_clients.remove(q)
+                    except ValueError:
+                        pass
+
+        return Response(generate(), mimetype="text/event-stream")
 
     def _handle_login(self):
         """Handle login page and authentication."""
