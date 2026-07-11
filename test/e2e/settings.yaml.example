@@ -1,8 +1,9 @@
 # ============================================================================
-# E2E test settings for Palworld Monitor — copy to settings.yaml and adjust
+# E2E test settings — copy to settings.yaml and adjust exePath
 # ============================================================================
 palserver:
-  exePath: "/path/to/PalServer/Pal/Binaries/Win64/PalServer-Win64-Shipping.exe"
+  # Path to the Palworld server executable (required — update for your system)
+  exePath: "C:\\Program Files (x86)\\Steam\\steamapps\\common\\PalServer\\PalServer.exe"
   host: "127.0.0.1"
   port: 8211
   adminPassword: "palworld123"
@@ -10,6 +11,9 @@ palserver:
   restPort: 8212
   rconPort: 25575
 
+# ============================================================================
+# Web — uses a non-default port (8213) and known creds so tests can log in
+# ============================================================================
 web:
   enabled: true
   port: 8213
@@ -18,6 +22,9 @@ web:
   controlServer: true
   showServerIP: false
 
+# ============================================================================
+# Features — autoStart/autoStop off so the test controls lifecycle manually
+# ============================================================================
 features:
   playerTracking: true
   autoStart: false
