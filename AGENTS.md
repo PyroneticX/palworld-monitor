@@ -45,6 +45,7 @@ detection loops) exit automatically with the interpreter.
 - Test factories in `test/support/`, fixtures in `test/conftest.py`.
 - Smoke tests: run with `uv run poe smoke` — these are end-to-end tests in `test/e2e/` that verify the web server works correctly.
   - No real PalServer needed — `test/e2e/dummy/PalServer-Dummy.py` serves a minimal REST API mimicking the real server
+  - **Destructive**: the test helpers kill any existing PalServer process and free ports 8211–8213 at startup and teardown. Do NOT run on a machine running a real PalServer.
   - `DUMMY_PLAYER_COUNT` env var controls how many fake players the dummy reports (default 3, set to 0 for autostop tests)
 
 ## Constraints

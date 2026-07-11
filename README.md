@@ -51,6 +51,10 @@ uv sync             # install deps
 uv run poe start    # same interactive first-run setup
 ```
 
+Run e2e smoke tests with `uv run poe smoke`. **Do not run smoke tests
+while a real PalServer is running** — they kill all PalServer processes
+and occupy game ports to isolate the test environment.
+
 ## Configuration
 
 After first run, a `settings.yaml` file is saved next to the app.  You can edit
