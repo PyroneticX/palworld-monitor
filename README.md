@@ -33,8 +33,8 @@ A Python application for managing PalWorld dedicated servers on Windows and Linu
 ## Quick Start
 
 1. Download from the latest [GitHub Release](https://github.com/kevinnio/palworld-monitor/releases):
-   - **Windows:** `palworld-monitor.exe`
-   - **Linux:** `palworld-monitor`
+   - **Windows:** `palworld-monitor-windows.exe`
+   - **Linux:** `palworld-monitor-linux`
 2. Run it. On first launch it auto-detects your PalServer, enables the REST
    API in your `PalWorldSettings.ini`, asks for a couple of passwords, and
    starts.

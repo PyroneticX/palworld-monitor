@@ -24,11 +24,14 @@ jobs:
       - name: Build exe
         run: uv run poe build-exe
 
+      - name: Rename
+        run: ren dist\palworld-monitor.exe palworld-monitor-windows.exe
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: palworld-monitor-win64
-          path: dist/palworld-monitor.exe
+          path: dist/palworld-monitor-windows.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -48,11 +51,14 @@ jobs:
       - name: Build binary
         run: uv run poe build-exe
 
+      - name: Rename
+        run: mv dist/palworld-monitor dist/palworld-monitor-linux
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: palworld-monitor-linux64
-          path: dist/palworld-monitor
+          path: dist/palworld-monitor-linux
 
   release:
     needs: [build-windows, build-linux]
@@ -72,6 +78,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            palworld-monitor.exe
-            palworld-monitor
+            palworld-monitor-windows.exe
+            palworld-monitor-linux
           generate_release_notes: true
