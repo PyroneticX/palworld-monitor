@@ -48,6 +48,20 @@ detection loops) exit automatically with the interpreter.
   - **Destructive**: the test helpers kill any existing PalServer process and free ports 8211–8213 at startup and teardown. Do NOT run on a machine running a real PalServer.
   - `DUMMY_PLAYER_COUNT` env var controls how many fake players the dummy reports (default 3, set to 0 for autostop tests)
 
+### Manual integration test checklist
+
+The e2e suite uses a mock REST API — it doesn't exercise a real PalServer.
+Before shipping, verify these against an actual running server:
+
+- [ ] **Startup detection** — stop PalServer, start the monitor. It should auto-detect the server path.
+- [ ] **Auto-start** — stop PalServer. Have a friend try to connect from their game client. The monitor should detect the UDP probe and start PalServer.
+- [ ] **Player tracking** — join the server with a real client. The web dashboard should show your player name, level, and online status.
+- [ ] **Auto-stop** — all players leave. The server should stop after the configured delay.
+- [ ] **Kick** — from the web UI, kick a player. They should be disconnected.
+- [ ] **Ban** — ban a player via Steam ID. They should be unable to rejoin.
+- [ ] **Wrong admin password** — start the monitor with an incorrect `adminPassword` in `settings.yaml`. The dashboard should show the server as offline.
+- [ ] **RCON** (if supported) — set `protocol: "RCON"`, verify player count and kick/ban work.
+
 ## Constraints
 
 - Must run on the same host as the Palworld server (needs process spawn/kill access).
