@@ -138,6 +138,7 @@ def test_server_lifecycle(logged_in_page):
     logged_in_page.wait_for_selector(
         ".status-off:not([style*='display: none'])", timeout=60000
     )
+    time.sleep(6)  # let cooldown expire
 
 
 def test_player_management(logged_in_page):
