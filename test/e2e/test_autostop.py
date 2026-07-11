@@ -11,16 +11,8 @@ from pathlib import Path
 
 import psutil
 import pytest
-import requests
 
-from src.settings import settings
-from .helpers import (
-    TEST_SETTINGS,
-    free_port,
-    kill_existing_palworld,
-    kill_tree,
-    remove_stale_pid_files,
-)
+from .helpers import run_monitor_app
 
 pytestmark = pytest.mark.e2e
 
@@ -50,46 +42,8 @@ def running_dummy():
 @pytest.fixture(scope="session")
 def app_process(running_dummy):
     """Start the monitor app after the dummy is already running."""
-    web_port = settings.webServerPort
-    base_url = f"http://localhost:{web_port}"
-    if not free_port(web_port):
-        raise RuntimeError(f"Could not free web port {web_port} for the test app")
-    kill_existing_palworld()
-    remove_stale_pid_files()
-
-    project_root = Path(__file__).resolve().parents[2]
-    env = dict(os.environ)
-    env["PALWORLD_MONITOR_SETTINGS"] = str(TEST_SETTINGS)
-    process = subprocess.Popen(
-        [sys.executable, "-m", "src.main"],
-        cwd=project_root,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        env=env,
-    )
-
-    deadline = time.time() + 30
-    last_error = None
-    while time.time() < deadline:
-        if process.poll() is not None:
-            raise RuntimeError(f"App process exited early with code {process.returncode}")
-        try:
-            resp = requests.get(f"{base_url}/login", timeout=1)
-            if resp.status_code == 200:
-                break
-        except Exception as exc:
-            last_error = exc
-        time.sleep(0.5)
-    else:
-        kill_tree(process.pid)
-        raise RuntimeError(f"App did not start in time: {last_error}")
-
-    yield process
-
-    kill_tree(process.pid)
-    kill_existing_palworld()
-    remove_stale_pid_files()
-    free_port(web_port, timeout=5)
+    with run_monitor_app() as process:
+        yield process
 
 
 def test_autostop(running_dummy, app_process):

@@ -37,12 +37,6 @@ class EventBus:
                     f"Error in subscriber {cb_name} for event {event_type}: {e}"
                 )
 
-    def reset(self):
-        """Clear all subscribers. Intended for test teardown only."""
-        with self._lock:
-            self._subscribers.clear()
-
-
 # Singleton instance
 bus = EventBus()
 

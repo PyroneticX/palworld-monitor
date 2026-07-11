@@ -43,7 +43,7 @@ def cleanup_pid_files():
     # fire (and start background threads) during later tests.
     from src.events import bus
 
-    bus.reset()
+    bus._subscribers.clear()
     pid_files = ["palworld_server.win.pid", "palworld_server.linux.pid"]
     for pid_file in pid_files:
         if os.path.exists(pid_file):
@@ -83,7 +83,6 @@ def mock_settings(monkeypatch):
     mock.autoStart = True
     mock.autoStop = True
     mock.autoStopDelay = 120
-    mock.updateInterval = 30
     mock.enablePlayerTracking = True
     mock.pollingRate = 5
     mock.protocol = "REST"

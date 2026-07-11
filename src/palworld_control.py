@@ -167,19 +167,16 @@ class PalWorldController:
         )
         self._detection_thread.start()
 
-    def _stop_detection_loop(self):
-        """Signal the detection thread to stop and wait for it."""
-        self._detection_stop_event.set()
-        if self._detection_thread and self._detection_thread.is_alive():
-            self._detection_thread.join(timeout=3)
-
     def _server_detection_loop(self):
         """Repeatedly check for a PalServer process until one is found."""
-        while not self._detection_stop_event.is_set():
-            self._detect_existing_server_process()
-            if self.process_manager.launched_pid:
-                break
-            self._detection_stop_event.wait(settings.pollingRate)
+        try:
+            while not self._detection_stop_event.is_set():
+                self._detect_existing_server_process()
+                if self.process_manager.launched_pid:
+                    break
+                self._detection_stop_event.wait(settings.pollingRate)
+        except Exception:
+            logging.exception("Server detection loop failed")
 
     def stop_server(self):
         logging.info("Palworld server stop command received")

@@ -32,7 +32,6 @@ features:
 
 autoStop:
   stopDelay: 600
-  updateInterval: 5
 
 security:
   sessionSecretKey: null

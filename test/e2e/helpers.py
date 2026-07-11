@@ -1,10 +1,14 @@
 """Shared helpers and constants for e2e smoke tests."""
 
+import os
 import subprocess
+import sys
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 import psutil
+import requests
 
 from src.settings import settings
 
@@ -92,3 +96,56 @@ def is_palworld_running():
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
     return False
+
+
+@contextmanager
+def run_monitor_app():
+    """Start the monitor app, yield the process, then tear it down."""
+    web_port = settings.webServerPort
+    base_url = f"http://localhost:{web_port}"
+    if not free_port(web_port):
+        raise RuntimeError(f"Could not free web port {web_port} for the test app")
+    kill_existing_palworld()
+    remove_stale_pid_files()
+
+    project_root = Path(__file__).resolve().parents[2]
+    env = {**os.environ, "PALWORLD_MONITOR_SETTINGS": str(TEST_SETTINGS)}
+    process = subprocess.Popen(
+        [sys.executable, "-m", "src.main"],
+        cwd=project_root,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
+    )
+
+    deadline = time.time() + 30
+    last_error = None
+    while time.time() < deadline:
+        if process.poll() is not None:
+            raise RuntimeError(
+                f"App process exited early with code {process.returncode}"
+            )
+        try:
+            response = requests.get(f"{base_url}/login", timeout=1)
+            if response.status_code == 200:
+                break
+        except requests.RequestException as exc:
+            last_error = exc
+        time.sleep(0.5)
+    else:
+        kill_tree(process.pid)
+        raise RuntimeError(f"App did not start in time: {last_error}")
+
+    try:
+        yield process
+    finally:
+        kill_tree(process.pid)
+        try:
+            process.wait(timeout=5)
+        except Exception:
+            pass
+        kill_existing_palworld()
+        remove_stale_pid_files()
+        free_port(web_port, timeout=5)
+        for pid in _pids_listening_on_port(settings.palworldRESTPort):
+            kill_tree(pid)

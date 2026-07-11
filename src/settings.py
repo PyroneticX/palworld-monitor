@@ -56,7 +56,6 @@ class Settings:
             "autoStart": True,
             "autoStop": True,
             "autoStopDelay": 120,
-            "updateInterval": 30,
             "enablePlayerTracking": True,
             "pollingRate": 5,
             "webUsername": "admin",
@@ -142,7 +141,6 @@ class Settings:
             },
             "autoStop": {
                 "stopDelay": "autoStopDelay",
-                "updateInterval": "updateInterval",
             },
             "security": {
                 "sessionSecretKey": "sessionSecretKey",

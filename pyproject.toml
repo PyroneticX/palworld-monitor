@@ -57,3 +57,6 @@ markers = [
     "linux: Linux-specific tests",
     "e2e: End-to-end tests that require a running app",
 ]
+filterwarnings = [
+    "ignore::DeprecationWarning:flask_login.*",
+]

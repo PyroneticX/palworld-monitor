@@ -17,13 +17,12 @@ PASSWORD = "palworld123"
 
 _player_count = int(os.environ.get("DUMMY_PLAYER_COUNT", "3"))
 
-_players = []
-if _player_count >= 1:
-    _players.append({"name": "TestPlayer1", "playerId": "steam_001", "userId": "steam_001", "level": 15})
-if _player_count >= 2:
-    _players.append({"name": "TestPlayer2", "playerId": "steam_002", "userId": "steam_002", "level": 42})
-if _player_count >= 3:
-    _players.append({"name": "TestPlayer3", "playerId": "steam_003", "userId": "steam_003", "level": 7})
+_PLAYERS_TEMPLATE = [
+    {"name": "TestPlayer1", "playerId": "steam_001", "userId": "steam_001", "level": 15},
+    {"name": "TestPlayer2", "playerId": "steam_002", "userId": "steam_002", "level": 42},
+    {"name": "TestPlayer3", "playerId": "steam_003", "userId": "steam_003", "level": 7},
+]
+_players = list(_PLAYERS_TEMPLATE[:_player_count])
 _lock = threading.Lock()
 
 

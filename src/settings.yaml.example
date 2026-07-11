@@ -52,8 +52,6 @@ features:
 autoStop:
   # Seconds before auto-stopping the server
   stopDelay: 600
-  # Interval (seconds) to check for players before attempting to auto-stop
-  updateInterval: 30
 
 # ============================================================================
 # Security & Rate Limiting

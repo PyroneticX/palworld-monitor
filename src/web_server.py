@@ -53,10 +53,6 @@ class WebServer:
         }
         self._lock = threading.RLock()
 
-        # SSE (Server-Sent Events) state
-        self._sse_lock = threading.Lock()
-        self._sse_clients: list = []
-
         # Configure session
         self.app.secret_key = settings.sessionSecretKey
         self.app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(
@@ -71,6 +67,7 @@ class WebServer:
             self.limiter = Limiter(
                 app=self.app,
                 key_func=get_remote_address,
+                storage_uri="memory://",
                 default_limits=[
                     f"{settings.rateLimitRequests} per {settings.rateLimitWindow} seconds"
                 ],
@@ -266,8 +263,6 @@ class WebServer:
                     except queue.Empty:
                         # Send a keepalive comment so the connection isn't dropped
                         yield ": keepalive\n\n"
-            except GeneratorExit:
-                pass
             finally:
                 with self._sse_lock:
                     try:
@@ -366,7 +361,6 @@ class WebServer:
             players=players,
             total_player_count=total_player_count,
             autoStopDelay=round(settings.autoStopDelay),
-            updateInterval=settings.updateInterval,
             initialTheme=theme,
             git_hash=settings.get_git_hash(),
             current_user=current_user,
