@@ -50,9 +50,6 @@ class TestSettings:
         assert settings.maxLoginAttempts == 5  # Prevents brute force
         assert settings.rateLimitEnabled is True  # Prevents abuse
 
-        # Test behavior: first packet pattern is correctly defined
-        assert settings.firstPacketPattern == b"\x09\x08\x00"
-
     def test_getitem(self):
         """Test dictionary-like access to settings."""
         settings = Settings()

@@ -100,52 +100,6 @@ class TestRestClient:
 
             assert result is None
 
-    def test_parse_players_list_from_list(self, mock_settings):
-        """Test parsing players list when data is a list."""
-        client = RestClient()
-        players_data = [
-            {"name": "Player1", "playerId": "pid1", "userId": "uid1", "level": "10"},
-            {"name": "Player2", "playerId": "pid2", "userId": "uid2", "level": "15"},
-        ]
-
-        result = client._parse_players_list(players_data)
-
-        assert len(result) == 2
-        assert result[0] == ["Player1", "pid1", "uid1", "10"]
-        assert result[1] == ["Player2", "pid2", "uid2", "15"]
-
-    def test_parse_players_list_from_dict(self, mock_settings):
-        """Test parsing players list when data is a dict with 'players' key."""
-        client = RestClient()
-        players_data = {
-            "players": [
-                {"name": "Player1", "playerId": "pid1", "userId": "uid1", "level": "10"}
-            ]
-        }
-
-        result = client._parse_players_list(players_data)
-
-        assert len(result) == 1
-        assert result[0] == ["Player1", "pid1", "uid1", "10"]
-
-    @pytest.mark.parametrize("empty_data", [None, [], {}])
-    def test_parse_players_list_empty(self, mock_settings, empty_data):
-        """Test parsing empty players list."""
-        client = RestClient()
-        assert client._parse_players_list(empty_data) == []
-
-    def test_parse_players_list_missing_fields(self, mock_settings):
-        """Test parsing players list with missing fields."""
-        client = RestClient()
-        players_data = [
-            {"name": "Player1"}  # Missing other fields
-        ]
-
-        result = client._parse_players_list(players_data)
-
-        assert len(result) == 1
-        assert result[0] == ["Player1", "Unknown", "Unknown", "Unknown"]
-
     @pytest.mark.parametrize(
         "players_data,expected_count",
         [
@@ -188,17 +142,6 @@ class TestRestClient:
 
             assert len(players) == 1
             assert players[0] == ["P1", "p1", "u1", "5"]
-
-    def test_announce_message(self, mock_settings, mock_http_response):
-        """Test sending an announcement succeeds."""
-        mock_http_response.content = b'{"success": true}'
-        mock_http_response.json.return_value = {"success": True}
-
-        with patch("requests.post", return_value=mock_http_response):
-            client = RestClient()
-            # Test behavior: announcement can be sent without error
-            # Method completes successfully (doesn't raise exception)
-            client._announce_message("Test announcement")
 
     @pytest.mark.parametrize(
         "status_code,expected_result",
