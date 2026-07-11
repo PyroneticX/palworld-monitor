@@ -17,8 +17,6 @@ from .helpers import run_monitor_app
 pytestmark = pytest.mark.e2e
 
 
-@pytest.mark.skipif(sys.platform == "linux", reason="auto-stop timing unstable on Linux CI")
-
 DUMMY_SCRIPT = str(Path(__file__).resolve().parent / "dummy" / "PalServer-Dummy.py")
 
 
@@ -49,6 +47,7 @@ def app_process(running_dummy):
         yield process
 
 
+@pytest.mark.skipif(sys.platform == "linux", reason="auto-stop timing unstable on Linux CI")
 def test_autostop(running_dummy, app_process):
     deadline = time.time() + 60
     while time.time() < deadline:
