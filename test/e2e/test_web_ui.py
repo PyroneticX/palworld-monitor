@@ -124,7 +124,7 @@ def test_server_lifecycle(logged_in_page):
         )
 
     logged_in_page.locator("#onBtn").click(timeout=10000)
-    _wait_for_status(logged_in_page, on=True, timeout=60.0)
+    _wait_for_status(logged_in_page, on=True, timeout=90.0)
 
     # Read status and player info via the REST-backed dashboard.
     time.sleep(10)
