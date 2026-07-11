@@ -23,8 +23,8 @@ if sys.platform == "win32":
 
 @pytest.fixture
 def test_sleep_script():
-    """Path to the long_running_process.py script."""
-    return os.path.join(os.path.dirname(__file__), "support", "long_running_process.py")
+    """Path to the dummy PalServer sleep script."""
+    return os.path.join(os.path.dirname(__file__), "e2e", "dummy", "PalServer-Dummy.py")
 
 
 @pytest.fixture
@@ -37,8 +37,13 @@ def temp_dir():
 
 @pytest.fixture(autouse=True)
 def cleanup_pid_files():
-    """Automatically clean up PID files after each test."""
+    """Automatically clean up PID files and event bus subscribers after each test."""
     yield
+    # Reset event bus subscribers so stale handlers from earlier tests don't
+    # fire (and start background threads) during later tests.
+    from src.events import bus
+
+    bus.reset()
     pid_files = ["palworld_server.win.pid", "palworld_server.linux.pid"]
     for pid_file in pid_files:
         if os.path.exists(pid_file):
@@ -80,6 +85,7 @@ def mock_settings(monkeypatch):
     mock.autoStopDelay = 120
     mock.updateInterval = 30
     mock.enablePlayerTracking = True
+    mock.pollingRate = 5
     mock.protocol = "REST"
     mock.controlServerThroughWeb = True
     mock.showServerIPAddress = False
