@@ -25,7 +25,12 @@ try:
     )
 
     # read settings if settings.yaml exists
-    settings.readSettings(os.path.join(os.path.dirname(__file__), "settings.yaml"))
+    settings_path = os.environ.get(
+        "PALWORLD_MONITOR_SETTINGS",
+        os.path.join(os.path.dirname(__file__), "settings.yaml"),
+    )
+    logging.info(f"Loading settings from {settings_path}")
+    settings.readSettings(settings_path)
 
     # Validate settings at startup
     try:

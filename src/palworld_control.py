@@ -100,6 +100,7 @@ class PalWorldController:
         current_time = time.time()
         if self._should_block_start(current_time):
             return False
+        self.is_palworld_server_starting = True
         try:
             bus.publish(
                 Event.CMD_START_SERVER,
@@ -108,10 +109,12 @@ class PalWorldController:
                     "exe_args": settings.palworldExeArguments,
                 },
             )
-            self.is_palworld_server_starting = True
+            # SERVER_STARTED fires synchronously during the publish above and
+            # resets is_palworld_server_starting to False on a successful launch.
             return True
         except Exception as e:
             logging.error(f"Error issuing start command: {e}")
+            self.is_palworld_server_starting = False
             return False
 
     def _should_block_start(self, current_time):
@@ -138,7 +141,7 @@ class PalWorldController:
             if not self.process_manager.launched_pid and not os.path.exists(
                 self.process_manager.pid_file_name()
             ):
-                pid = self.process_manager.find_process_pid("palserver")
+                pid = self.process_manager.find_process_pid("PalServer")
                 if pid:
                     bus.publish(Event.SERVER_STARTED, {"pid": pid})
                     self.process_manager.set_known_pid(pid)

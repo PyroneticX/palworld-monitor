@@ -118,14 +118,18 @@ class OSProcessManager:
     def find_process_pid(self, name):
         try:
             target = (name or "").lower()
-            for proc in psutil.process_iter(attrs=["pid", "name", "exe", "cmdline"]):
+            if not target:
+                return None
+            for proc in psutil.process_iter(attrs=["pid", "name", "exe"]):
                 try:
                     info = proc.info
-                    exe = info.get("exe") or ""
-                    pname = info.get("name") or ""
-                    cmdline_list = info.get("cmdline") or []
-                    combined = " ".join([exe, pname, " ".join(cmdline_list)]).lower()
-                    if target and target in combined:
+                    exe = (info.get("exe") or "").lower()
+                    pname = (info.get("name") or "").lower()
+                    # Match against the exe filename and process name only,
+                    # not the full command line — substring matches across
+                    # args produce false positives (e.g. a test runner whose
+                    # -c script contains the search term).
+                    if target in exe or target in pname:
                         return info["pid"]
                 except (
                     psutil.NoSuchProcess,
