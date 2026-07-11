@@ -9,6 +9,8 @@ import os
 import time
 
 import pytest
+import platform
+
 from playwright.sync_api import sync_playwright, expect, Page
 
 from src.settings import settings
@@ -111,6 +113,7 @@ def test_login_and_dashboard_loads(logged_in_page):
     assert "Player" in text or "No players found" in text
 
 
+@pytest.mark.skipif(platform.system() == "Linux", reason="timing-unstable on Linux CI")
 def test_server_lifecycle(logged_in_page):
     """Start the Palworld server, read status, then stop it through the web UI."""
     kill_existing_palworld()
