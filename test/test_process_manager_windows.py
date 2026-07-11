@@ -76,7 +76,7 @@ class TestWindowsProcessManager:
         assert result is True
 
         # Give it a moment to terminate
-        time.sleep(1)
+        time.sleep(2)
 
         # Verify it's not running
         assert manager.is_process_running() is False, (

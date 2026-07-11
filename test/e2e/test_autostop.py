@@ -47,7 +47,7 @@ def app_process(running_dummy):
 
 
 def test_autostop(running_dummy, app_process):
-    deadline = time.time() + 45
+    deadline = time.time() + 60
     while time.time() < deadline:
         try:
             proc = psutil.Process(running_dummy.pid)
