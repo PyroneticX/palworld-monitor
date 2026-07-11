@@ -29,7 +29,8 @@ Uses `uv` for dependencies and commands.
   - `find_process_pid` checks process name, exe path, and `cmdline` for a match
 - `PalWorldController` runs a background detection loop (every `pollingRate` s) that discovers a PalServer process that started independently of the monitor
 - Server communication (`src/api_clients.py`): `RestClient` (default, recommended) or `RconClient` (legacy).
-- Flask runs in a daemon thread (not the main thread).
+- Flask runs in the main thread. Ctrl+C shuts down the server cleanly; daemon threads (AutoStartManager,
+detection loops) exit automatically with the interpreter.
 - **Live updates:** the dashboard uses Server-Sent Events (`/stream` endpoint) to push status changes in real time instead of polling
 
 ## Testing

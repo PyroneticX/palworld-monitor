@@ -499,22 +499,8 @@ class WebServer:
             )
 
     def run(self):
-        """Start the web server in a separate thread."""
+        """Start the web server.  Blocks the calling thread."""
         logging.info(
             f"Web server start - listening on 0.0.0.0:{settings.webServerPort}"
         )
-
-        def start_flask():
-            import logging as flask_logging
-
-            flask_logging.getLogger("werkzeug").setLevel(flask_logging.ERROR)
-
-            try:
-                self.app.run(host="0.0.0.0", port=settings.webServerPort, debug=False)
-            except Exception as e:
-                logging.error(f"Web server failed to start: {e}")
-                raise
-
-        thread = threading.Thread(target=start_flask)
-        thread.daemon = True
-        thread.start()
+        self.app.run(host="0.0.0.0", port=settings.webServerPort, debug=False)

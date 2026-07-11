@@ -5,7 +5,6 @@ from src.palworld_control import PalWorldController
 from src.settings import settings
 from src.web_server import WebServer
 from src.auto_start import AutoStartManager
-import threading
 import logging
 import traceback
 import os
@@ -23,7 +22,7 @@ try:
             logging.FileHandler("app.log", mode="w"),
         ],
     )
-
+    logging.getLogger("werkzeug").setLevel(logging.ERROR)
     # read settings if settings.yaml exists
     settings_path = os.environ.get(
         "PALWORLD_MONITOR_SETTINGS",
@@ -70,17 +69,6 @@ try:
     if settings.useWebServer:
         web_server = WebServer(palworld_controller)
         web_server.run()
-
-    # Keep the main thread alive to allow daemon threads to run
-    logging.info("Application started. Press CTRL+C to exit.")
-    try:
-        while True:
-            threading.Event().wait(1)  # Sleep for 1 second intervals
-    except KeyboardInterrupt:
-        logging.info("CTRL+C received. Shutting down...")
-        palworld_controller.stop_server_info_update_thread()
-        if auto_start_manager:
-            auto_start_manager.close_palworld_port_socket()
 
 except Exception as e:
     logging.error(f"Error from src.main routine: {e}")
