@@ -47,7 +47,6 @@ def app_process(running_dummy):
         yield process
 
 
-@pytest.mark.skipif(sys.platform == "linux", reason="auto-stop timing unstable on Linux CI")
 def test_autostop(running_dummy, app_process):
     deadline = time.time() + 60
     while time.time() < deadline:

@@ -133,8 +133,14 @@ class OSProcessManager:
                     cmdline = info.get("cmdline") or []
                     if target in exe or target in pname:
                         return info["pid"]
-                    if any(target in (arg or "").lower() for arg in cmdline):
-                        return info["pid"]
+                    # Check script basename for Python processes running a .py file
+                    if "python" not in pname:
+                        continue
+                    if cmdline and len(cmdline) > 1:
+                        script = cmdline[-1]
+                        # Skip -c scripts (contain newlines)
+                        if "\n" not in script and target in os.path.basename(script).lower():
+                            return info["pid"]
                 except (
                     psutil.NoSuchProcess,
                     psutil.AccessDenied,
