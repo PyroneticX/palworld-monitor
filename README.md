@@ -92,6 +92,7 @@ These settings are required and the app won't start without them:
 | `palserver` | `exePath` | Full path to PalWorld server executable. Must be accessible and executable. |
 | `palserver` | `adminPassword` | Admin password for server API access. Must match the one in your server's `PalWorldSettings.ini`. |
 | `web` | `password` | Password for web admin interface. Ideally different from server admin password. |
+| `palserver` | `pollingRate` | How often to query the Palworld server for status and player data (seconds, default `5`). |
 
 See `src/settings.yaml.example` for all available settings.
 

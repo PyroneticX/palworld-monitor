@@ -17,6 +17,9 @@ palserver:
   restPort: 8212
   # Port for the RCON interface
   rconPort: 25575
+  # How often to reach out to the Palworld server for status and player
+  # data (seconds)
+  pollingRate: 5
 
 # ============================================================================
 # Web Server Configuration

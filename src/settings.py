@@ -15,6 +15,7 @@ import yaml
 import logging
 import traceback
 import os
+import shutil
 import subprocess
 import secrets
 
@@ -57,6 +58,7 @@ class Settings:
             "autoStopDelay": 120,
             "updateInterval": 30,
             "enablePlayerTracking": True,
+            "pollingRate": 5,
             "webUsername": "admin",
             "webPassword": None,
             "sessionSecretKey": None,
@@ -122,6 +124,8 @@ class Settings:
                 "protocol": "protocol",
                 "restPort": "palworldRESTPort",
                 "rconPort": "palworldRCONPort",
+                "pollingRate": "pollingRate",
+                "exeArguments": "palworldExeArguments",
             },
             "web": {
                 "enabled": "useWebServer",
@@ -222,9 +226,10 @@ class Settings:
         # Check that server executable exists
         server_exe_path = self.settings.get("palworldServerExePath")
         if server_exe_path:
-            if not os.path.exists(server_exe_path):
+            resolved = shutil.which(server_exe_path) or server_exe_path
+            if not os.path.exists(resolved):
                 errors.append(f"Palworld server executable does not exist at: {server_exe_path}")
-            elif not os.path.isfile(server_exe_path):
+            elif not os.path.isfile(resolved):
                 errors.append(f"Palworld server path is not a file: {server_exe_path}")
 
         if errors:

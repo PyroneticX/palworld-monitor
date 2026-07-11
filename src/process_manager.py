@@ -100,7 +100,12 @@ class OSProcessManager:
                     process.wait(timeout=30)
                 except psutil.TimeoutExpired:
                     process.kill()
-                    process.wait()
+                    try:
+                        process.wait(timeout=10)
+                    except psutil.TimeoutExpired:
+                        # ponytail: process is unkillable, don't lie —
+                        # return False so callers know it's still alive.
+                        return False
                 self._remove_pid_file()
                 terminated_pid = self.launched_pid
                 self.launched_pid = None
@@ -120,16 +125,15 @@ class OSProcessManager:
             target = (name or "").lower()
             if not target:
                 return None
-            for proc in psutil.process_iter(attrs=["pid", "name", "exe"]):
+            for proc in psutil.process_iter(attrs=["pid", "name", "exe", "cmdline"]):
                 try:
                     info = proc.info
                     exe = (info.get("exe") or "").lower()
                     pname = (info.get("name") or "").lower()
-                    # Match against the exe filename and process name only,
-                    # not the full command line — substring matches across
-                    # args produce false positives (e.g. a test runner whose
-                    # -c script contains the search term).
+                    cmdline = info.get("cmdline") or []
                     if target in exe or target in pname:
+                        return info["pid"]
+                    if any(target in (arg or "").lower() for arg in cmdline):
                         return info["pid"]
                 except (
                     psutil.NoSuchProcess,

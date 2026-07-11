@@ -51,8 +51,16 @@ class PalWorldController:
         self.update_thread_stop_event = threading.Event()
         self.auto_stop_delay_thread = None
 
+        self._detection_thread = None
+        self._detection_stop_event = threading.Event()
+
         self._setup_subscriptions()
         self._detect_existing_server_process()
+
+        # If no server was found, keep looking every 5 seconds so a
+        # process that starts later is still picked up.
+        if not self.process_manager.launched_pid:
+            self._start_detection_loop()
 
     def _create_process_manager(self):
         detected_os = platform.system()
@@ -82,6 +90,7 @@ class PalWorldController:
         self.last_server_stopped_time = time.time()
         logging.debug("Controller: Server stopped event received")
         self.stop_server_info_update_thread()
+        self._start_detection_loop()
 
     def _on_server_status(self, data):
         self.current_server_info["running"] = data.get("running", False)
@@ -147,6 +156,30 @@ class PalWorldController:
                     self.process_manager.set_known_pid(pid)
         except Exception:
             pass
+
+    def _start_detection_loop(self):
+        """Start a background thread that polls for a PalServer process every 5 s."""
+        if self._detection_thread and self._detection_thread.is_alive():
+            return
+        self._detection_stop_event.clear()
+        self._detection_thread = threading.Thread(
+            target=self._server_detection_loop, daemon=True
+        )
+        self._detection_thread.start()
+
+    def _stop_detection_loop(self):
+        """Signal the detection thread to stop and wait for it."""
+        self._detection_stop_event.set()
+        if self._detection_thread and self._detection_thread.is_alive():
+            self._detection_thread.join(timeout=3)
+
+    def _server_detection_loop(self):
+        """Repeatedly check for a PalServer process until one is found."""
+        while not self._detection_stop_event.is_set():
+            self._detect_existing_server_process()
+            if self.process_manager.launched_pid:
+                break
+            self._detection_stop_event.wait(settings.pollingRate)
 
     def stop_server(self):
         logging.info("Palworld server stop command received")
@@ -287,7 +320,7 @@ class PalWorldController:
                 self._update_server_status()
             except Exception as e:
                 logging.error(f"Update loop error: {e}")
-            if self.update_thread_stop_event.wait(settings.updateInterval):
+            if self.update_thread_stop_event.wait(settings.pollingRate):
                 break
 
     def get_current_server_for_web(self):
