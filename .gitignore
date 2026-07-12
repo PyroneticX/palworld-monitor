@@ -12,3 +12,4 @@ session_secret.key
 banlist.txt
 build/
 dist/
+.idea/
