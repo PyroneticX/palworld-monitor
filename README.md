@@ -111,6 +111,31 @@ Requirements:
   server process).
 - The LGSM script must be executable and reachable at the configured path.
 
+## Running as a service (Linux)
+
+To have `palworld-monitor` survive reboots and restart on crashes, run it
+under systemd rather than in a terminal. An example unit is provided at
+[`deploy/palworld-monitor.service`](deploy/palworld-monitor.service).
+
+Before installing it, run `palworld-monitor` manually once and complete the
+interactive first-run setup — `settings.yaml` must already exist, since
+systemd has no terminal for the setup wizard to prompt on.
+
+```bash
+sudo cp deploy/palworld-monitor.service /etc/systemd/system/
+sudo nano /etc/systemd/system/palworld-monitor.service   # edit User / WorkingDirectory / ExecStart
+sudo systemctl daemon-reload
+sudo systemctl enable --now palworld-monitor
+journalctl -u palworld-monitor -f   # follow logs
+```
+
+`User` must be the same Linux user that owns your PalServer/LGSM
+installation (same requirement as [LGSM support](#linuxgsm-lgsm-support)
+above) — the process needs permission to launch and signal the game
+server. `WorkingDirectory` matters too: `app.log`, `data/players.json`,
+`banlist.txt`, the `.pid` files, and `session_secret.key` are all written
+relative to it, not to wherever the binary itself lives.
+
 ## Manual PalServer setup (optional)
 
 The app auto-configures your PalServer on first run.  This section is only

@@ -1,0 +1,37 @@
+# Example systemd unit for running palworld-monitor as a service on Linux.
+#
+# Prerequisites:
+#   - You've already run palworld-monitor manually once and completed the
+#     interactive first-run setup (settings.yaml must already exist --
+#     systemd has no terminal for the setup wizard to prompt on).
+#
+# Install:
+#   1. Copy this file to /etc/systemd/system/palworld-monitor.service
+#   2. Edit User / WorkingDirectory / ExecStart below for your setup
+#   3. sudo systemctl daemon-reload
+#   4. sudo systemctl enable --now palworld-monitor
+#   5. journalctl -u palworld-monitor -f   # to follow logs
+
+[Unit]
+Description=Palworld Monitor
+After=network.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+# Must be the same user that owns your PalServer / LGSM install -- this
+# process needs permission to launch/signal the game server process.
+User=<your-lgsm-user>
+# app.log, data/players.json, banlist.txt, the .pid files, and
+# session_secret.key are all written relative to this directory.
+# Default below assumes the repo was cloned to ~<your-lgsm-user>/palworld-monitor
+# and built with `uv run poe build-exe` (which outputs to dist/) -- adjust if yours differs.
+WorkingDirectory=/home/<your-lgsm-user>/palworld-monitor/dist
+ExecStart=/home/<your-lgsm-user>/palworld-monitor/dist/palworld-monitor
+Restart=on-failure
+RestartSec=5
+Environment=LOG_LEVEL=INFO
+
+[Install]
+WantedBy=multi-user.target
