@@ -151,14 +151,21 @@ class WebServer:
         with self._lock:
             self.state_cache["running"] = data.get("running", False)
             self.state_cache["playerCount"] = data.get("playerCount", 0)
-            self.state_cache["players"] = list(data.get("players", []))
+            # Use the processed player records (PlayerManager), not the raw
+            # REST tuples in `data["players"]` — the frontend expects
+            # objects with .name/.level/.steam_id, not positional lists.
+            self.state_cache["players"] = list(self.palworld_controller.get_players_for_web())
             self.state_cache["banned_players"] = list(data.get("banned_players", []))
+            players = list(self.state_cache["players"])
+            total_player_count = len(
+                self.palworld_controller.player_manager.get_online_players()
+            )
         # Broadcast to SSE clients
         payload = {
             "data": dict(self.state_cache),
-            "players": list(data.get("players", [])),
+            "players": players,
             "banned_players": list(data.get("banned_players", [])),
-            "total_player_count": len(data.get("players", [])),
+            "total_player_count": total_player_count,
             "autoStopDelay": round(settings.autoStopDelay),
         }
         self._broadcast_sse(payload)

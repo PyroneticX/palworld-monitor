@@ -50,26 +50,37 @@ def auto_detect_palserver():
     return None
 
 
+def _palserver_install_roots(exe_path):
+    """Candidate directories that may contain the actual PalServer game files.
+
+    Normally that's next to the exe itself. Under LinuxGSM, `exe_path` is
+    the instance management script (e.g. `~/pwserver/pwserver`), and the
+    real game files live in `~/pwserver/serverfiles/`.
+    """
+    exe_dir = os.path.dirname(exe_path)
+    return [exe_dir, os.path.join(exe_dir, "serverfiles")]
+
+
 def _find_palserver_ini(exe_path):
     """Locate or create PalWorldSettings.ini. Returns path or None."""
-    exe_dir = os.path.dirname(exe_path)
-    config_base = os.path.join(exe_dir, "Pal", "Saved", "Config")
-    candidates = [
-        os.path.join(config_base, "WindowsServer", "PalWorldSettings.ini"),
-        os.path.join(config_base, "LinuxServer", "PalWorldSettings.ini"),
-    ]
+    roots = _palserver_install_roots(exe_path)
 
-    for c in candidates:
-        if os.path.isfile(c):
-            return c
+    for root in roots:
+        config_base = os.path.join(root, "Pal", "Saved", "Config")
+        for platform_dir in ("WindowsServer", "LinuxServer"):
+            candidate = os.path.join(config_base, platform_dir, "PalWorldSettings.ini")
+            if os.path.isfile(candidate):
+                return candidate
 
-    default_ini = os.path.join(exe_dir, "DefaultPalWorldSettings.ini")
-    if not os.path.isfile(default_ini):
-        return None
-    ini_path = candidates[0]
-    os.makedirs(os.path.dirname(ini_path), exist_ok=True)
-    shutil.copy(default_ini, ini_path)
-    return ini_path
+    for root in roots:
+        default_ini = os.path.join(root, "DefaultPalWorldSettings.ini")
+        if os.path.isfile(default_ini):
+            ini_path = os.path.join(root, "Pal", "Saved", "Config", "WindowsServer", "PalWorldSettings.ini")
+            os.makedirs(os.path.dirname(ini_path), exist_ok=True)
+            shutil.copy(default_ini, ini_path)
+            return ini_path
+
+    return None
 
 
 def read_palserver_admin_password(exe_path):
@@ -140,7 +151,7 @@ def configure_palserver_rest_api(exe_path, admin_password=None):
     return False
 
 
-def _default_config(exe_path, admin_pass, web_pass):
+def _default_config(exe_path, admin_pass, web_pass, use_lgsm=False):
     """Return the default settings dict for a new installation."""
     return {
         "palserver": {
@@ -148,7 +159,7 @@ def _default_config(exe_path, admin_pass, web_pass):
             "host": "127.0.0.1",
             "port": 8211,
             "adminPassword": admin_pass,
-            "useLGSM": False,
+            "useLGSM": use_lgsm,
             "protocol": "REST",
             "restPort": 8212,
             "pollingRate": 5,
@@ -181,7 +192,7 @@ def _default_config(exe_path, admin_pass, web_pass):
     }
 
 
-def interactive_setup(settings_path, detected_exe):
+def interactive_setup(settings_path, detected_exe, use_lgsm=False):
     """First-run wizard: prompt for required settings and save settings.yaml."""
     print()
     print("  Welcome to Palworld Monitor!")
@@ -194,8 +205,13 @@ def interactive_setup(settings_path, detected_exe):
         exe = exe or detected_exe
     else:
         exe = ""
+        prompt = (
+            "  Path to your LGSM instance script (e.g. /home/gameserver/pwserver/pwserver): "
+            if use_lgsm
+            else "  Path to PalServer.exe: "
+        )
         while not exe:
-            exe = input("  Path to PalServer.exe: ").strip()
+            exe = input(prompt).strip()
 
     # Admin password
     existing_pass = read_palserver_admin_password(exe)
@@ -234,7 +250,7 @@ def interactive_setup(settings_path, detected_exe):
         while not web_pass:
             web_pass = input("  Web admin password: ").strip()
 
-    config = _default_config(exe, admin_pass, web_pass)
+    config = _default_config(exe, admin_pass, web_pass, use_lgsm)
 
     with open(settings_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False, allow_unicode=True)

@@ -41,9 +41,23 @@ class TestWebServerEventHandlers:
         assert server.state_cache["playerCount"] == 0
 
     def test_on_server_status_updates_all_fields(self, mock_settings):
-        """Test that SERVER_STATUS event updates all cached fields."""
+        """Test that SERVER_STATUS event updates all cached fields.
+
+        Player data must come from the controller's processed records
+        (dicts with name/level/steam_id), not the raw REST tuples carried
+        on the event — the frontend can't render positional lists.
+        """
         server = WebServer.__new__(WebServer)
         server.palworld_controller = MagicMock()
+        processed_players = [
+            {"name": "P1", "steam_id": "u1", "level": "10", "currently_online": True},
+            {"name": "P2", "steam_id": "u2", "level": "15", "currently_online": True},
+            {"name": "P3", "steam_id": "u3", "level": "20", "currently_online": True},
+        ]
+        server.palworld_controller.get_players_for_web.return_value = processed_players
+        server.palworld_controller.player_manager.get_online_players.return_value = (
+            processed_players
+        )
         server.state_cache = {
             "running": False,
             "playerCount": 0,
@@ -65,7 +79,9 @@ class TestWebServerEventHandlers:
 
         assert server.state_cache["running"] is True
         assert server.state_cache["playerCount"] == 3
-        assert len(server.state_cache["players"]) == 3
+        assert server.state_cache["players"] == processed_players
+        assert server.state_cache["players"][0]["name"] == "P1"
+        assert server.state_cache["players"][0]["level"] == "10"
         assert "SteamID1" in server.state_cache["banned_players"]
 
     def test_sync_running_state_sets_cache_from_controller(self, mock_settings):

@@ -49,7 +49,7 @@ def main():
     if not os.path.exists(settings_path):
         try:
             detected = auto_detect_palserver()
-            interactive_setup(settings_path, detected)
+            interactive_setup(settings_path, detected, use_lgsm=bool(args.useLGSM))
         except EOFError:
             print("error: no terminal available for interactive setup.")
             print(f"copy src/settings.yaml.example -> {settings_path} and edit it, then restart.")
