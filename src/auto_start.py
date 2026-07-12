@@ -174,6 +174,17 @@ class AutoStartManager:
         # Add a small delay to allow the port to be released
         time.sleep(1)
 
+        # `is_aborting` is only ever cleared inside open_palworld_port_socket()'s
+        # success path. If the *previous* cycle ended by successfully starting
+        # the server (the common case), that path never re-ran, so the flag is
+        # still True from the close_palworld_port_socket() call that preceded
+        # it -- which would make every future listen_palworld_access_core()
+        # call return immediately on its very first `if self.is_aborting`
+        # check, without ever binding the socket or logging anything. Reset it
+        # here so each new cycle starts clean.
+        with self._lock:
+            self.is_aborting = False
+
         # Start new listen thread
         self.listen_thread = threading.Thread(target=self.listen_palworld_access_core)
         self.listen_thread.daemon = (

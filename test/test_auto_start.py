@@ -229,3 +229,25 @@ class TestAutoStartAbortFlow:
         manager.is_aborting = True
         result = manager.wait_for_player_connection()
         assert result is False
+
+    def test_listen_palworld_access_resets_stale_is_aborting_flag(self, mock_settings):
+        """Regression test: close_palworld_port_socket() sets is_aborting=True,
+        but it's only ever cleared inside open_palworld_port_socket()'s success
+        path. A cycle that ends via a successful player-connect + server-start
+        never re-runs that path, so without an explicit reset, every future
+        listen_palworld_access_core() call would return immediately on its
+        first `if self.is_aborting` check -- silently never binding the UDP
+        socket again, with no error or log line to explain why."""
+        controller = MagicMock()
+        controller.is_palworld_process_running.return_value = False
+        manager = AutoStartManager(controller)
+        manager.is_aborting = True  # leftover from a prior successful cycle
+
+        with patch.object(
+            manager, "open_palworld_port_socket", return_value=False
+        ) as mock_open:
+            manager.listen_palworld_access()
+            assert manager.is_aborting is False
+            manager.listen_thread.join(timeout=2)
+
+        assert mock_open.called
