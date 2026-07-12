@@ -44,7 +44,11 @@ def cleanup_pid_files():
     from src.events import bus
 
     bus._subscribers.clear()
-    pid_files = ["palworld_server.win.pid", "palworld_server.linux.pid"]
+    pid_files = [
+        "palworld_server.win.pid",
+        "palworld_server.linux.pid",
+        "palworld_server.lgsm.pid",
+    ]
     for pid_file in pid_files:
         if os.path.exists(pid_file):
             try:

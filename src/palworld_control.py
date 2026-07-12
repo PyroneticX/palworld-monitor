@@ -65,6 +65,10 @@ class PalWorldController:
     def _create_process_manager(self):
         detected_os = platform.system()
         if detected_os.lower() == "linux":
+            if getattr(settings, "useLGSM", False):
+                from src.process_manager import LGSMProcessManager
+
+                return LGSMProcessManager()
             from src.process_manager import LinuxProcessManager
 
             return LinuxProcessManager()

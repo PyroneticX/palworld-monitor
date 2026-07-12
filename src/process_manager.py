@@ -15,7 +15,10 @@ import subprocess
 import psutil
 import os
 import threading
+import time
+import logging
 from src.events import bus, Event
+from src.settings import settings
 
 
 class OSProcessManager:
@@ -33,9 +36,12 @@ class OSProcessManager:
         raise NotImplementedError
 
     def _after_launch(self, process):
+        self._after_launch_pid(process.pid)
+
+    def _after_launch_pid(self, pid):
         with self._lock:
-            self.launched_pid = process.pid
-            self._save_pid_to_file(process.pid)
+            self.launched_pid = pid
+            self._save_pid_to_file(pid)
 
     def _save_pid_to_file(self, pid):
         try:
@@ -190,4 +196,100 @@ class LinuxProcessManager(OSProcessManager):
         bus.publish(Event.SERVER_STARTED, {"pid": self.launched_pid})
 
 
+class LGSMProcessManager(OSProcessManager):
+    """Process manager for a PalServer managed by LinuxGSM (LGSM).
 
+    `exe_path`/`palworldServerExePath` is the LGSM instance script (e.g.
+    `/home/gameserver/pwserver/pwserver`), not the PalServer binary itself.
+    Start/stop go through the script's own `start`/`stop` commands rather
+    than spawning or killing the game process directly, because LGSM tracks
+    its own idea of "running" (lock files, tmux/screen session) and its
+    `monitor` cron job will restart the server if it looks like it crashed —
+    killing the process out from under LGSM would fight that.
+    """
+
+    STARTUP_TIMEOUT = 30
+    STARTUP_POLL_INTERVAL = 1
+    SHUTDOWN_VERIFY_TIMEOUT = 30
+    SHUTDOWN_VERIFY_POLL_INTERVAL = 1
+
+    def __init__(self):
+        self._exe_path = None
+        super().__init__()
+
+    def pid_file_name(self):
+        return "palworld_server.lgsm.pid"
+
+    def _run_lgsm_command(self, exe_path, command):
+        try:
+            result = subprocess.run(
+                [exe_path, command],
+                cwd=os.path.dirname(exe_path) or ".",
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=60,
+            )
+            if result.returncode != 0:
+                logging.warning(
+                    f"LGSM '{command}' command on {exe_path} exited with code "
+                    f"{result.returncode}: {result.stderr.strip()}"
+                )
+            return True
+        except Exception as e:
+            logging.error(f"Error running LGSM '{command}' command on {exe_path}: {e}")
+            return False
+
+    def launch_process(self, exe_path, _exe_args):
+        self._exe_path = exe_path
+        if not self._run_lgsm_command(exe_path, "start"):
+            return
+
+        deadline = time.time() + self.STARTUP_TIMEOUT
+        pid = None
+        while time.time() < deadline:
+            pid = self.find_process_pid("PalServer")
+            if pid:
+                break
+            time.sleep(self.STARTUP_POLL_INTERVAL)
+
+        if not pid:
+            logging.error(
+                "LGSM 'start' completed but no PalServer process was found "
+                f"within {self.STARTUP_TIMEOUT}s. Check the LGSM script's own logs."
+            )
+            return
+
+        self._after_launch_pid(pid)
+        bus.publish(Event.SERVER_STARTED, {"pid": self.launched_pid})
+
+    def terminate_process(self):
+        with self._lock:
+            if self.launched_pid is None:
+                return False
+            pid = self.launched_pid
+            exe_path = self._exe_path or settings.palworldServerExePath
+
+        if not exe_path:
+            logging.error("Cannot stop LGSM server: no LGSM script path is known.")
+            return False
+
+        if not self._run_lgsm_command(exe_path, "stop"):
+            return False
+
+        deadline = time.time() + self.SHUTDOWN_VERIFY_TIMEOUT
+        while psutil.pid_exists(pid):
+            if time.time() >= deadline:
+                logging.warning(
+                    f"LGSM 'stop' returned but PID {pid} is still running after "
+                    f"{self.SHUTDOWN_VERIFY_TIMEOUT}s."
+                )
+                return False
+            time.sleep(self.SHUTDOWN_VERIFY_POLL_INTERVAL)
+
+        with self._lock:
+            self._remove_pid_file()
+            self.launched_pid = None
+        bus.publish(Event.SERVER_STOPPED, {"pid": pid})
+        return True

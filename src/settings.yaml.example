@@ -2,7 +2,9 @@
 # Palworld Server Configuration
 # ============================================================================
 palserver:
-  # Path to the Palworld server executable (required)
+  # Path to the Palworld server executable (required).
+  # If useLGSM is true, this must instead be the path to your LGSM instance
+  # script, e.g. "/home/gameserver/pwserver/pwserver".
   exePath: "C:\\Program Files (x86)\\Steam\\steamapps\\common\\PalServer\\PalServer.exe"
   # IP address for the Palworld server
   host: "127.0.0.1"
@@ -11,6 +13,11 @@ palserver:
   port: 8211
   # Admin password for the Palworld server (required) — change this on first use
   adminPassword: "changeme"
+  # Set to true on Linux if PalServer is managed by LinuxGSM (LGSM). Instead of
+  # launching/killing PalServer directly, the monitor will run the LGSM script's
+  # own `start`/`stop` commands (exePath above must point at that script), so
+  # LGSM's own state tracking and `monitor` cron job stay in sync.
+  useLGSM: false
   # Protocol used for server communication
   protocol: "REST"
   # Port for the REST API

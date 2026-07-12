@@ -148,6 +148,7 @@ def _default_config(exe_path, admin_pass, web_pass):
             "host": "127.0.0.1",
             "port": 8211,
             "adminPassword": admin_pass,
+            "useLGSM": False,
             "protocol": "REST",
             "restPort": 8212,
             "pollingRate": 5,

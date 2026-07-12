@@ -34,6 +34,7 @@ class Settings:
             "palworldServerPort": 8211,
             "palworldRESTPort": 8212,
             "palworldServerAdminPassword": None,
+            "useLGSM": False,
             "protocol": "REST",
             "useWebServer": True,
             "webServerPort": 8213,
@@ -101,6 +102,7 @@ class Settings:
                 "host": "palworldServerHost",
                 "port": "palworldServerPort",
                 "adminPassword": "palworldServerAdminPassword",
+                "useLGSM": "useLGSM",
                 "protocol": "protocol",
                 "restPort": "palworldRESTPort",
                 "pollingRate": "pollingRate",
@@ -200,14 +202,15 @@ class Settings:
             except Exception:
                 errors.append(f"{name} is not a valid integer: {value}")
 
-        # Check that server executable exists
+        # Check that server executable (or, in LGSM mode, the LGSM script) exists
         server_exe_path = self.settings.get("palworldServerExePath")
+        what = "LGSM script" if self.settings.get("useLGSM") else "Palworld server executable"
         if server_exe_path:
             resolved = shutil.which(server_exe_path) or server_exe_path
             if not os.path.exists(resolved):
-                errors.append(f"Palworld server executable does not exist at: {server_exe_path}")
+                errors.append(f"{what} does not exist at: {server_exe_path}")
             elif not os.path.isfile(resolved):
-                errors.append(f"Palworld server path is not a file: {server_exe_path}")
+                errors.append(f"{what} path is not a file: {server_exe_path}")
 
         if errors:
             error_message = "Settings validation failed:\n" + "\n".join(

@@ -38,6 +38,11 @@ def build_parser():
         "--polling-rate", dest="pollingRate", type=int, metavar="SEC",
         help="Seconds between status polls",
     )
+    parser.add_argument(
+        "--use-lgsm", dest="useLGSM", action="store_true", default=None,
+        help="Start/stop through a LinuxGSM script (--exe-path points to the LGSM script) "
+        "instead of launching PalServer directly",
+    )
 
     # Web server
     parser.add_argument(

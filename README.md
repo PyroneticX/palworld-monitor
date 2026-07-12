@@ -6,7 +6,7 @@ A Python application for managing PalWorld dedicated servers on Windows and Linu
 
 ## Features
 
-- **Cross-platform support**: Windows and Linux compatibility
+- **Cross-platform support**: Windows and Linux compatibility, including servers managed by [LinuxGSM](https://linuxgsm.com/) (LGSM)
 - **Automatic server management**:
   - Auto-start when players attempt to connect
   - Auto-stop after configured delay when server is empty (default: 10 minutes)
@@ -63,9 +63,10 @@ it to change ports, polling rate, auto-stop delay, etc.
 | Setting (YAML) | CLI flag | Description |
 |-----------------|----------|-------------|
 | — | `--settings PATH` | Path to an alternate `settings.yaml` |
-| `palserver.exePath` ⚑ | `--exe-path PATH` | Full path to PalServer executable |
+| `palserver.exePath` ⚑ | `--exe-path PATH` | Full path to PalServer executable (or, with LGSM, the LGSM instance script) |
 | `palserver.adminPassword` ⚑ | `--admin-password PASS` | Admin password from your server's `PalWorldSettings.ini` |
 | `palserver.pollingRate` ⚑ | `--polling-rate SEC` | Seconds between status polls (default `5`) |
+| `palserver.useLGSM` | `--use-lgsm` | Manage the server through a LinuxGSM script instead of launching it directly (Linux only) |
 | `web.password` ⚑ | `--web-password PASS` | Password for the web admin interface |
 | `palserver.host` | `--host HOST` | Palworld server host |
 | `palserver.port` | `--server-port PORT` | Palworld game server port |
@@ -78,6 +79,37 @@ it to change ports, polling rate, auto-stop delay, etc.
 
 ⚑ = required on first run.  Passwords are masked in logs.  Every setting can be
 overridden via CLI flag (run with `--help`).
+
+## LinuxGSM (LGSM) support
+
+If your server is managed by [LinuxGSM](https://linuxgsm.com/lgsm/pwserver/)
+rather than a bare `PalServer.sh`, set `useLGSM: true` and point `exePath` at
+the LGSM instance script instead of the game binary:
+
+```yaml
+palserver:
+  exePath: "/home/gameserver/pwserver/pwserver"
+  useLGSM: true
+  adminPassword: "changeme"
+  ...
+```
+
+(or `--use-lgsm --exe-path /home/gameserver/pwserver/pwserver` on the CLI.)
+
+With `useLGSM` enabled, the monitor calls the LGSM script's own `start` and
+`stop` commands instead of spawning or killing the PalServer process
+directly. This keeps LGSM's own state tracking in sync — including its
+`monitor` cron job, which would otherwise think a monitor-initiated stop was
+a crash and restart the server. Player/auto-stop detection is unaffected
+since it works by scanning OS processes for `PalServer`, regardless of how
+it was launched.
+
+Requirements:
+
+- `palworld-monitor` must run as the same Linux user that owns the LGSM
+  installation (it needs permission to run the script and to see/signal the
+  server process).
+- The LGSM script must be executable and reachable at the configured path.
 
 ## Manual PalServer setup (optional)
 

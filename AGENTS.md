@@ -20,7 +20,7 @@ Uses `uv` for dependencies and commands. See [README.md](README.md) for user-fac
 - `palserver.pollingRate` (default 5s) controls how often the app polls the server for status/players and how often the detection loop runs
 - `palserver.exePath` can be a bare command name (e.g. `python`) — validation uses `shutil.which`
 - `session_secret.key` is auto-generated at first run and gitignored
-- PID files (`palworld_server.win.pid`, `palworld_server.linux.pid`) are gitignored
+- PID files (`palworld_server.win.pid`, `palworld_server.linux.pid`, `palworld_server.lgsm.pid`) are gitignored
 - CLI flags (`src/cli.py`) override `settings.yaml` values. `dest` names map 1:1 to the flat keys in `Settings`. `--no-*` flags use `action="store_false"` with `default=None` so they only override when explicitly passed (won't clobber a YAML `false`). Passwords are masked in override logs.
 
 ## Architecture
@@ -30,8 +30,9 @@ Uses `uv` for dependencies and commands. See [README.md](README.md) for user-fac
   - `src/setup_wizard.py` — first-run interactive setup, auto-detection, PalServer REST API config. All functions are public and importable for testing.
 - `PalWorldController` (orchestrator) → `AutoStartManager` (UDP listener) + `WebServer` (Flask thread)
 - `AutoStartManager` binds a UDP socket on the Palworld game port and sniffs for `\x09\x08\x00` (first client packet) to trigger `start_server()`
-- Process control (`src/process_manager.py`): `WindowsProcessManager` / `LinuxProcessManager` via psutil.
+- Process control (`src/process_manager.py`): `WindowsProcessManager` / `LinuxProcessManager` / `LGSMProcessManager` via psutil.
   - `find_process_pid` checks process name, exe path, and `cmdline` for a match
+  - `LGSMProcessManager` (selected when `palserver.useLGSM` is true, Linux only) drives a LinuxGSM instance script's `start`/`stop` commands instead of spawning/killing PalServer directly, then discovers the real PalServer PID via `find_process_pid` for status/liveness tracking. This avoids fighting LGSM's own `monitor` cron job, which restarts the server if it looks like it crashed.
 - `PalWorldController` runs a background detection loop (every `pollingRate` s) that discovers a PalServer process that started independently of the monitor
 - Server communication (`src/api_clients.py`): `RestClient` communicates with the PalServer REST API.
 - Flask runs in the main thread. Ctrl+C shuts down the server cleanly; daemon threads (AutoStartManager,
