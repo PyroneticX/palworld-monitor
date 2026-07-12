@@ -212,6 +212,8 @@ class LGSMProcessManager(OSProcessManager):
     STARTUP_POLL_INTERVAL = 1
     SHUTDOWN_VERIFY_TIMEOUT = 30
     SHUTDOWN_VERIFY_POLL_INTERVAL = 1
+    SHUTDOWN_WATCHDOG_POLL_INTERVAL = 3
+    LGSM_COMMAND_TIMEOUT = 120
 
     def __init__(self):
         self._exe_path = None
@@ -229,7 +231,7 @@ class LGSMProcessManager(OSProcessManager):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=60,
+                timeout=self.LGSM_COMMAND_TIMEOUT,
             )
             if result.returncode != 0:
                 logging.warning(
@@ -275,21 +277,50 @@ class LGSMProcessManager(OSProcessManager):
             logging.error("Cannot stop LGSM server: no LGSM script path is known.")
             return False
 
-        if not self._run_lgsm_command(exe_path, "stop"):
-            return False
+        # Kick off the stop command regardless of whether it reports success —
+        # a failed/timed-out command invocation doesn't mean the server isn't
+        # genuinely shutting down (Palworld's save-on-shutdown can run long).
+        command_ok = self._run_lgsm_command(exe_path, "stop")
 
-        deadline = time.time() + self.SHUTDOWN_VERIFY_TIMEOUT
+        if self._wait_for_pid_gone(
+            pid, self.SHUTDOWN_VERIFY_TIMEOUT, self.SHUTDOWN_VERIFY_POLL_INTERVAL
+        ):
+            self._finish_termination(pid)
+            return True
+
+        # Don't give up here: if we did, no SERVER_STOPPED event ever fires,
+        # which permanently breaks the auto-start listener (it only re-arms
+        # on that event) even after the server actually finishes stopping.
+        # Keep watching in the background for as long as it takes.
+        logging.warning(
+            f"LGSM 'stop' hasn't confirmed PID {pid} is gone after "
+            f"{self.SHUTDOWN_VERIFY_TIMEOUT}s (command "
+            f"{'completed' if command_ok else 'failed/timed out'}); "
+            "continuing to watch for it in the background."
+        )
+        threading.Thread(
+            target=self._watch_for_termination, args=(pid,), daemon=True
+        ).start()
+        return False
+
+    def _wait_for_pid_gone(self, pid, timeout, interval):
+        deadline = time.time() + timeout
         while psutil.pid_exists(pid):
             if time.time() >= deadline:
-                logging.warning(
-                    f"LGSM 'stop' returned but PID {pid} is still running after "
-                    f"{self.SHUTDOWN_VERIFY_TIMEOUT}s."
-                )
                 return False
-            time.sleep(self.SHUTDOWN_VERIFY_POLL_INTERVAL)
+            time.sleep(interval)
+        return True
 
+    def _watch_for_termination(self, pid):
+        while psutil.pid_exists(pid):
+            time.sleep(self.SHUTDOWN_WATCHDOG_POLL_INTERVAL)
+        logging.info(f"LGSM background watchdog confirmed PID {pid} has exited.")
+        self._finish_termination(pid)
+
+    def _finish_termination(self, pid):
         with self._lock:
+            if self.launched_pid != pid:
+                return  # already handled (e.g. by a concurrent watchdog)
             self._remove_pid_file()
             self.launched_pid = None
         bus.publish(Event.SERVER_STOPPED, {"pid": pid})
-        return True

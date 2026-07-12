@@ -6,6 +6,7 @@ launching a real LGSM script.
 """
 
 import os
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,11 +18,12 @@ from src.process_manager import LGSMProcessManager
 def manager():
     m = LGSMProcessManager()
     m.launched_pid = None
-    # Keep the tests fast: real timeouts default to 30s.
+    # Keep the tests fast: real timeouts default to 30s+.
     m.STARTUP_TIMEOUT = 0.2
     m.STARTUP_POLL_INTERVAL = 0.01
     m.SHUTDOWN_VERIFY_TIMEOUT = 0.2
     m.SHUTDOWN_VERIFY_POLL_INTERVAL = 0.01
+    m.SHUTDOWN_WATCHDOG_POLL_INTERVAL = 0.01
     return m
 
 
@@ -88,20 +90,28 @@ class TestLGSMProcessManager:
         assert manager.launched_pid is None
         assert not os.path.exists(manager.pid_file_name())
         mock_run.assert_called_once()
-        args, _kwargs = mock_run.call_args
+        args, kwargs = mock_run.call_args
         assert args[0] == ["/home/gameserver/pwserver/pwserver", "stop"]
+        assert kwargs["timeout"] == manager.LGSM_COMMAND_TIMEOUT
         mock_publish.assert_any_call("SERVER_STOPPED", {"pid": 4242})
 
+    @patch("src.process_manager.psutil.pid_exists")
     @patch("src.process_manager.subprocess.run")
-    def test_terminate_process_stop_command_fails(self, mock_run, manager):
+    def test_terminate_process_stop_command_fails_falls_back_to_watchdog(
+        self, mock_run, mock_pid_exists, manager
+    ):
+        """A failed/timed-out LGSM invocation doesn't necessarily mean the
+        server isn't shutting down -- we still watch the pid rather than
+        giving up outright."""
         mock_run.side_effect = Exception("boom")
+        mock_pid_exists.return_value = True
         manager.launched_pid = 4242
         manager._exe_path = "/home/gameserver/pwserver/pwserver"
 
         result = manager.terminate_process()
 
         assert result is False
-        # State is left untouched so a retry is possible.
+        # Not resolved synchronously -- a background watchdog took over.
         assert manager.launched_pid == 4242
 
     @patch("src.process_manager.psutil.pid_exists")
@@ -118,6 +128,38 @@ class TestLGSMProcessManager:
 
         assert result is False
         assert manager.launched_pid == 4242
+
+    @patch("src.events.bus.publish")
+    @patch("src.process_manager.psutil.pid_exists")
+    @patch("src.process_manager.subprocess.run")
+    def test_terminate_process_watchdog_confirms_stop_after_sync_timeout(
+        self, mock_run, mock_pid_exists, mock_publish, manager
+    ):
+        """Regression test: even if the process outlives the synchronous
+        verify window, the background watchdog must eventually publish
+        SERVER_STOPPED once it actually exits -- otherwise the auto-start
+        listener (which only re-arms on that event) gets stuck forever."""
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        start = time.time()
+        # "Alive" through the synchronous verify window, "exits" during the
+        # watchdog phase.
+        mock_pid_exists.side_effect = lambda pid: (time.time() - start) < 0.35
+        manager.launched_pid = 4242
+        manager._exe_path = "/home/gameserver/pwserver/pwserver"
+        manager._save_pid_to_file(4242)
+
+        result = manager.terminate_process()
+
+        assert result is False
+        assert manager.launched_pid == 4242  # not resolved synchronously
+
+        deadline = time.time() + 3
+        while manager.launched_pid is not None and time.time() < deadline:
+            time.sleep(0.02)
+
+        assert manager.launched_pid is None
+        assert not os.path.exists(manager.pid_file_name())
+        mock_publish.assert_any_call("SERVER_STOPPED", {"pid": 4242})
 
     def test_terminate_process_with_no_pid(self, manager):
         manager.launched_pid = None
