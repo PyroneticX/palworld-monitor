@@ -23,10 +23,19 @@ class TestWebServerEventHandlers:
         server._on_server_started({"pid": 12345})
         assert server.state_cache["running"] is True
 
-    def test_on_server_stopped_clears_players(self, mock_settings):
-        """Test that SERVER_STOPPED event clears player list."""
+    def test_on_server_stopped_clears_player_count_but_keeps_player_list(
+        self, mock_settings
+    ):
+        """SERVER_STOPPED should reset the live player count to 0, but keep
+        showing the last-known players (correctly marked offline via
+        PlayerManager) instead of wiping to "No players found"."""
         server = WebServer.__new__(WebServer)
         server.palworld_controller = MagicMock()
+        last_known_players = [
+            {"name": "P1", "steam_id": "u1", "level": "10", "currently_online": False},
+            {"name": "P2", "steam_id": "u2", "level": "15", "currently_online": False},
+        ]
+        server.palworld_controller.get_players_for_web.return_value = last_known_players
         server.state_cache = {
             "running": True,
             "playerCount": 2,
@@ -37,7 +46,7 @@ class TestWebServerEventHandlers:
 
         server._on_server_stopped({"pid": 12345})
         assert server.state_cache["running"] is False
-        assert server.state_cache["players"] == []
+        assert server.state_cache["players"] == last_known_players
         assert server.state_cache["playerCount"] == 0
 
     def test_on_server_status_updates_all_fields(self, mock_settings):

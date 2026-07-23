@@ -144,7 +144,12 @@ class WebServer:
     def _on_server_stopped(self, data):
         with self._lock:
             self.state_cache["running"] = False
-            self.state_cache["players"] = []
+            # Refresh from PlayerManager rather than wiping to [] -- this
+            # keeps showing the last-known players (correctly marked
+            # offline, with their last-seen time) instead of "No players
+            # found", matching what a page reload already shows via
+            # get_players_for_web() elsewhere.
+            self.state_cache["players"] = list(self.palworld_controller.get_players_for_web())
             self.state_cache["playerCount"] = 0
 
     def _on_server_status(self, data):
