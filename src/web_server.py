@@ -121,6 +121,7 @@ class WebServer:
 
         self._sync_running_state()
         self._sync_banned_players()
+        self._sync_players()
 
     def _sync_running_state(self):
         """Sync the cached running flag with the actual process state."""
@@ -134,6 +135,26 @@ class WebServer:
         with self._lock:
             self.state_cache["banned_players"] = list(
                 self.palworld_controller.get_banned_players()
+            )
+
+    def _sync_players(self):
+        """Sync the cached player list with PlayerManager's last-known state.
+
+        Without this, state_cache["players"] stays at its [] default for
+        the entire monitor session whenever the server is already offline
+        at startup (no SERVER_STATUS/SERVER_STOPPED event ever fires to
+        populate it). The SSE stream's initial snapshot to each newly
+        connected client is built from this cache, so every page load would
+        show "No players found" until some other event happened to refresh
+        it -- even though a direct status fetch (the "update status"
+        button) already queries PlayerManager fresh and shows it correctly.
+        """
+        with self._lock:
+            self.state_cache["players"] = list(
+                self.palworld_controller.get_players_for_web()
+            )
+            self.state_cache["playerCount"] = len(
+                self.palworld_controller.player_manager.get_online_players()
             )
 
     def _on_server_started(self, data):

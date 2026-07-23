@@ -125,4 +125,28 @@ class TestWebServerEventHandlers:
         server._sync_banned_players()
         assert server.state_cache["banned_players"] == ["SteamID1", "SteamID2"]
 
+    def test_sync_players_loads_existing_players_from_controller(self, mock_settings):
+        """Test that _sync_players populates the cache from PlayerManager on
+        startup, so a page load doesn't show "No players found" just
+        because no SERVER_STATUS/SERVER_STOPPED event has fired yet in this
+        monitor session (e.g. the server was already offline at startup)."""
+        server = WebServer.__new__(WebServer)
+        server.palworld_controller = MagicMock()
+        known_players = [
+            {"name": "P1", "steam_id": "u1", "level": "10", "currently_online": False},
+        ]
+        server.palworld_controller.get_players_for_web.return_value = known_players
+        server.palworld_controller.player_manager.get_online_players.return_value = []
+        server.state_cache = {
+            "running": False,
+            "playerCount": 0,
+            "players": [],
+            "banned_players": [],
+        }
+        server._lock = MagicMock()
+
+        server._sync_players()
+        assert server.state_cache["players"] == known_players
+        assert server.state_cache["playerCount"] == 0
+
 
