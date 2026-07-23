@@ -79,18 +79,35 @@ class OSProcessManager:
 
     def is_process_running(self):
         with self._lock:
-            if self.launched_pid is None:
-                return False
-            try:
-                process = psutil.Process(self.launched_pid)
-                if process.is_running():
-                    return True
-                children = process.children(recursive=True)
-                return len(children) > 0
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                return False
-            except Exception:
-                return False
+            pid = self.launched_pid
+        if pid is None:
+            return False
+        try:
+            process = psutil.Process(pid)
+            if process.is_running():
+                return True
+            children = process.children(recursive=True)
+            if len(children) > 0:
+                return True
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+        except Exception:
+            return False
+
+        # The pid we launched is gone. The server may have been restarted
+        # outside of our control (e.g. a Steam/LGSM update cron restarting
+        # it) with a new pid -- try to re-acquire it before reporting the
+        # server as offline, since REST-based player tracking would keep
+        # working fine the whole time and make "offline" look wrong.
+        new_pid = self.find_process_pid("PalServer")
+        if new_pid:
+            logging.info(
+                f"Tracked PID {pid} is gone; re-acquired PalServer as PID "
+                f"{new_pid} (likely restarted outside palworld-monitor)."
+            )
+            self.set_known_pid(new_pid)
+            return True
+        return False
 
     def terminate_process(self):
         with self._lock:

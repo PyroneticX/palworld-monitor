@@ -9,6 +9,7 @@ import os
 import time
 from unittest.mock import MagicMock, patch
 
+import psutil
 import pytest
 
 from src.process_manager import LGSMProcessManager
@@ -187,3 +188,56 @@ class TestLGSMProcessManager:
         assert result is True
         args, _kwargs = mock_run.call_args
         assert args[0] == ["/home/gameserver/pwserver/pwserver", "stop"]
+
+
+class TestIsProcessRunningPidRecovery:
+    """is_process_running() must self-heal if the tracked pid was replaced
+    by a new one outside palworld-monitor's control (e.g. an LGSM/Steam
+    update cron restarting the server without going through start/stop)."""
+
+    @patch("src.process_manager.psutil.Process")
+    def test_recovers_when_tracked_pid_gone_and_replacement_found(
+        self, mock_process_cls, manager
+    ):
+        manager.launched_pid = 111
+        manager._save_pid_to_file(111)
+        mock_process_cls.side_effect = psutil.NoSuchProcess(111)
+        manager.find_process_pid = MagicMock(return_value=222)
+
+        result = manager.is_process_running()
+
+        assert result is True
+        assert manager.launched_pid == 222
+        with open(manager.pid_file_name(), "r") as f:
+            assert f.read().strip() == "222"
+        os.remove(manager.pid_file_name())
+
+    @patch("src.process_manager.psutil.Process")
+    def test_stays_offline_when_no_replacement_found(self, mock_process_cls, manager):
+        manager.launched_pid = 111
+        mock_process_cls.side_effect = psutil.NoSuchProcess(111)
+        manager.find_process_pid = MagicMock(return_value=None)
+
+        result = manager.is_process_running()
+
+        assert result is False
+        # Left unchanged so the next poll retries -- self-heals through a
+        # transient gap where the old process died but a new one hasn't
+        # started yet.
+        assert manager.launched_pid == 111
+
+    @patch("src.process_manager.psutil.Process")
+    def test_does_not_re_detect_when_tracked_pid_still_alive(
+        self, mock_process_cls, manager
+    ):
+        manager.launched_pid = 111
+        mock_proc = MagicMock()
+        mock_proc.is_running.return_value = True
+        mock_process_cls.return_value = mock_proc
+        manager.find_process_pid = MagicMock()
+
+        result = manager.is_process_running()
+
+        assert result is True
+        assert manager.launched_pid == 111
+        manager.find_process_pid.assert_not_called()
