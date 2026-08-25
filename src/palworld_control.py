@@ -230,7 +230,7 @@ class PalWorldController:
     #        self.player_manager.update_players_from_server(players)
 
     def _update_server_info_with_players(self):
-        # 1. Wenn der Prozess ohnehin weg ist, erzwingen wir das Stop-Event
+        # 1. Prüfen, ob der Server-Prozess im Linux-Betriebssystem existiert
         if not self.is_palworld_process_running():
             if self.current_server_info.get("running", False):
                 bus.publish(Event.SERVER_STOPPED, {})
@@ -239,19 +239,19 @@ class PalWorldController:
             self.current_server_info["players"] = []
             return
 
+        # 2. Prozess existiert (Boot-Phase oder Normalbetrieb) -> Status sofort auf ON!
+        self.current_server_info["running"] = True
+        
         players = self.get_player_names()
         
-        # 2. Zombie-Schutz: Wenn der Prozess noch läuft, die API aber tot ist (None)
+        # 3. Wenn die API (noch) nicht antwortet, bootet er gerade oder fährt runter.
+        # Wir lassen den Status auf ON, aber leeren die Spielerliste.
         if players is None:
-            logging.debug("API is unresponsive. Forcing SERVER_STOPPED event to recover Auto-Start.")
-            bus.publish(Event.SERVER_STOPPED, {})
-            self.current_server_info["running"] = False
             self.current_server_info["playerCount"] = 0
             self.current_server_info["players"] = []
             return
 
-        # 3. Normaler Betrieb
-        self.current_server_info["running"] = True
+        # 4. API ist online -> Normaler Betrieb
         self.current_server_info["playerCount"] = len(players)
         self.current_server_info["players"] = players
         if settings.enablePlayerTracking:
