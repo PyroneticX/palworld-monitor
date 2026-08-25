@@ -229,7 +229,7 @@ class PalWorldController:
     #    if settings.enablePlayerTracking:
     #        self.player_manager.update_players_from_server(players)
 
-def _update_server_info_with_players(self):
+    def _update_server_info_with_players(self):
         # 1. Wenn der Prozess ohnehin weg ist, erzwingen wir das Stop-Event
         if not self.is_palworld_process_running():
             if self.current_server_info.get("running", False):
