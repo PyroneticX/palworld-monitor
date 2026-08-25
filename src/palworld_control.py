@@ -221,14 +221,42 @@ class PalWorldController:
             },
         )
 
-    def _update_server_info_with_players(self):
-        self.current_server_info["running"] = self.is_palworld_process_running()
+    #def _update_server_info_with_players(self):
+    #    self.current_server_info["running"] = self.is_palworld_process_running()
+    #    players = self.get_player_names()
+    #    self.current_server_info["playerCount"] = len(players)
+    #    self.current_server_info["players"] = players
+    #    if settings.enablePlayerTracking:
+    #        self.player_manager.update_players_from_server(players)
+
+def _update_server_info_with_players(self):
+        # 1. Wenn der Prozess ohnehin weg ist, erzwingen wir das Stop-Event
+        if not self.is_palworld_process_running():
+            if self.current_server_info.get("running", False):
+                bus.publish(Event.SERVER_STOPPED, {})
+            self.current_server_info["running"] = False
+            self.current_server_info["playerCount"] = 0
+            self.current_server_info["players"] = []
+            return
+
         players = self.get_player_names()
+        
+        # 2. Zombie-Schutz: Wenn der Prozess noch läuft, die API aber tot ist (None)
+        if players is None:
+            logging.debug("API is unresponsive. Forcing SERVER_STOPPED event to recover Auto-Start.")
+            bus.publish(Event.SERVER_STOPPED, {})
+            self.current_server_info["running"] = False
+            self.current_server_info["playerCount"] = 0
+            self.current_server_info["players"] = []
+            return
+
+        # 3. Normaler Betrieb
+        self.current_server_info["running"] = True
         self.current_server_info["playerCount"] = len(players)
         self.current_server_info["players"] = players
         if settings.enablePlayerTracking:
             self.player_manager.update_players_from_server(players)
-
+    
     def _handle_auto_stop_condition(self):
         if self.auto_stop_delay_thread and self.auto_stop_delay_thread.is_alive():
             return
