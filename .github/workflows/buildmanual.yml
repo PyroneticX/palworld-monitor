@@ -19,6 +19,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --python 3.11
 
+      - name: Install local package
+        run: uv pip install -e . --python 3.11
+
       - name: Build exe
         run: uv run poe build-exe
 
@@ -45,6 +48,9 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --python 3.11
+
+      - name: Install local package
+        run: uv pip install -e . --python 3.11
 
       - name: Build binary
         run: uv run poe build-exe
