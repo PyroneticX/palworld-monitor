@@ -429,6 +429,9 @@ class WebServer:
             self.palworld_controller.start_server()
         elif action == "stopServer":
             self.palworld_controller.stop_server()
+        elif action == "getStatus":
+        # Hierdurch erzwingen wir die echte Live-Abfrage!
+            self.palworld_controller._update_server_status()
         return self._json_state()
 
     def _handle_kick(self):
