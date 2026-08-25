@@ -32,7 +32,11 @@ class RestClient:
             response.raise_for_status()
             return response.json() if response.content else {}
         except requests.exceptions.RequestException as e:
-            logging.error(f"Error making GET request to {endpoint}: {e}")
+            # Den Log-Spam bei gewollten Server-Stops unterdrücken
+            if "Connection refused" in str(e) or "111" in str(e) or "10061" in str(e):
+                logging.debug("API offline (Connection refused). Server is likely stopping.")
+            else:            
+                logging.error(f"Error making GET request to {endpoint}: {e}")
             return None
         except Exception as e:
             logging.error(f"Unexpected error in GET request to {endpoint}: {e}")
@@ -75,6 +79,9 @@ class RestClient:
     def get_player_names(self):
         try:
             players_data = self._make_get_request("players")
+            # Wenn die API tot ist, geben wir explizit None zurück
+            if players_data is None:
+                return None
             if not players_data:
                 return []
             if isinstance(players_data, dict):
@@ -85,7 +92,8 @@ class RestClient:
             return [[str(p.get(k, "Unknown")) for k in keys] for p in players_data]
         except Exception as e:
             logging.error(f"Error getting player names: {e}")
-            return []
+            #return []
+            return None
 
     def kick_player(self, player):
         return self._make_post_request("kick", {"userid": _extract_steam_id(player)})
