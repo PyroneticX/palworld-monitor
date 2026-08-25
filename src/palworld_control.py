@@ -237,6 +237,9 @@ class PalWorldController:
             self.current_server_info["running"] = False
             self.current_server_info["playerCount"] = 0
             self.current_server_info["players"] = []
+           # GEISTER-SCHUTZ: Alle Spieler abmelden!
+            if settings.enablePlayerTracking:
+                self.player_manager.update_players_from_server([])
             return
 
         # 2. Prozess existiert (Boot-Phase oder Normalbetrieb) -> Status sofort auf ON!
@@ -249,6 +252,9 @@ class PalWorldController:
         if players is None:
             self.current_server_info["playerCount"] = 0
             self.current_server_info["players"] = []
+            # GEISTER-SCHUTZ: Alle Spieler abmelden!
+            if settings.enablePlayerTracking:
+                self.player_manager.update_players_from_server([])
             return
 
         # 4. API ist online -> Normaler Betrieb
@@ -256,8 +262,40 @@ class PalWorldController:
         self.current_server_info["players"] = players
         if settings.enablePlayerTracking:
             self.player_manager.update_players_from_server(players)
+    #old version
+    #def _handle_auto_stop_condition(self):
+   #     if self.auto_stop_delay_thread and self.auto_stop_delay_thread.is_alive():
+    #        return
+    #    if time.time() - self.last_server_started_time < 30:
+    #        remaining = 30 - (time.time() - self.last_server_started_time)
+    #        logging.debug(f"Auto-stop startup guard active, {remaining:.0f}s remaining")
+   #         return
+   #     logging.info("Auto-stop condition met, starting delay thread")
+  #      self._auto_mode_cancelled = False
+  #      self.auto_stop_delay_thread = threading.Thread(
+  #          target=self._auto_stop_delay_worker, daemon=True
+  #      )
+  #      self.auto_stop_delay_thread.start()
+    #old function 
+    #def _cancel_auto_stop_delay(self):
+    #    if self.auto_stop_delay_thread and self.auto_stop_delay_thread.is_alive():
+    #        logging.debug("Auto-stop cancelled (players detected)")
+    #        self._auto_mode_cancelled = True
+
     
+    #def _auto_stop_delay_worker(self):
+    #    logging.info(f"Auto-stop delay started, stopping in {settings.autoStopDelay}s")
+    #    time.sleep(settings.autoStopDelay)
+    #    if self._auto_mode_cancelled:
+    #        logging.debug("Auto-stop cancelled during sleep")
+    #        return
+    #    logging.info("Auto-stop delay elapsed, stopping server")
+    #    self.stop_server()
     def _handle_auto_stop_condition(self):
+        # Initialisiere das Event-Objekt dynamisch (falls noch nicht vorhanden)
+        if not hasattr(self, '_auto_stop_cancel_event'):
+            self._auto_stop_cancel_event = threading.Event()
+            
         if self.auto_stop_delay_thread and self.auto_stop_delay_thread.is_alive():
             return
         if time.time() - self.last_server_started_time < 30:
@@ -265,26 +303,32 @@ class PalWorldController:
             logging.debug(f"Auto-stop startup guard active, {remaining:.0f}s remaining")
             return
         logging.info("Auto-stop condition met, starting delay thread")
-        self._auto_mode_cancelled = False
+        
+        # Event zurücksetzen und Timer starten
+        self._auto_stop_cancel_event.clear()
         self.auto_stop_delay_thread = threading.Thread(
             target=self._auto_stop_delay_worker, daemon=True
         )
         self.auto_stop_delay_thread.start()
 
     def _cancel_auto_stop_delay(self):
-        if self.auto_stop_delay_thread and self.auto_stop_delay_thread.is_alive():
-            logging.debug("Auto-stop cancelled (players detected)")
-            self._auto_mode_cancelled = True
+        if hasattr(self, '_auto_stop_cancel_event') and self.auto_stop_delay_thread and self.auto_stop_delay_thread.is_alive():
+            logging.debug("Auto-stop cancelled (players detected). Terminating delay thread.")
+            # Weckt den schlafenden Thread SOFORT auf und beendet ihn
+            self._auto_stop_cancel_event.set()
 
     def _auto_stop_delay_worker(self):
         logging.info(f"Auto-stop delay started, stopping in {settings.autoStopDelay}s")
-        time.sleep(settings.autoStopDelay)
-        if self._auto_mode_cancelled:
+        # Blockiert für X Sekunden, bricht aber SOFORT ab, wenn .set() gerufen wird
+        cancelled = self._auto_stop_cancel_event.wait(settings.autoStopDelay)
+        
+        if cancelled:
             logging.debug("Auto-stop cancelled during sleep")
             return
+            
         logging.info("Auto-stop delay elapsed, stopping server")
         self.stop_server()
-
+        
     def get_player_count(self):
         return self.client.get_player_count()
 
