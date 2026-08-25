@@ -139,7 +139,10 @@ class AutoStartManager:
 
     def _is_player_connection_packet(self, data):
         """Check if the received data is a player connection packet."""
-        return data.startswith(b"\x09\x08\x00")
+        #return data.startswith(b"\x09\x08\x00")
+        #this check for bytes led to only single start the server. after closing it did not start again. maybe unreal/ egs netcode issue
+        #therefore new way is just checking if payload is send to server:
+        return len(data) > 10
 
     def listen_palworld_access_core(self):
         """Listen from PalWorld server port."""
