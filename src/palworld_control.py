@@ -341,7 +341,10 @@ class PalWorldController:
     def stop_server_info_update_thread(self):
         if self.update_thread and self.update_thread.is_alive():
             self.update_thread_stop_event.set()
-            self.update_thread.join(timeout=5)
+            # Verhindern, dass sich der Thread selbst blockiert (Deadlock/Cannot join current thread)
+            if threading.current_thread() != self.update_thread:
+                self.update_thread.join(timeout=5)
+            self.update_thread = None
 
     def _server_info_update_loop(self):
         while not self.update_thread_stop_event.is_set():
