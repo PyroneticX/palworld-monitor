@@ -292,6 +292,9 @@ class PalWorldController:
     #    logging.info("Auto-stop delay elapsed, stopping server")
     #    self.stop_server()
     def _handle_auto_stop_condition(self):
+       # 1. VERRIEGELUNG: Timer nur starten, wenn der Server überhaupt läuft!
+        if not self.current_server_info.get("running", False):
+            return
         # Initialisiere das Event-Objekt dynamisch (falls noch nicht vorhanden)
         if not hasattr(self, '_auto_stop_cancel_event'):
             self._auto_stop_cancel_event = threading.Event()
